@@ -63,6 +63,7 @@ class SRData(data.Dataset):
                 self.repeat = 0
             else:
                 self.repeat = max(n_patches // n_images, 1)
+            print('repeat = ', self.repeat)
 
     # Below functions as used to prepare images
     def _scan(self):
@@ -142,7 +143,8 @@ class SRData(data.Dataset):
                 multi=(len(self.scale) > 1),
                 input_large=self.input_large
             )
-            if not self.args.no_augment: lr, hr = common.augment(lr, hr)
+            if not self.args.no_augment:
+                lr, hr = common.augment(lr, hr)
         else:
             ih, iw = lr.shape[:2]
             hr = hr[0:ih * scale, 0:iw * scale]

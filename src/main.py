@@ -2,13 +2,13 @@ import torch
 
 import utility
 import data
-import model
 import loss
 from option import args
 from trainer import Trainer
 
 torch.manual_seed(args.seed)
 checkpoint = utility.checkpoint(args)
+
 
 def main():
     global model
@@ -19,6 +19,7 @@ def main():
         t.test()
     else:
         if checkpoint.ok:
+            import model
             loader = data.Data(args)
             _model = model.Model(args, checkpoint)
             _loss = loss.Loss(args, checkpoint) if not args.test_only else None
@@ -28,6 +29,7 @@ def main():
                 t.test()
 
             checkpoint.done()
+
 
 if __name__ == '__main__':
     main()

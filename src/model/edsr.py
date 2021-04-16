@@ -11,7 +11,7 @@ url = {
     'r32f256x4': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_x4-4f62e9ef.pt'
 }
 
-def make_model(args, parent=False):
+def make_model(args):
     return EDSR(args)
 
 class EDSR(nn.Module):

@@ -163,7 +163,8 @@ def quantize(img, rgb_range):
     return img.mul(pixel_range).clamp(0, 255).round().div(pixel_range)
 
 def calc_psnr(sr, hr, scale, rgb_range, dataset=None):
-    if hr.nelement() == 1: return 0
+    if hr.nelement() == 1:
+        return 0
 
     diff = (sr - hr) / rgb_range
     if dataset and dataset.dataset.benchmark:

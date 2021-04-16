@@ -2,7 +2,7 @@ import os
 from data import srdata
 from data import div2k
 
-class DIV2KJPEG(div2k.DIV2K):
+class DIV2KJPEG(div2k.DIV2KDataset):
     def __init__(self, args, name='', train=True, benchmark=False):
         self.q_factor = int(name.replace('DIV2K-Q', ''))
         super(DIV2KJPEG, self).__init__(
