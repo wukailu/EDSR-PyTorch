@@ -1,38 +1,65 @@
+from datasets.utils import Normalize
 from model import get_classifier
 import torch
-
-from model.super_resolution_model.inn_model import RFDB, ESA, Rep_RFDB
+import time
 
 if __name__ == '__main__':
-    # x_test = torch.randn(2, 3, 32, 32)
-    # net = get_classifier("resnet18", "cifar100")
-    # feats, logit = net(x_test, with_feature=True)
+    # backbones = [
+    #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': False,
+    #     #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'nf': 64},
+    #     # {'arch': 'rfdn_sr'},
+    #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
+    #     #  'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'nf': 64},
+    #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
+    #     #  'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 1, 'nf': 128},
+    #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
+    #     #  'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'nf': 64},
+    #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'bn', 'block_skip': True, 'add_ori': False,
+    #     #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 6, 'nf': 128},
+    #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
+    #     #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'nf': 128},
+    #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
+    #     #  'use_act': False, 'add_fea': False, 'use_esa': False, 'sub_blocks': 1, 'num_modules': 3, 'nf': 128},
+    #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
+    #     #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 4, 'nf': 50},
+    #     {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'bn', 'block_skip': False, 'add_ori': False,
+    #      'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 2, 'num_modules': 4, 'nf': 50},
+    # ]
+
+    backbones = [
+        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+         'norm_before_relu': True, 'use_esa': True, 'use_spade': False, 'large_ori': True, 'scale': 4}
+    ]
+    for model_params in backbones:
+        model = get_classifier(model_params, "div2k")
+        torch.cuda.empty_cache()
+        torch.cuda.reset_max_memory_allocated()
+        x_test = torch.randint(0, 256, (16, 3, 96, 96)).float().cuda()
+        model.cuda().eval()
+        with torch.no_grad():
+            total_time = 0
+            for i in range(10):
+                outs = model(x_test)
+                print(outs.shape)
+            for i in range(10):
+                torch.cuda.synchronize()
+                start_time = time.process_time()
+                outs = model(x_test)
+                total_time += time.process_time() - start_time
+            used_memory = torch.cuda.max_memory_allocated()
+            print('Inference_Time(ms)', float(total_time / 10 * 1000))
+            print('Memory(MB)', int(used_memory / 1024 / 1024))
+
+    # from torchvision.models import vgg16_bn
     #
-    # for f in feats:
-    #     print(f.shape, f.min().item())
-    # print(logit.shape)
-    # print(type(net))
-
-    # 43.6 ms spade_act_shallower_noesa
-    # 51.5 ms spade_act_shallower
-    # 90.4 ms spade_act_shallow(2 layers)
-    # 143.3 ms rfdn
-
-
-    x_test = torch.randint(0, 256, (64, 3, 48, 48)).float()
-    y_test = torch.randint(0, 256, (16, 3, 192, 192)).float()
-    net = get_classifier("inn_sr", "div2k")
-    with torch.no_grad():
-        for i in range(10):
-            torch.cuda.synchronize()
-            outs = net(x_test)
-        RFDB.total_time = 0
-        Rep_RFDB.total_time = 0
-        ESA.total_time = 0
-        for i in range(10):
-            torch.cuda.synchronize()
-            outs = net(x_test)
-        print(outs.shape)
-        print(RFDB.total_time)
-        print(Rep_RFDB.total_time)
-        print(ESA.total_time)
+    # vgg = vgg16_bn(pretrained=True).cuda()
+    # x = torch.randint(0, 256, (2, 3, 96, 96)).float().cuda()
+    # with torch.no_grad():
+    #     norm = Normalize(mean=(0.485*255, 0.456*255, 0.406*255), std=(0.229*255, 0.224*255, 0.225*255)).cuda()
+    #     features = [m for m in vgg16_bn(pretrained=True).features]
+    #     print(features)
+    #     x = norm(x)
+    #     print(x.mean(), x.std())
+    #     features = torch.nn.Sequential(*features[:12]).cuda()
+    #     x = features(x)
+    #     print(x.shape)

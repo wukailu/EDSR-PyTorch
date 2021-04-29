@@ -4,8 +4,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from datasets.utils import Normalize
 from .SPADE_Norm import SPADE
 from .utils import register_model, unpack_feature, pack_feature
+from torchvision.models import vgg16_bn
+
+
+# TODO: fix memory bugs
+from .. import freeze
 
 
 @register_model
@@ -15,17 +21,19 @@ def INN(**kwargs):
 
 
 class INN_Model(nn.Module):
-    def __init__(self, in_nc=3, nf=50, num_modules=4, out_nc=3, scale=4, block_skip=True, **kwargs):
+    def __init__(self, in_nc=3, nf=50, num_modules=4, out_nc=3, scale=4, block_skip=True, vgg_feat=False, skip_cons=(1, 1, 1), **kwargs):
         super(INN_Model, self).__init__()
         self.num_modules = num_modules
         self.block_skip = block_skip
+        self.vgg_feat = vgg_feat
+        self.skip_cons = skip_cons
 
         self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
 
         block_type = Rep_RFDB
         self.features = nn.ModuleList()
         for i in range(num_modules):
-            self.features.append(block_type(in_channels=nf, **kwargs))
+            self.features.append(block_type(in_channels=nf, vgg_feat=vgg_feat, **kwargs))
 
         if self.block_skip:
             self.c = conv_block(nf * num_modules, nf, kernel_size=1, act_type='lrelu')
@@ -35,18 +43,31 @@ class INN_Model(nn.Module):
         self.upsampler = upsample_block(nf, out_nc, upscale_factor=scale)
         self.scale_idx = 0
 
+        if vgg_feat:
+            features = [Normalize(mean=(0.485*255, 0.456*255, 0.406*255), std=(0.229*255, 0.224*255, 0.225*255))]
+            features = features + [m for m in vgg16_bn(pretrained=True).features]
+            self.vgg = nn.Sequential(*features[:13])
+            freeze(self.vgg)
+
     def forward(self, input):
+        if self.vgg_feat:
+            feat_vgg = self.vgg(input)
+        else:
+            feat_vgg = None
+
         out_fea = self.fea_conv(input)
         records = []
         x = out_fea
         for i in range(self.num_modules):
-            x = self.features[i](x, input, out_fea)
-            records.append(x)
+            x = self.features[i](x, input, out_fea, feat_vgg)
+            if self.block_skip:
+                records.append(x)
 
         if self.block_skip:
             out_B = self.c(torch.cat(records, dim=1))
         else:
-            out_B = records[-1]
+            out_B = x
+
         out_lr = self.LR_conv(out_B) + out_fea
 
         output = self.upsampler(out_lr)
@@ -189,36 +210,47 @@ class SRB(nn.Module):
 
 
 class RepSRB(nn.Module):
-    def __init__(self, in_channel, norm_type='spade', add_ori=True, use_act=True, add_fea=False, **kwargs):
+    def __init__(self, in_channel, norm_type='spade', num_conv_srb=1, add_ori=True, use_act=True, add_fea=False, vgg_feat=False, **kwargs):
         super().__init__()
         self.add_ori = add_ori
         self.add_fea = add_fea
+        self.vgg_feat = vgg_feat
+        self.norm_type = norm_type
 
         conv_in = in_channel + (3 if add_ori else 0) + (in_channel if add_fea else 0)
         self.conv = conv_layer(conv_in, in_channel, 3)
 
         if norm_type == 'spade':
-            self.norm = SPADE('spadebatch3x3', in_channel)
+            if vgg_feat:
+                self.norm = SPADE('spadebatch3x3', in_channel, label_nc=128)
+            else:
+                self.norm = SPADE('spadebatch3x3', in_channel)
         elif norm_type == 'bn':
             self.norm = nn.BatchNorm2d(in_channel)
         elif norm_type == 'in':
             self.norm = nn.InstanceNorm2d(in_channel)
+        elif norm_type == 'none':
+            self.norm = nn.Identity()
 
         if use_act:
             self.act = activation('lrelu', neg_slope=0.05)
         else:
             self.act = nn.Identity()
 
-    def forward(self, x, ori_input, out_fea):
-        if self.add_ori:
-            t = torch.cat([ori_input, self.act(self.norm(x))], dim=1)
+    def forward(self, x, ori_input, out_fea, vgg_feat):
+        if self.vgg_feat and self.norm_type == 'spade':
+            out = self.act(self.norm(x, vgg_feat))
         else:
-            t = self.act(self.norm(x))
+            out = self.act(self.norm(x))
+
+        if self.add_ori:
+            out = torch.cat([ori_input, out], dim=1)
 
         if self.add_fea:
-            t = torch.cat([t, out_fea], dim=1)
+            out = torch.cat([out, out_fea], dim=1)
 
-        return x + self.conv(t)
+        # return x + self.conv(out)
+        return self.conv(out)
         # return x + self.conv(torch.cat([x, ori_input], dim=1))
         # return x + self.conv(x)
         # return self.act(x + self.conv(x))
@@ -227,14 +259,15 @@ class RepSRB(nn.Module):
 class Rep_RFDB(nn.Module):
     total_time = 0
 
-    def __init__(self, in_channels, sub_blocks=3, use_esa=True, **kwargs):
+    def __init__(self, in_channels, sub_blocks=3, use_esa=True, vgg_feat=False, **kwargs):
         super().__init__()
         self.sub_blocks = sub_blocks
         self.use_esa = use_esa
+        self.vgg_feat = vgg_feat
 
         self.blocks = nn.ModuleList()
         for i in range(self.sub_blocks):
-            self.blocks.append(RepSRB(in_channels, **kwargs))
+            self.blocks.append(RepSRB(in_channels, vgg_feat=vgg_feat, **kwargs))
 
         self.act = activation('lrelu', neg_slope=0.05)
 
@@ -242,12 +275,12 @@ class Rep_RFDB(nn.Module):
             self.c5 = conv_layer(in_channels * 2, in_channels, 1)
             self.esa = ESA(in_channels, nn.Conv2d)
 
-    def forward(self, input, ori_input, out_fea):
+    def forward(self, input, ori_input, out_fea, vgg_feat):
         start_time = time.clock()
 
         x = input
         for i in range(self.sub_blocks):
-            x = self.blocks[i](x, ori_input, out_fea)
+            x = self.blocks[i](x, ori_input, out_fea, vgg_feat)
 
         if self.use_esa:
             x = self.c5(torch.cat([input, x], dim=1))

@@ -7,3 +7,4 @@ from .rdn_model import *
 from .vdsr_model import *
 from .rfdn_model import *
 from .inn_model import *
+from .plane_model import *

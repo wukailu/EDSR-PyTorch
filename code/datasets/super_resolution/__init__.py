@@ -26,7 +26,10 @@ class Data:
         if test_only:
             self.train_dataset = self.test_dataset
         else:
-            if data_train.startswith('DIV2K-Q'):
+            if data_test in ['Set5', 'Set14', 'B100', 'Urban100']:
+                from datasets.super_resolution.benchmark import Benchmark
+                dataset = Benchmark(data_dir, name=name, test_only=test_only, train=False, **kwargs)
+            elif data_train.startswith('DIV2K-Q'):
                 from datasets.super_resolution.div2kjpeg import DIV2KJPEGDataset
                 dataset = DIV2KJPEGDataset(data_dir, name=name, test_only=test_only, **kwargs)
             elif data_train == 'DIV2K':

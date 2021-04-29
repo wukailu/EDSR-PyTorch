@@ -61,7 +61,7 @@ def get_nonspade_norm_layer(opt, norm_type='instance'):
 # |norm_nc|: the #channels of the normalized activations, hence the output dim of SPADE
 # |label_nc|: the #channels of the input semantic map, hence the input dim of SPADE
 class SPADE(nn.Module):
-    def __init__(self, config_text, norm_nc, label_nc=None):
+    def __init__(self, config_text, norm_nc, label_nc=None, nhidden=128):
         super().__init__()
         if label_nc is None:
             label_nc = norm_nc
@@ -83,8 +83,6 @@ class SPADE(nn.Module):
                              % param_free_norm_type)
 
         # The dimension of the intermediate embedding space. Yes, hardcoded.
-        nhidden = 128
-
         pw = ks // 2
         self.mlp_shared = nn.Sequential(
             nn.Conv2d(label_nc, nhidden, kernel_size=ks, padding=pw),

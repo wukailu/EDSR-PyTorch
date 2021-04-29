@@ -190,7 +190,7 @@ class Test_Module(pl.LightningModule, ABC):
     def __init__(self, hparams):
         super().__init__()
         self.hparams = hparams
-        self.dataProvider = DataProvider(params=hparams)
+        self.dataProvider = DataProvider(params=hparams['dataset'])
         self.criterion = torch.nn.CrossEntropyLoss()
         self.test_meter = self.get_meter("test")
 

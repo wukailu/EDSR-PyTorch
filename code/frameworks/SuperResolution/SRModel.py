@@ -11,7 +11,6 @@ class SR_LightModel(LightningModule):
         self.idx_scale = 0
         self.self_ensemble = hparams['self_ensemble']
         self.model = get_classifier(hparams["backbone"], hparams["dataset"])
-        # self.input_large = (hparams['backbone'] == 'VDSR')
 
     def choose_loss(self):
         from .loss import Loss

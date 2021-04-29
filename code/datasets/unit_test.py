@@ -3,12 +3,14 @@ from datasets import DataProvider
 if __name__ == "__main__":
     hparams = {
         "dataset": {
-            'name': "DIV2K",
+            'name': "Urban100",
+            'test_only': True,
             'patch_size': 96,
             'ext': 'sep',
             'scale': 2,
             "batch_size": 16,
             'test_bz': 1,
+            'train_bz': 1,
             'repeat': 2,
         },
     }
@@ -18,5 +20,5 @@ if __name__ == "__main__":
     for x, y, _ in train_ds:
         print(x.shape, y.shape)
 
-    for batch_idx, batch in enumerate(provider.test_dl):
-        pass
+    for x, y, _ in provider.test_dl.dataset:
+        print(x.shape, y.shape)
