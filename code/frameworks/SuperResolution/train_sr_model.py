@@ -1,6 +1,7 @@
 import sys
 sys.path.append('/job/job_source/')
 
+from frameworks.SuperResolution.SRModel import load_model
 from datasets.dataProvider import DataProvider
 import torch
 from pytorch_lightning import Trainer, seed_everything
@@ -42,23 +43,6 @@ def prepare_params(params):
     }
     params = {**default_keys, **params}
     return params
-
-
-def load_model(params):
-    from frameworks.SuperResolution.SRModel import SR_LightModel
-    if 'load_from' in params:
-        path = params['load_from']
-        assert isinstance(path, str)
-        model = SR_LightModel.load_from_checkpoint(checkpoint_path=path).cuda()
-    elif 'load_model_from' in params:
-        path = params['load_model_from']
-        assert isinstance(path, str)
-        model_inside = SR_LightModel.load_from_checkpoint(checkpoint_path=path).model.cuda()
-        model = SR_LightModel(params).cuda()
-        model.model = model_inside
-    else:
-        model = SR_LightModel(params).cuda()
-    return model
 
 
 def train_model(model, params):

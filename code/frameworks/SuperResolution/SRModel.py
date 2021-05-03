@@ -1,4 +1,5 @@
 import torch
+
 from model import get_classifier
 from frameworks.lightning_base_model import LightningModule
 
@@ -28,20 +29,23 @@ class SR_LightModel(LightningModule):
         meter.update(hr, predictions.detach(), loss.detach())
         return {'loss': loss}
 
+    def do_forward(self, x):
+        return self.model(x)
+
     def forward(self, x):
         # self.idx_scale = idx_scale
         # if hasattr(self.model, 'set_scale'):
         #     self.model.set_scale(idx_scale)
 
         if self.training:
-            return self.model(x)
+            return self.do_forward(x)
         else:
             # if self.chop:
             #     forward_function = self.forward_chop
             # else:
             #     forward_function = self.model.forward
 
-            forward_function = self.model.forward
+            forward_function = self.do_forward
             if self.self_ensemble:
                 return self.forward_x8(x, forward_function=forward_function)
             else:
@@ -152,3 +156,46 @@ class SR_LightModel(LightningModule):
         if len(y) == 1: y = y[0]
 
         return y
+
+
+class TwoStageSR(SR_LightModel):
+    def __init__(self, hparams):
+        LightningModule.__init__(self, hparams)
+        self.scale = hparams['scale']
+        self.idx_scale = 0
+        self.self_ensemble = hparams['self_ensemble']
+
+        self.model_pretrained = SR_LightModel.load_from_checkpoint(checkpoint_path=hparams['pretrained_from']).model
+        self.model = SR_LightModel.load_from_checkpoint(checkpoint_path=hparams['pretrained_from']).model
+        if 'two_stage_no_freeze' not in hparams or not hparams['two_stage_no_freeze']:
+            from model.utils import freeze
+            freeze(self.model_pretrained)
+
+    # x2 + x2 = x4
+    def do_forward(self, x):
+        return self.model_pretrained(self.model(x))
+
+
+def load_model(params):
+    methods = {
+        'TwoStageSR': TwoStageSR,
+        'SR_LightModel': SR_LightModel,
+    }
+    if 'method' not in params:
+        LightModel = SR_LightModel
+    else:
+        LightModel = methods[params['method']]
+
+    if 'load_from' in params:
+        path = params['load_from']
+        assert isinstance(path, str)
+        model = LightModel.load_from_checkpoint(checkpoint_path=path).cuda()
+    elif 'load_model_from' in params:
+        path = params['load_model_from']
+        assert isinstance(path, str)
+        model_inside = SR_LightModel.load_from_checkpoint(checkpoint_path=path).model.cuda()
+        model = LightModel(params).cuda()
+        model.model = model_inside
+    else:
+        model = LightModel(params).cuda()
+    return model

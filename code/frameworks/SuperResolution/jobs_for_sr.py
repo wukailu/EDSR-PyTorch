@@ -347,17 +347,60 @@ def final_test_for_plane_x2():
     return random_params(params)
 
 
+def test_x2_x2_to_x4():
+    pretrained_paths = [
+        '/data/kailu/.foundations/job_data/archive/9cc232ba-3760-408d-a89c-7915c2729002/user_artifacts/235epoch=297.ckpt',
+        '/data/kailu/.foundations/job_data/archive/7688a2f0-c1c6-4d30-a8d8-ab255b6b8a6b/user_artifacts/235epoch=296.ckpt',
+        '/data/kailu/.foundations/job_data/archive/a24082d9-fffb-4647-af7e-73349d46ea08/user_artifacts/235epoch=296.ckpt',
+        '/data/kailu/.foundations/job_data/archive/04999c2a-c7bf-4b3e-af5b-87db03a6c810/user_artifacts/235epoch=296.ckpt',
+        '/data/kailu/.foundations/job_data/archive/6fa43117-524a-401c-a8b0-55a02299bc98/user_artifacts/235epoch=296.ckpt',
+        '/data/kailu/.foundations/job_data/archive/fd0286a6-c865-44e2-b17b-d6bc2f9bb407/user_artifacts/235epoch=296.ckpt',
+        '/data/kailu/.foundations/job_data/archive/744f1437-6e55-421b-9a57-5105f8bf281d/user_artifacts/235epoch=296.ckpt',
+        '/data/kailu/.foundations/job_data/archive/2161ed64-80a7-4a8a-b77f-ce1a9cdd1351/user_artifacts/235epoch=297.ckpt',
+    ]
+
+    params = {
+        'project_name': 'x2_x2_to_x4',
+        'method': 'TwoStageSR',
+        'two_stage_no_freeze': True,
+        'gpus': 1,
+        'num_epochs': 100,
+        'weight_decay': 0,
+        'max_lr': 2e-5,
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'pretrained_from': pretrained_paths,
+        'backbone': {},
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 16,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": 235,
+        'inference_statics': True,
+        'test_benchmark': True,
+    }
+
+    return random_params(params)
+
+
 def params_for_SR():
-    params = search_for_with_feat()
+    params = test_x2_x2_to_x4()
 
     # if params['backbone']['norm_type'] == 'spade':
     #     params['max_lr'] = min(params['max_lr'], 2e-4)
     if params['dataset']['name'] == 'DIV2K':
         params['dataset']['test_bz'] = 1
-    params['dataset']['scale'] = params['scale']
-    params['backbone']['scale'] = params['scale']
+    if 'scale' not in params['dataset']:
+        params['dataset']['scale'] = params['scale']
+    if 'scale' not in params['backbone']:
+        params['backbone']['scale'] = params['scale']
     return random_params(params)
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_SR, 'frameworks/SuperResolution/train_sr_model.py', number_jobs=512, job_directory='.')
+    submit_jobs(params_for_SR, 'frameworks/SuperResolution/train_sr_model.py', number_jobs=8, job_directory='.')
