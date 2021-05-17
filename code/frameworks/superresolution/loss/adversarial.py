@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from model.super_resolution_model import common
-from frameworks.SuperResolution.loss import discriminator
+from frameworks.superresolution.loss import discriminator
 
 import os
 import torch

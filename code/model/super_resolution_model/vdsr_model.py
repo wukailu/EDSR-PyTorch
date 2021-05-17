@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 @register_model
-def make_model(**hparams):
+def VDSR(**hparams):
     return VDSR_Model(**hparams)
 
 

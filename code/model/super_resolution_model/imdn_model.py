@@ -11,9 +11,15 @@ def IMDN(**kwargs):
     return model
 
 
+@register_model
+def IMDN_free(**kwargs):
+    model = IMDN_free_Model(**kwargs)
+    return model
+
+
 # For any upscale factors
 class IMDN_AS(nn.Module):
-    def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, upscale=4, **kwargs):
+    def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, scale=4, **kwargs):
         super(IMDN_AS, self).__init__()
 
         self.fea_conv = nn.Sequential(conv_layer(in_nc, nf, kernel_size=3, stride=2),
@@ -32,7 +38,7 @@ class IMDN_AS(nn.Module):
         self.LR_conv = conv_layer(nf, nf, kernel_size=3)
 
         upsample_block = pixelshuffle_block
-        self.upsampler = upsample_block(nf, out_nc, upscale_factor=upscale)
+        self.upsampler = upsample_block(nf, out_nc, upscale_factor=scale)
 
     def forward(self, input):
         out_fea = self.fea_conv(input)
@@ -50,7 +56,7 @@ class IMDN_AS(nn.Module):
 
 
 class IMDN_Model(nn.Module):
-    def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, upscale=4, **kwargs):
+    def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, scale=4, **kwargs):
         super(IMDN_Model, self).__init__()
 
         self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
@@ -67,7 +73,7 @@ class IMDN_Model(nn.Module):
         self.LR_conv = conv_layer(nf, nf, kernel_size=3)
 
         upsample_block = pixelshuffle_block
-        self.upsampler = upsample_block(nf, out_nc, upscale_factor=upscale)
+        self.upsampler = upsample_block(nf, out_nc, upscale_factor=scale)
 
     def forward(self, input):
         out_fea = self.fea_conv(input)
@@ -84,6 +90,43 @@ class IMDN_Model(nn.Module):
         return output
 
 
+class IMDN_free_Model(nn.Module):
+    def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, scale=4, **kwargs):
+        super(IMDN_free_Model, self).__init__()
+
+        self.scale = scale
+        self.out_nc = out_nc
+        self.final_nc = out_nc*(scale**2)
+        self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
+
+        # IMDBs
+        self.IMDB1 = IMDModule(in_channels=nf)
+        self.IMDB2 = IMDModule(in_channels=nf)
+        self.IMDB3 = IMDModule(in_channels=nf)
+        self.IMDB4 = IMDModule(in_channels=nf)
+        self.IMDB5 = IMDModule(in_channels=nf)
+        self.IMDB6 = IMDModule(in_channels=nf)
+        self.c = conv_block(nf * num_modules, nf, kernel_size=1, act_type='lrelu')
+
+        self.LR_conv = conv_layer(nf, self.final_nc, kernel_size=3)
+
+        self.upsampler = nn.PixelShuffle(scale)
+
+    def forward(self, input: torch.Tensor):
+        out_fea = self.fea_conv(input)
+        out_B1 = self.IMDB1(out_fea)
+        out_B2 = self.IMDB2(out_B1)
+        out_B3 = self.IMDB3(out_B2)
+        out_B4 = self.IMDB4(out_B3)
+        out_B5 = self.IMDB5(out_B4)
+        out_B6 = self.IMDB6(out_B5)
+
+        out_B = self.c(torch.cat([out_B1, out_B2, out_B3, out_B4, out_B5, out_B6], dim=1))
+        out = torch.cat([torch.stack([input[:, c, :, :]] * (self.scale ** 2), dim=1) for c in range(self.out_nc)], dim=1)
+        output = self.upsampler(self.LR_conv(out_B) + out)
+        return output
+
+
 # AI in RTC Image Super-Resolution Algorithm Performance Comparison Challenge (Winner solution)
 class IMDN_RTC(nn.Module):
     def __init__(self, in_nc=3, nf=12, num_modules=5, out_nc=3, upscale=2):
@@ -97,7 +140,7 @@ class IMDN_RTC(nn.Module):
         upsampler = upsample_block(nf, out_nc, upscale_factor=upscale)
 
         self.model = sequential(*fea_conv, ShortcutBlock(sequential(*rb_blocks, LR_conv)),
-                                  *upsampler)
+                                *upsampler)
 
     def forward(self, input):
         output = self.model(input)
@@ -267,10 +310,10 @@ class IMDModule(nn.Module):
         self.c1 = conv_layer(in_channels, in_channels, 3)
         self.c2 = conv_layer(self.remaining_channels, in_channels, 3)
         self.c3 = conv_layer(self.remaining_channels, in_channels, 3)
-        self.c4 = conv_layer(self.remaining_channels, self.distilled_channels, 3)
+        self.c4 = conv_layer(self.remaining_channels, in_channels - 3 * self.distilled_channels, 3)
         self.act = activation('lrelu', neg_slope=0.05)
         self.c5 = conv_layer(in_channels, in_channels, 1)
-        self.cca = CCALayer(self.distilled_channels * 4)
+        self.cca = CCALayer(in_channels)
 
     def forward(self, input):
         out_c1 = self.act(self.c1(input))

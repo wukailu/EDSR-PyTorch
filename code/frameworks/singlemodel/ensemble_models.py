@@ -55,7 +55,7 @@ class Proposed_Ensemble(LightningModule):
         else:
             model_init(self.student)
 
-        from frameworks.NNMetric.feature_similarity_measurement import cka_loss
+        from frameworks.nnmetric.feature_similarity_measurement import cka_loss
 
         self.feature_loss = cka_loss()
 

@@ -20,8 +20,8 @@ class MultisourceProjection(nn.Module):
             3: (9, 3, 3, 3),
             4: (6, 2, 2, 2)
         }[scale]
-        self.up_attention = CrossScaleAttention(scale=up_factor)
-        self.down_attention = NonLocalAttention()
+        self.up_attention = CrossScaleAttention(channel=in_channel, scale=up_factor)
+        self.down_attention = NonLocalAttention(channel=in_channel)
         self.upsample = nn.Sequential(
             *[nn.ConvTranspose2d(in_channel, in_channel, deconv_ksize, stride=stride, padding=padding), nn.PReLU()])
         self.encoder = common.ResBlock(conv, in_channel, kernel_size, act=nn.PReLU(), res_scale=1)
@@ -85,7 +85,7 @@ class RecurrentProjection(nn.Module):
 
 
 class CSNLN_Model(nn.Module):
-    def __init__(self, depth, rgb_range=255, n_colors=3, nf=64, upscale=4, conv=common.default_conv):
+    def __init__(self, depth=12, rgb_range=255, n_colors=3, nf=64, scale=4, conv=common.default_conv, **kwargs):
         super(CSNLN_Model, self).__init__()
 
         # n_convblock = args.n_convblocks
@@ -103,7 +103,7 @@ class CSNLN_Model(nn.Module):
             common.BasicBlock(conv, n_feats, n_feats, kernel_size, stride=1, bias=True, bn=False, act=nn.PReLU())]
 
         # define Self-Exemplar Mining Cell
-        self.SEM = RecurrentProjection(n_feats, scale=upscale)
+        self.SEM = RecurrentProjection(n_feats, scale=scale)
 
         # define tail module
         m_tail = [

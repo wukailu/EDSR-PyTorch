@@ -146,7 +146,7 @@ class ResidualGroup(nn.Module):
 
 ## Holistic Attention Network (HAN)
 class HAN_Modle(nn.Module):
-    def __init__(self, n_resgroups=10, n_resblocks=16, nf=50, reduction=16, res_scale=1, scale=4, rgb_range=255, n_colors=3, conv=common.default_conv):
+    def __init__(self, n_resgroups=10, n_resblocks=16, nf=50, reduction=16, res_scale=1, scale=4, rgb_range=255, n_colors=3, conv=common.default_conv, **kwargs):
         super(HAN_Modle, self).__init__()
 
         n_resgroups = n_resgroups

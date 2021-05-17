@@ -388,8 +388,38 @@ def test_x2_x2_to_x4():
     return random_params(params)
 
 
+def dense_model_test():
+    params = {
+        'project_name': 'DIV2Kx4_model_test',
+        'gpus': 1,
+        'num_epochs': 30,
+        'weight_decay': 0,
+        'max_lr': 2e-4,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'backbone': {
+            # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
+            # 'arch': ['RDN_free_sr'],
+            'arch': ['IMDN_free_sr'],
+            'nf': 50,
+        },
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 16,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": [235],
+    }
+
+    return params
+
+
 def params_for_SR():
-    params = test_x2_x2_to_x4()
+    params = dense_model_test()
 
     # if params['backbone']['norm_type'] == 'spade':
     #     params['max_lr'] = min(params['max_lr'], 2e-4)
@@ -403,4 +433,4 @@ def params_for_SR():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_SR, 'frameworks/SuperResolution/train_sr_model.py', number_jobs=8, job_directory='.')
+    submit_jobs(params_for_SR, 'frameworks/superresolution/train_sr_model.py', number_jobs=8, job_directory='.')

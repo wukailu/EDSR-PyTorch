@@ -11,6 +11,9 @@ import torch.nn as nn
 def RDN(**hparams):
     return RDN_Model(**hparams)
 
+@register_model
+def RDN_free(**hparams):
+    return RDN_Free_Model(**hparams)
 
 class RDB_Conv(nn.Module):
     def __init__(self, inChannels, growRate, kSize=3):
@@ -47,10 +50,10 @@ class RDB(nn.Module):
 
 
 class RDN_Model(nn.Module):
-    def __init__(self, scale=4, G0=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
+    def __init__(self, scale=4, nf=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
         super(RDN_Model, self).__init__()
         r = scale
-        G0 = G0
+        G0 = nf
         kSize = RDNkSize
 
         # number of RDB blocks, conv layers, out channels
@@ -106,4 +109,63 @@ class RDN_Model(nn.Module):
         x = self.GFF(torch.cat(RDBs_out, 1))
         x += f__1
 
+        return self.UPNet(x)
+
+
+class RDN_Free_Model(nn.Module):
+    def __init__(self, scale=4, nf=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
+        super(RDN_Free_Model, self).__init__()
+        r = scale
+        G0 = nf
+        kSize = RDNkSize
+
+        # number of RDB blocks, conv layers, out channels
+        self.D, C, G = {
+            'A': (20, 6, 32),
+            'B': (16, 8, 64),
+        }[RDNconfig]
+
+        # Shallow feature extraction net
+        self.SFENet1 = nn.Conv2d(n_colors, G0, kSize, padding=(kSize - 1) // 2, stride=1)
+        self.SFENet2 = nn.Conv2d(G0, G0, kSize, padding=(kSize - 1) // 2, stride=1)
+
+        # Redidual dense blocks and dense feature fusion
+        self.RDBs = nn.ModuleList()
+        for i in range(self.D):
+            self.RDBs.append(
+                RDB(growRate0=G0, growRate=G, nConvLayers=C)
+            )
+
+        # Global Feature Fusion
+        self.GFF = nn.Sequential(*[
+            nn.Conv2d(G0, G0, 1, padding=0, stride=1),
+            nn.Conv2d(G0, G0, kSize, padding=(kSize - 1) // 2, stride=1)
+        ])
+
+        # Up-sampling net
+        if r == 2 or r == 3:
+            self.UPNet = nn.Sequential(*[
+                nn.Conv2d(G0, G * r * r, kSize, padding=(kSize - 1) // 2, stride=1),
+                nn.PixelShuffle(r),
+                nn.Conv2d(G, n_colors, kSize, padding=(kSize - 1) // 2, stride=1)
+            ])
+        elif r == 4:
+            self.UPNet = nn.Sequential(*[
+                nn.Conv2d(G0, G * 4, kSize, padding=(kSize - 1) // 2, stride=1),
+                nn.PixelShuffle(2),
+                nn.Conv2d(G, G * 4, kSize, padding=(kSize - 1) // 2, stride=1),
+                nn.PixelShuffle(2),
+                nn.Conv2d(G, n_colors, kSize, padding=(kSize - 1) // 2, stride=1)
+            ])
+        else:
+            raise ValueError("scale must be 2 or 3 or 4.")
+
+    def forward(self, x):
+        f__1 = self.SFENet1(x)
+        x = self.SFENet2(f__1)
+
+        for i in range(self.D):
+            x = self.RDBs[i](x)
+
+        x = self.GFF(torch.cat([x], 1))
         return self.UPNet(x)

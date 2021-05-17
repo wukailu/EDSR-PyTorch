@@ -37,11 +37,11 @@ class Loss(nn.modules.loss._Loss):
             elif loss_type == 'L1':
                 loss_function = nn.L1Loss()
             elif loss_type.find('VGG') >= 0:
-                from frameworks.SuperResolution.loss.vgg import VGG
+                from frameworks.superresolution.loss.vgg import VGG
                 loss_function = VGG(loss_type[3:], rgb_range=255)
             elif loss_type.find('GAN') >= 0:
                 raise NotImplementedError("multiple optimizers need to change the framework")
-                from frameworks.SuperResolution.loss.adversarial import Adversarial
+                from frameworks.superresolution.loss.adversarial import Adversarial
                 loss_function = Adversarial(gan_type=loss_type, **hparams)
             else:
                 raise KeyError("loss type not recognized!")

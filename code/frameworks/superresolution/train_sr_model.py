@@ -1,7 +1,7 @@
 import sys
 sys.path.append('/job/job_source/')
 
-from frameworks.SuperResolution.SRModel import load_model
+from frameworks.superresolution.SRModel import load_model
 from datasets.dataProvider import DataProvider
 import torch
 from pytorch_lightning import Trainer, seed_everything
