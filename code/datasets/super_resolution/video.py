@@ -2,7 +2,7 @@ import os
 
 from datasets.super_resolution import common
 
-import cv2
+from cv2 import VideoCapture, CAP_PROP_FRAME_COUNT
 import torch.utils.data as data
 
 
@@ -18,9 +18,9 @@ class Video(data.Dataset):
         self.benchmark = benchmark
 
         self.filename, _ = os.path.splitext(os.path.basename(dir_demo))
-        self.vidcap = cv2.VideoCapture(dir_demo)
+        self.vidcap = VideoCapture(dir_demo)
         self.n_frames = 0
-        self.total_frames = int(self.vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.total_frames = int(self.vidcap.get(CAP_PROP_FRAME_COUNT))
 
     def __getitem__(self, idx):
         success, lr = self.vidcap.read()

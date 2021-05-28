@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .SPADE_Norm import SPADE
-from .utils import register_model
+from .utils import register_model, unpack_feature, pack_feature
+
 
 @register_model
 def Plane(**kwargs):
@@ -24,15 +25,29 @@ class Plane_Model(nn.Module):
         self.up_conv = conv_layer(nf, out_nc * (scale ** 2), 1, 1)
         self.shuffle = nn.PixelShuffle(scale)
 
-    def forward(self, input):
+    def forward(self, input: torch.Tensor, with_feature=False):
+        # input = input/255 - 0.5
+
+        f_list = []
         out = self.fea_conv(input)
         for m in self.features:
+            f_list.append(torch.cat([out, input], dim=1))
             if isinstance(m, RepBlock):
                 out = m(out, input)
             else:
                 out = m(out)
-        out = self.up_conv(out) + torch.cat([input] * (self.scale * self.scale), dim=1)
-        return self.shuffle(out)
+        f_list.append(torch.cat([out, input], dim=1))
+
+        inp = torch.cat([torch.stack([input[:, c, :, :]] * (self.scale ** 2), dim=1) for c in range(self.out_nc)],
+                        dim=1)
+        out = self.up_conv(out) + inp
+        out = self.shuffle(out)
+
+        # out = (out + 0.5) * 255
+        if with_feature:
+            return out, f_list
+        else:
+            return out
 
 
 def conv_layer(in_channels, out_channels, kernel_size, stride=1, bias=True):
@@ -86,12 +101,13 @@ class ESA(nn.Module):
 
 class RepBlock(nn.Module):
     def __init__(self, in_channel, norm_type='spade', conv_in_block=1, use_act=True, norm_before_relu=False,
-                 use_esa=False, use_spade=True, large_ori=False, **kwargs):
+                 use_esa=False, use_spade=True, large_ori=False, add_input=True, **kwargs):
         super().__init__()
         self.norm_type = norm_type
         self.large_ori = large_ori
+        self.add_input = add_input
 
-        conv_in = in_channel + (3 * (in_channel // 3) if large_ori else 3)
+        conv_in = in_channel + ((3 * (in_channel // 3) if large_ori else 3) if add_input else 0)
         self.convs = nn.ModuleList()
         for i in range(conv_in_block):
             if norm_before_relu:
@@ -116,10 +132,19 @@ class RepBlock(nn.Module):
         if self.large_ori:
             ori_input = torch.cat([ori_input] * (x.size(1) // ori_input.size(1)), dim=1)
         for m in self.convs:
-            if isinstance(m, nn.Conv2d):
+            if isinstance(m, nn.Conv2d) and self.add_input:
                 out = torch.cat([ori_input, out], dim=1)
             # TODO 如何解决 ori_input 只占3 channel 但 conv parameters 分布均匀的问题
             out = m(out)
 
         return out
 
+
+# def distribution_match(conv_teacher: nn.Conv2d, conv_student: nn.Conv2d):
+#     import random
+#     w = conv_teacher.weight.data.view((-1,))
+#     cnt = conv_student.weight.nelement()
+#     conv_student.weight.data = torch.tensor(random.sample(w, cnt)).reshape(conv_student.weight.shape)
+#     w = conv_teacher.bias.data.view((-1,))
+#     cnt = conv_student.bias.nelement()
+#     conv_student.bias.data = torch.tensor(random.sample(w, cnt)).reshape(conv_student.bias.shape)

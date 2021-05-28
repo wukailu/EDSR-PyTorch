@@ -61,17 +61,23 @@ class EDSR_Model(nn.Module):
         self.body = nn.Sequential(*m_body)
         self.tail = nn.Sequential(*m_tail)
 
-    def forward(self, x):
+    def forward(self, x, with_feature=False):
+        feat = []
         x = self.sub_mean(x)
         x = self.head(x)
+        feat.append(x)
 
         res = self.body(x)
+        feat.append(res)
         res += x
 
         x = self.tail(res)
         x = self.add_mean(x)
 
-        return x 
+        if with_feature:
+            return x, feat
+        else:
+            return x
 
     def load_state_dict(self, state_dict, strict=True):
         own_state = self.state_dict()

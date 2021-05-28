@@ -5,7 +5,7 @@ import time
 
 if __name__ == '__main__':
     params = {
-        'arch': 'IMDN_free_sr',
+        'arch': 'Plane_sr',
         'scale': 3,
         'nf': 50
     }

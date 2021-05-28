@@ -106,22 +106,37 @@ class IMDN_free_Model(nn.Module):
         self.IMDB4 = IMDModule(in_channels=nf)
         self.IMDB5 = IMDModule(in_channels=nf)
         self.IMDB6 = IMDModule(in_channels=nf)
-        self.c = conv_block(nf * num_modules, nf, kernel_size=1, act_type='lrelu')
+
+        self.c1 = conv_block(nf, nf, kernel_size=1)
+        self.c2 = conv_block(nf, nf, kernel_size=1)
+        self.c3 = conv_block(nf, nf, kernel_size=1)
+        self.c4 = conv_block(nf, nf, kernel_size=1)
+        self.c5 = conv_block(nf, nf, kernel_size=1)
+        self.c6 = conv_block(nf, nf, kernel_size=1)
+        self.c_act = nn.LeakyReLU(0.05, True)
 
         self.LR_conv = conv_layer(nf, self.final_nc, kernel_size=3)
 
         self.upsampler = nn.PixelShuffle(scale)
 
     def forward(self, input: torch.Tensor):
-        out_fea = self.fea_conv(input)
-        out_B1 = self.IMDB1(out_fea)
-        out_B2 = self.IMDB2(out_B1)
-        out_B3 = self.IMDB3(out_B2)
-        out_B4 = self.IMDB4(out_B3)
-        out_B5 = self.IMDB5(out_B4)
-        out_B6 = self.IMDB6(out_B5)
+        x = self.fea_conv(input)
 
-        out_B = self.c(torch.cat([out_B1, out_B2, out_B3, out_B4, out_B5, out_B6], dim=1))
+        out_B = torch.zeros_like(x)
+        x = self.IMDB1(x)
+        out_B += self.c1(x)
+        x = self.IMDB2(x)
+        out_B += self.c2(x)
+        x = self.IMDB3(x)
+        out_B += self.c3(x)
+        x = self.IMDB4(x)
+        out_B += self.c4(x)
+        x = self.IMDB5(x)
+        out_B += self.c5(x)
+        x = self.IMDB6(x)
+        out_B += self.c6(x)
+
+        out_B = self.c_act(out_B)
         out = torch.cat([torch.stack([input[:, c, :, :]] * (self.scale ** 2), dim=1) for c in range(self.out_nc)], dim=1)
         output = self.upsampler(self.LR_conv(out_B) + out)
         return output

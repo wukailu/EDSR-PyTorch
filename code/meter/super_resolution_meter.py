@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import cv2
 from torch import Tensor
 from meter.utils import all_sum
 from meter.utils import Meter
@@ -34,7 +33,8 @@ class SuperResolutionMeter(Meter):
                     self._records[m.name].append(m(sr, hr, self._scale).cpu())
 
     def log_metric(self) -> dict:
-        ret = {"loss": torch.mean(torch.stack(self._loss)), **{key: torch.mean(torch.stack(values)) for key, values in self._records.items()}}
+        ret = {"loss": torch.mean(torch.stack(self._loss)),
+               **{key: torch.mean(torch.stack(values)) for key, values in self._records.items()}}
 
         return {self.phase + "/" + key: value for key, value in ret.items()}
 
@@ -62,6 +62,7 @@ class PSNR:
 
         return -10 * torch.log10(mse)
 
+
 class PSNR_GRAY:
     def __init__(self):
         self.name = "PSNR_GRAY"
@@ -82,6 +83,7 @@ class PSNR_GRAY:
 
         return -10 * torch.log10(mse)
 
+
 class SSIM:
     """Structure Similarity
     img1, img2: [0, 255]"""
@@ -99,7 +101,7 @@ class SSIM:
             if img1.shape[2] == 3:
                 ssims = []
                 for i in range(3):
-                    ssims.append(ssim(img1, img2))
+                    ssims.append(SSIM()(img1[:, :, i], img2[:, :, i]))
                 return np.array(ssims).mean()
             elif img1.shape[2] == 1:
                 return SSIM._ssim(np.squeeze(img1), np.squeeze(img2))
@@ -108,24 +110,25 @@ class SSIM:
 
     @staticmethod
     def _ssim(img1, img2):
+        from cv2 import filter2D, getGaussianKernel
         C1 = (0.01 * 255) ** 2
         C2 = (0.03 * 255) ** 2
 
         img1 = img1.astype(np.float64)
         img2 = img2.astype(np.float64)
-        kernel = cv2.getGaussianKernel(11, 1.5)
+        kernel = getGaussianKernel(11, 1.5)
         window = np.outer(kernel, kernel.transpose())
 
-        mu1 = cv2.filter2D(img1, -1, window)[5:-5, 5:-5]  # valid
-        mu2 = cv2.filter2D(img2, -1, window)[5:-5, 5:-5]
+        mu1 = filter2D(img1, -1, window)[5:-5, 5:-5]  # valid
+        mu2 = filter2D(img2, -1, window)[5:-5, 5:-5]
         mu1_sq = mu1 ** 2
         mu2_sq = mu2 ** 2
         mu1_mu2 = mu1 * mu2
-        sigma1_sq = cv2.filter2D(img1 ** 2, -1, window)[5:-5, 5:-5] - mu1_sq
-        sigma2_sq = cv2.filter2D(img2 ** 2, -1, window)[5:-5, 5:-5] - mu2_sq
-        sigma12 = cv2.filter2D(img1 * img2, -1, window)[5:-5, 5:-5] - mu1_mu2
+        sigma1_sq = filter2D(img1 ** 2, -1, window)[5:-5, 5:-5] - mu1_sq
+        sigma2_sq = filter2D(img2 ** 2, -1, window)[5:-5, 5:-5] - mu2_sq
+        sigma12 = filter2D(img1 * img2, -1, window)[5:-5, 5:-5] - mu1_mu2
 
         ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / (
-            (mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2)
+                (mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2)
         )
         return ssim_map.mean()

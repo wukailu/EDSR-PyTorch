@@ -5,8 +5,9 @@ from utils.foundation_tools import submit_jobs, random_params
 
 
 def search_for_plane():
+    scale = 4
     params = {
-        'project_name': 'search_for_plane_x2',
+        'project_name': f'search_for_plane_x{scale}',
         'gpus': 1,
         'num_epochs': 20,
         'weight_decay': 0,
@@ -15,20 +16,18 @@ def search_for_plane():
         'optimizer': 'Adam',
         'backbone': {
             'arch': 'Plane_sr',
-            'nf': [50, 128],
-            'num_modules': [1, 2, 3, 4],
-            'norm_type': ['spade', 'none'],
-            'conv_in_block': [0, 1, 2, 3],
+            # 'nf': [50, 128],
+            'nf': 128,
+            'num_modules': [2, 4],
+            'norm_type': ['spade'],
+            'conv_in_block': [1, 2, 3],
             'use_act': [True, False],
-            'norm_before_relu': [False, True],
-            # 'norm_before_relu': True,
-            'use_esa': [False, True],
-            # 'use_esa': False,
+            'norm_before_relu': True,
+            'use_esa': False,
             'use_spade': [True, False],
-            'large_ori': [False, True],
-            # 'large_ori': True,
+            'large_ori': True,
         },
-        'scale': 2,
+        'scale': scale,
         "dataset": {
             'name': "DIV2K",
             'total_batch_size': 16,
@@ -347,6 +346,41 @@ def final_test_for_plane_x2():
     return random_params(params)
 
 
+def full_test_plane_x4():
+    backbones = [
+        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+         'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4},
+        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+         'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4},
+    ]
+
+    params = {
+        'project_name': 'Plane_on_Benchmark_x4',
+        'gpus': 1,
+        'num_epochs': 300,
+        'weight_decay': 0,
+        'max_lr': 2e-4,
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'backbone': backbones,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 16,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": 233,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'save_model': True,
+    }
+
+    return random_params(params)
+
+
 def test_x2_x2_to_x4():
     pretrained_paths = [
         '/data/kailu/.foundations/job_data/archive/9cc232ba-3760-408d-a89c-7915c2729002/user_artifacts/235epoch=297.ckpt',
@@ -418,11 +452,136 @@ def dense_model_test():
     return params
 
 
-def params_for_SR():
-    params = dense_model_test()
+def planeDistill():
+    pretrained_paths = [
+        # ('/data/kailu/.foundations/job_data/archive/439a9a75-982d-4ebd-a747-3006c4993ed6/user_artifacts/233epoch=298.ckpt',
+        #  {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
+        (
+        '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
+        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+         'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4})
+    ]
 
-    # if params['backbone']['norm_type'] == 'spade':
-    #     params['max_lr'] = min(params['max_lr'], 2e-4)
+    path, config = random_params(pretrained_paths)
+    config['nf'] = 64  # distill 128 -> 64
+
+    params = {
+        'project_name': 'planeModel_distill_cka',
+        'method': 'SRDistillation',
+        'dist_method': ['FD_Conv1x1'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
+        'distill_coe': [0.03, 0.01, 0.003],  # for FD_Conv1x1
+        # 'distill_coe': [30, 10, 3],  # for FD_BN1x1
+        # 'pretrain_distill': [True, False],
+        'pretrain_distill': True,
+        'start_distill': [0, 10],  # 10 is usually better than 50
+        'gpus': 1,
+        'num_epochs': 100,
+        'weight_decay': 0,
+        'max_lr': 1e-3,  # 2e-5
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'teacher': path,
+        'backbone': config,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 512,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": 233,
+        'test_benchmark': True,
+    }
+
+    return random_params(params)
+
+
+def planeDistillBaseline():
+    pretrained_paths = [
+        # ('/data/kailu/.foundations/job_data/archive/439a9a75-982d-4ebd-a747-3006c4993ed6/user_artifacts/233epoch=298.ckpt',
+        #  {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
+        ('/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
+        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+         'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4}),
+        # ('/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
+        # {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        #  'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'add_input': False, 'scale': 4})
+    ]
+
+    path, config = random_params(pretrained_paths)
+    config['nf'] = 64  # distill 128 -> 64
+
+    params = {
+        'project_name': 'planeModel_distill_baseline',
+        'gpus': 1,
+        'num_epochs': 100,
+        'weight_decay': 0,
+        # 'max_lr': [1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5],  # 2e-5
+        'max_lr': [1e-3],  # 2e-5
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'backbone': config,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 512,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234],
+        'test_benchmark': True,
+    }
+
+    return random_params(params)
+
+
+def edsrDistill():
+    pretrained_paths = [
+        ('/data/kailu/.foundations/job_data/archive/3aa5e390-9842-44d3-9d85-f5bbc6af1f75/user_artifacts/235epoch=29.ckpt',
+         {'arch': 'EDSR_sr', 'nf': 50, 'scale': 4}),
+    ]
+
+    path, config = random_params(pretrained_paths)
+
+    params = {
+        'project_name': 'edsr_distill',
+        'method': 'SRDistillation',
+        'dist_method': ['FD_Conv1x1', 'FD'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
+        'distill_coe': [0.03, 0.01, 0.003],  # for FD_Conv1x1
+        'start_distill': [0, 10],  # 10 is usually better than 50
+        'gpus': 1,
+        'num_epochs': 30,
+        'weight_decay': 0,
+        'max_lr': 2e-4,
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'teacher': path,
+        'backbone': config,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 16,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": 234,
+        'test_benchmark': True,
+    }
+
+    return random_params(params)
+
+
+def params_for_SR():
+    params = planeDistillBaseline()
+
     if params['dataset']['name'] == 'DIV2K':
         params['dataset']['test_bz'] = 1
     if 'scale' not in params['dataset']:
@@ -433,4 +592,4 @@ def params_for_SR():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_SR, 'frameworks/superresolution/train_sr_model.py', number_jobs=8, job_directory='.')
+    submit_jobs(params_for_SR, 'frameworks/superresolution/train_sr_model.py', number_jobs=100, job_directory='.')

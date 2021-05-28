@@ -7,11 +7,17 @@ from frameworks.lightning_base_model import LightningModule
 class SR_LightModel(LightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
-
         self.scale = hparams['scale']
-        self.idx_scale = 0
         self.self_ensemble = hparams['self_ensemble']
         self.model = get_classifier(hparams["backbone"], hparams["dataset"])
+
+    def complete_hparams(self):
+        default_sr_list = {
+            'loss': 'L1',
+            'self_ensemble': False,
+        }
+        self.hparams = {**default_sr_list, **self.hparams}
+        LightningModule.complete_hparams(self)
 
     def choose_loss(self):
         from .loss import Loss
@@ -33,82 +39,14 @@ class SR_LightModel(LightningModule):
         return self.model(x)
 
     def forward(self, x):
-        # self.idx_scale = idx_scale
-        # if hasattr(self.model, 'set_scale'):
-        #     self.model.set_scale(idx_scale)
-
         if self.training:
             return self.do_forward(x)
         else:
-            # if self.chop:
-            #     forward_function = self.forward_chop
-            # else:
-            #     forward_function = self.model.forward
-
             forward_function = self.do_forward
             if self.self_ensemble:
                 return self.forward_x8(x, forward_function=forward_function)
             else:
                 return forward_function(x)
-
-    # def forward_chop(self, *args, shave=10, min_size=160000):
-    #     scale = 1 if self.input_large else self.scale[self.idx_scale]
-    #     n_GPUs = min(self.n_GPUs, 4)
-    #     # height, width
-    #     h, w = args[0].size()[-2:]
-    #
-    #     top = slice(0, h//2 + shave)
-    #     bottom = slice(h - h//2 - shave, h)
-    #     left = slice(0, w//2 + shave)
-    #     right = slice(w - w//2 - shave, w)
-    #     x_chops = [torch.cat([
-    #         a[..., top, left],
-    #         a[..., top, right],
-    #         a[..., bottom, left],
-    #         a[..., bottom, right]
-    #     ]) for a in args]
-    #
-    #     y_chops = []
-    #     if h * w < 4 * min_size:
-    #         for i in range(0, 4, n_GPUs):
-    #             x = [x_chop[i:(i + n_GPUs)] for x_chop in x_chops]
-    #             y = P.data_parallel(self.model, *x, range(n_GPUs))
-    #             if not isinstance(y, list): y = [y]
-    #             if not y_chops:
-    #                 y_chops = [[c for c in _y.chunk(n_GPUs, dim=0)] for _y in y]
-    #             else:
-    #                 for y_chop, _y in zip(y_chops, y):
-    #                     y_chop.extend(_y.chunk(n_GPUs, dim=0))
-    #     else:
-    #         for p in zip(*x_chops):
-    #             y = self.forward_chop(*p, shave=shave, min_size=min_size)
-    #             if not isinstance(y, list): y = [y]
-    #             if not y_chops:
-    #                 y_chops = [[_y] for _y in y]
-    #             else:
-    #                 for y_chop, _y in zip(y_chops, y): y_chop.append(_y)
-    #
-    #     h *= scale
-    #     w *= scale
-    #     top = slice(0, h//2)
-    #     bottom = slice(h - h//2, h)
-    #     bottom_r = slice(h//2 - h, None)
-    #     left = slice(0, w//2)
-    #     right = slice(w - w//2, w)
-    #     right_r = slice(w//2 - w, None)
-    #
-    #     # batch size, number of color channels
-    #     b, c = y_chops[0][0].size()[:-2]
-    #     y = [y_chop[0].new(b, c, h, w) for y_chop in y_chops]
-    #     for y_chop, _y in zip(y_chops, y):
-    #         _y[..., top, left] = y_chop[0][..., top, left]
-    #         _y[..., top, right] = y_chop[1][..., top, right_r]
-    #         _y[..., bottom, left] = y_chop[2][..., bottom_r, left]
-    #         _y[..., bottom, right] = y_chop[3][..., bottom_r, right_r]
-    #
-    #     if len(y) == 1: y = y[0]
-    #
-    #     return y
 
     def forward_x8(self, *args, forward_function=None):
         def _transform(v, op):
@@ -153,8 +91,8 @@ class SR_LightModel(LightningModule):
                     _list_y[i] = _transform(_list_y[i], 'v')
 
         y = [torch.cat(_y, dim=0).mean(dim=0, keepdim=True) for _y in list_y]
-        if len(y) == 1: y = y[0]
-
+        if len(y) == 1:
+            y = y[0]
         return y
 
 
@@ -162,7 +100,6 @@ class TwoStageSR(SR_LightModel):
     def __init__(self, hparams):
         LightningModule.__init__(self, hparams)
         self.scale = hparams['scale']
-        self.idx_scale = 0
         self.self_ensemble = hparams['self_ensemble']
 
         self.model_pretrained = SR_LightModel.load_from_checkpoint(checkpoint_path=hparams['pretrained_from']).model
@@ -176,26 +113,188 @@ class TwoStageSR(SR_LightModel):
         return self.model_pretrained(self.model(x))
 
 
+class SRDistillation(SR_LightModel):
+    def __init__(self, hparams):
+        LightningModule.__init__(self, hparams)
+        self.scale = hparams['scale']
+        self.self_ensemble = hparams['self_ensemble']
+
+        self.teacher = SR_LightModel.load_from_checkpoint(checkpoint_path=hparams['teacher']).model
+        self.model = get_classifier(hparams["backbone"], hparams["dataset"])
+
+        from model.utils import freeze
+        freeze(self.teacher)
+
+        sample, _, _ = self.train_dataloader().dataset[0]  # TODO: get this message from data provider
+        sample = sample.unsqueeze(dim=0)
+        with torch.no_grad():
+            out_t, feat_t = self.teacher(sample, with_feature=True)
+            out_s, feat_s = self.model(sample, with_feature=True)
+            self.dist_method = get_distill_method(hparams['dist_method'])(feat_s, feat_t)
+
+    def complete_hparams(self):
+        default_sr_list = {
+            'distill_coe': 1,
+            'start_distill': 0,
+            'pretrain_distill': False,
+        }
+        self.hparams = {**default_sr_list, **self.hparams}
+        SR_LightModel.complete_hparams(self)
+
+    def step(self, meter, batch):
+        lr, hr, filenames = batch
+        if self.training:
+            out_s, feat_s = self.model(lr, with_feature=True)
+            task_loss = self.criterion(out_s, hr)
+            if self.current_epoch < self.hparams['start_distill'] and not self.hparams['pretrain_distill']:
+                loss = task_loss
+            else:
+                out_t, feat_t = self.teacher(lr, with_feature=True)
+                if self.current_epoch < self.hparams['start_distill'] and self.hparams['pretrain_distill']:
+                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], feat_t)
+                else:
+                    dist_loss = self.dist_method(feat_s, feat_t)
+                loss = task_loss + dist_loss * self.hparams['distill_coe']
+
+                self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
+            self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
+
+        else:
+            out_s = self.forward(lr)
+            loss = self.criterion(out_s, hr)
+
+        meter.update(hr, out_s.detach(), loss.detach())
+        return {'loss': loss}
+
+
+def get_distill_method(name):
+    if name == 'CKA':
+        return CKA
+    elif name == 'FD':
+        return DistillationMethod
+    elif name == 'FD_Conv1x1':
+        return FD_Conv1x1
+    elif name == 'FD_CloseForm':
+        return FD_CloseForm
+    elif name == 'FD_BN1x1':
+        return FD_BN1x1
+    else:
+        raise NotImplementedError()
+
+
+class DistillationMethod(torch.nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, feat_s, feat_t):
+        return torch.dist(feat_s[-1], feat_t[-1], p=1)
+
+
+class FD_Conv1x1(DistillationMethod):
+    def __init__(self, feat_s, feat_t, *args, **kwargs):
+        super().__init__()
+        self.convs = torch.nn.ModuleList([
+            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t)
+        ])
+
+    def forward(self, feat_s, feat_t):
+        loss = 0
+        for fs, ft, conv in zip(feat_s, feat_t, self.convs):
+            loss += torch.mean(torch.abs(conv(fs) - ft))
+        return loss
+
+
+class FD_BN1x1(DistillationMethod):
+    def __init__(self, feat_s, feat_t, *args, **kwargs):
+        super().__init__()
+        self.convs = torch.nn.ModuleList([
+            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t)
+        ])
+        self.bn_t = torch.nn.ModuleList([
+            torch.nn.BatchNorm2d(ft.size(1)) for fs, ft in zip(feat_s, feat_t)
+        ])
+        self.bn_s = torch.nn.ModuleList([
+            torch.nn.BatchNorm2d(fs.size(1)) for fs, ft in zip(feat_s, feat_t)
+        ])
+
+    def forward(self, feat_s, feat_t):
+        loss = 0
+        for fs, ft, conv, bn_t, bn_s in zip(feat_s, feat_t, self.convs, self.bn_t, self.bn_s):
+            ft = bn_t(ft)
+            fs = bn_s(fs)
+            loss += torch.mean(torch.abs(conv(fs) - ft))
+        return loss
+
+
+class FD_CloseForm(DistillationMethod):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, feat_s, feat_t):
+        loss = 0
+        for fs, ft in zip(feat_s, feat_t):
+            # 1x1 conv equivalent to AX = B, where A is of shape [N, HxW, C_s], X is [N, C_s, C_t], B is [N, HxW, C_t]
+            # lstsq with batch is available in torch.linalg.lstsq with torch >= 1.9.0
+            # torch.lstsq does not support grad
+            A = torch.flatten(fs, start_dim=2).permute((0, 2, 1))
+            B = torch.flatten(ft, start_dim=2).permute((0, 2, 1))
+
+            # MSE over batches, this might be numerical unstable
+            f_cnt = 0
+            flag = False
+            while not flag:
+                flag = True
+                A += torch.randn_like(A) * 0.1
+                try:
+                    s = A.pinverse() @ B
+                except RuntimeError as e:
+                    flag = False
+                    f_cnt += 1
+                if not flag:
+                    A += torch.randn_like(A) * 0.1
+            if f_cnt != 0:
+                print(f"pinverse failed! repeated {f_cnt} times to get succeeded.")
+                assert False
+
+            r = (A @ s - B)
+            loss += torch.mean(r ** 2)
+        return loss
+
+
+class CKA(DistillationMethod):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        from frameworks.nnmetric.feature_similarity_measurement import cka_loss
+        self.cka = cka_loss()
+
+    def forward(self, feat_s, feat_t):
+        loss = 0
+        for fs, ft in zip(feat_s, feat_t):
+            loss += self.cka(fs, ft)
+        return loss
+
+
 def load_model(params):
     methods = {
         'TwoStageSR': TwoStageSR,
         'SR_LightModel': SR_LightModel,
+        'SRDistillation': SRDistillation,
     }
     if 'method' not in params:
-        LightModel = SR_LightModel
+        Selected_Model = SR_LightModel
     else:
-        LightModel = methods[params['method']]
+        Selected_Model = methods[params['method']]
 
     if 'load_from' in params:
         path = params['load_from']
         assert isinstance(path, str)
-        model = LightModel.load_from_checkpoint(checkpoint_path=path).cuda()
+        model = Selected_Model.load_from_checkpoint(checkpoint_path=path).cuda()
     elif 'load_model_from' in params:
         path = params['load_model_from']
         assert isinstance(path, str)
         model_inside = SR_LightModel.load_from_checkpoint(checkpoint_path=path).model.cuda()
-        model = LightModel(params).cuda()
+        model = Selected_Model(params).cuda()
         model.model = model_inside
     else:
-        model = LightModel(params).cuda()
+        model = Selected_Model(params).cuda()
     return model
