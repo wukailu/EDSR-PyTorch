@@ -16,8 +16,8 @@ def search_for_plane():
         'optimizer': 'Adam',
         'backbone': {
             'arch': 'Plane_sr',
-            # 'nf': [50, 128],
-            'nf': 128,
+            # 'n_feats': [50, 128],
+            'n_feats': 128,
             'num_modules': [2, 4],
             'norm_type': ['spade'],
             'conv_in_block': [1, 2, 3],
@@ -64,7 +64,7 @@ def get_search_params():
             'use_esa': [True, False],
             'sub_blocks': [1, 2, 3, 4, 5, 6],
             'num_modules': [1, 2, 3, 4, 5, 6],
-            'nf': [32, 50, 64, 128]
+            'n_feats': [32, 50, 64, 128]
         },
         'scale': 2,
         "dataset": {
@@ -85,40 +85,40 @@ def get_search_params():
 def get_selected_params():
     backbones = [
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
-         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 3, 'nf': 128},
+         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 3, 'n_feats': 128},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': False,
-         'use_act': True, 'add_fea': True, 'use_esa': False, 'sub_blocks': 2, 'num_modules': 3, 'nf': 64},
+         'use_act': True, 'add_fea': True, 'use_esa': False, 'sub_blocks': 2, 'num_modules': 3, 'n_feats': 64},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': False,
-         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 6, 'num_modules': 1, 'nf': 64},
+         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 6, 'num_modules': 1, 'n_feats': 64},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
-         'use_act': False, 'add_fea': False, 'use_esa': False, 'sub_blocks': 1, 'num_modules': 3, 'nf': 128,
+         'use_act': False, 'add_fea': False, 'use_esa': False, 'sub_blocks': 1, 'num_modules': 3, 'n_feats': 128,
          'scale': 2},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'bn', 'block_skip': True, 'add_ori': False,
-         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 6, 'nf': 128},
+         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 6, 'n_feats': 128},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': False,
-         'use_act': False, 'add_fea': True, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 5, 'nf': 64},
+         'use_act': False, 'add_fea': True, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 5, 'n_feats': 64},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': False,
-         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'nf': 128},
+         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'n_feats': 128},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
-         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 2, 'nf': 64},
+         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 2, 'n_feats': 64},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': False,
-         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 1, 'num_modules': 5, 'nf': 64},
+         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 1, 'num_modules': 5, 'n_feats': 64},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
-         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'nf': 128},
+         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'n_feats': 128},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
-         'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 1, 'nf': 128},
+         'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 1, 'n_feats': 128},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
-         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'nf': 128},
+         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'n_feats': 128},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
-         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 4, 'nf': 50},
+         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 4, 'n_feats': 50},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'in', 'block_skip': False, 'add_ori': False,
-         'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 3, 'num_modules': 6, 'nf': 128},
+         'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 3, 'num_modules': 6, 'n_feats': 128},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': False,
-         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'nf': 64},
+         'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'n_feats': 64},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
-         'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 4, 'nf': 50},
+         'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 4, 'n_feats': 50},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
-         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'nf': 64},
+         'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'n_feats': 64},
     ]
 
     params = {
@@ -166,7 +166,7 @@ def search_for_with_feat():
             'vgg_feat': True,
             'sub_blocks': [1, 2, 3],
             'num_modules': [1, 2],
-            'nf': [50, 128]
+            'n_feats': [50, 128]
         },
         'scale': 2,
         "dataset": {
@@ -186,22 +186,22 @@ def search_for_with_feat():
 def get_final_few():
     backbones = [
         # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': False,
-        #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'nf': 64},
+        #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'n_feats': 64},
         # {'arch': 'rfdn_sr'},
         # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
-        #  'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'nf': 64},
+        #  'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'n_feats': 64},
         # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
-        #  'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 1, 'nf': 128},
+        #  'use_act': False, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 1, 'n_feats': 128},
         # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
-        #  'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'nf': 64},
+        #  'use_act': True, 'add_fea': False, 'use_esa': False, 'sub_blocks': 4, 'num_modules': 1, 'n_feats': 64},
         # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'bn', 'block_skip': True, 'add_ori': False,
-        #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 6, 'nf': 128},
+        #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 1, 'num_modules': 6, 'n_feats': 128},
         # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
-        #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'nf': 128},
+        #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 2, 'n_feats': 128},
         {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': True, 'add_ori': True,
-         'use_act': False, 'add_fea': False, 'use_esa': False, 'sub_blocks': 1, 'num_modules': 3, 'nf': 128},
+         'use_act': False, 'add_fea': False, 'use_esa': False, 'sub_blocks': 1, 'num_modules': 3, 'n_feats': 128},
         # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': True,
-        #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 4, 'nf': 50},
+        #  'use_act': True, 'add_fea': False, 'use_esa': True, 'sub_blocks': 2, 'num_modules': 4, 'n_feats': 50},
     ]
 
     params = {
@@ -232,37 +232,37 @@ def get_final_few():
 
 def final_test_for_plane():
     backbones = [
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': False},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'bn', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'bn', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': False, 'use_esa': False, 'use_spade': True, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': False},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': False},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 1, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'in', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'in', 'conv_in_block': 1, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'bn', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'bn', 'conv_in_block': 1, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True},
-        {'arch': 'Plane_sr', 'nf': 50, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 50, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 1, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': False},
-        {'arch': 'Plane_sr', 'nf': 50, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 50, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': True, 'large_ori': False},
-        {'arch': 'Plane_sr', 'nf': 50, 'num_modules': 2, 'norm_type': 'none', 'conv_in_block': 3, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 50, 'num_modules': 2, 'norm_type': 'none', 'conv_in_block': 3, 'use_act': False,
          'norm_before_relu': False, 'use_esa': True, 'use_spade': True, 'large_ori': False},
     ]
 
@@ -294,29 +294,29 @@ def final_test_for_plane():
 
 def final_test_for_plane_x2():
     backbones = [
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': True, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': True, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': False, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': False, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
          'norm_before_relu': False, 'use_esa': True, 'use_spade': True, 'large_ori': False, 'scale': 2},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 2, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 2, 'use_act': False,
          'norm_before_relu': False, 'use_esa': True, 'use_spade': True, 'large_ori': False, 'scale': 2},
     ]
 
@@ -348,9 +348,9 @@ def final_test_for_plane_x2():
 
 def full_test_plane_x4():
     backbones = [
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4},
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4},
     ]
 
@@ -435,7 +435,7 @@ def dense_model_test():
             # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
             # 'arch': ['RDN_free_sr'],
             'arch': ['IMDN_free_sr'],
-            'nf': 50,
+            'n_feats': 50,
         },
         'scale': 4,
         "dataset": {
@@ -455,16 +455,16 @@ def dense_model_test():
 def planeDistill():
     pretrained_paths = [
         # ('/data/kailu/.foundations/job_data/archive/439a9a75-982d-4ebd-a747-3006c4993ed6/user_artifacts/233epoch=298.ckpt',
-        #  {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        #  {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
         #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
         (
             '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
-            {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+            {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
              'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4})
     ]
 
     path, config = random_params(pretrained_paths)
-    config['nf'] = 64  # distill 128 -> 64
+    config['n_feats'] = 64  # distill 128 -> 64
 
     params = {
         'project_name': 'planeModel_distill_30',
@@ -505,19 +505,19 @@ def planeDistill():
 def planeDistillBaseline():
     pretrained_paths = [
         # ('/data/kailu/.foundations/job_data/archive/439a9a75-982d-4ebd-a747-3006c4993ed6/user_artifacts/233epoch=298.ckpt',
-        #  {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        #  {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
         #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
         (
         '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4}),
         # ('/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
-        # {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        # {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
         #  'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'add_input': False, 'scale': 4})
     ]
 
     path, config = random_params(pretrained_paths)
-    config['nf'] = 64  # distill 128 -> 64
+    config['n_feats'] = 64  # distill 128 -> 64
 
     params = {
         'project_name': 'planeModel_distill_baseline',
@@ -550,11 +550,11 @@ def edsrDistill():
     pretrained_paths = [
         (
         '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
-        {'arch': 'EDSR_sr', 'nf': 50, 'scale': 4}),
+        {'arch': 'EDSR_sr', 'n_feats': 50, 'scale': 4}),
     ]
 
     path, config = random_params(pretrained_paths)
-    config['nf'] = 12
+    config['n_feats'] = 12
 
     params = {
         'project_name': 'edsr_distill_30',
@@ -590,11 +590,11 @@ def edsrDistillBaseline():
     pretrained_paths = [
         (
         '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
-        {'arch': 'EDSR_sr', 'nf': 50, 'scale': 4}),
+        {'arch': 'EDSR_sr', 'n_feats': 50, 'scale': 4}),
     ]
 
     path, config = random_params(pretrained_paths)
-    config['nf'] = 12
+    config['n_feats'] = 12
 
     params = {
         'project_name': 'edsr_distill_baseline',
@@ -615,8 +615,8 @@ def edsrDistillBaseline():
             'repeat': 20,
         },
         'rgb_range': 255,
-        # "seed": [233, 234, 235, 236],
-        "seed": 233,
+        "seed": [233, 234, 235, 236],
+        # "seed": 233,
         'test_benchmark': True,
     }
 
@@ -624,7 +624,7 @@ def edsrDistillBaseline():
 
 
 def params_for_SR():
-    params = edsrDistillBaseline()
+    params = edsrDistill()
 
     if params['dataset']['name'] == 'DIV2K':
         params['dataset']['test_bz'] = 1
