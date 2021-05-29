@@ -50,10 +50,10 @@ class RDB(nn.Module):
 
 
 class RDN_Model(nn.Module):
-    def __init__(self, scale=4, nf=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
+    def __init__(self, scale=4, n_feats=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
         super(RDN_Model, self).__init__()
         r = scale
-        G0 = nf
+        G0 = n_feats
         kSize = RDNkSize
 
         # number of RDB blocks, conv layers, out channels
@@ -113,10 +113,10 @@ class RDN_Model(nn.Module):
 
 
 class RDN_Free_Model(nn.Module):
-    def __init__(self, scale=4, nf=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
+    def __init__(self, scale=4, n_feats=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
         super(RDN_Free_Model, self).__init__()
         r = scale
-        G0 = nf
+        G0 = n_feats
         kSize = RDNkSize
 
         # number of RDB blocks, conv layers, out channels

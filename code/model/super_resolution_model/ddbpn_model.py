@@ -68,10 +68,10 @@ class DenseProjection(nn.Module):
 
 
 class DDBPN_Model(nn.Module):
-    def __init__(self, scale=4, rgb_range=255, n_colors=3, **kwargs):
+    def __init__(self, scale=4, rgb_range=255, n_feats=128, n_colors=3, **kwargs):
         super(DDBPN_Model, self).__init__()
 
-        n0 = 128
+        n0 = n_feats
         nr = 32
         self.depth = 6
 

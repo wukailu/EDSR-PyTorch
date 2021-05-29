@@ -21,8 +21,9 @@ def INN(**kwargs):
 
 
 class INN_Model(nn.Module):
-    def __init__(self, in_nc=3, nf=50, num_modules=4, out_nc=3, scale=4, block_skip=True, vgg_feat=False, skip_cons=(1, 1, 1), **kwargs):
+    def __init__(self, in_nc=3, n_feats=50, num_modules=4, out_nc=3, scale=4, block_skip=True, vgg_feat=False, skip_cons=(1, 1, 1), **kwargs):
         super(INN_Model, self).__init__()
+        nf = n_feats
         self.num_modules = num_modules
         self.block_skip = block_skip
         self.vgg_feat = vgg_feat

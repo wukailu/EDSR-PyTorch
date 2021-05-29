@@ -458,25 +458,27 @@ def planeDistill():
         #  {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
         #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
         (
-        '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
-        {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
-         'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4})
+            '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
+            {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+             'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4})
     ]
 
     path, config = random_params(pretrained_paths)
     config['nf'] = 64  # distill 128 -> 64
 
     params = {
-        'project_name': 'planeModel_distill_cka',
+        'project_name': 'planeModel_distill_30',
         'method': 'SRDistillation',
         'dist_method': ['FD_Conv1x1'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
-        'distill_coe': [0.03, 0.01, 0.003],  # for FD_Conv1x1
+        'distill_coe': [0.01, 0.03, 0.1, 0.3],  # 1e-2 for FD_Conv1x1
         # 'distill_coe': [30, 10, 3],  # for FD_BN1x1
         # 'pretrain_distill': [True, False],
         'pretrain_distill': True,
-        'start_distill': [0, 10],  # 10 is usually better than 50
+        'start_distill': [0, 1, 2, 3],
+        # 'start_distill': [1, 2, 5],  # 10 is usually a good choice
         'gpus': 1,
-        'num_epochs': 100,
+        # 'num_epochs': 100,
+        'num_epochs': 30,
         'weight_decay': 0,
         'max_lr': 1e-3,  # 2e-5
         'optimizer': 'Adam',
@@ -492,7 +494,8 @@ def planeDistill():
             'repeat': 20,
         },
         'rgb_range': 255,
-        "seed": 233,
+        # "seed": [233],
+        "seed": [233, 234, 235, 236],
         'test_benchmark': True,
     }
 
@@ -504,7 +507,8 @@ def planeDistillBaseline():
         # ('/data/kailu/.foundations/job_data/archive/439a9a75-982d-4ebd-a747-3006c4993ed6/user_artifacts/233epoch=298.ckpt',
         #  {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
         #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
-        ('/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
+        (
+        '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
         {'arch': 'Plane_sr', 'nf': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4}),
         # ('/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
@@ -518,7 +522,8 @@ def planeDistillBaseline():
     params = {
         'project_name': 'planeModel_distill_baseline',
         'gpus': 1,
-        'num_epochs': 100,
+        # 'num_epochs': 100,
+        'num_epochs': 30,
         'weight_decay': 0,
         # 'max_lr': [1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5],  # 2e-5
         'max_lr': [1e-3],  # 2e-5
@@ -534,7 +539,7 @@ def planeDistillBaseline():
             'repeat': 20,
         },
         'rgb_range': 255,
-        "seed": [233, 234],
+        "seed": [335, 336],
         'test_benchmark': True,
     }
 
@@ -543,18 +548,20 @@ def planeDistillBaseline():
 
 def edsrDistill():
     pretrained_paths = [
-        ('/data/kailu/.foundations/job_data/archive/3aa5e390-9842-44d3-9d85-f5bbc6af1f75/user_artifacts/235epoch=29.ckpt',
-         {'arch': 'EDSR_sr', 'nf': 50, 'scale': 4}),
+        (
+        '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
+        {'arch': 'EDSR_sr', 'nf': 50, 'scale': 4}),
     ]
 
     path, config = random_params(pretrained_paths)
+    config['nf'] = 12
 
     params = {
-        'project_name': 'edsr_distill',
+        'project_name': 'edsr_distill_30',
         'method': 'SRDistillation',
-        'dist_method': ['FD_Conv1x1', 'FD'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
-        'distill_coe': [0.03, 0.01, 0.003],  # for FD_Conv1x1
-        'start_distill': [0, 10],  # 10 is usually better than 50
+        'dist_method': ['FD_Conv1x1'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
+        'distill_coe': [0.01],  # for FD_Conv1x1
+        'start_distill': [0, 1, 2],  # 10 is usually better than 50
         'gpus': 1,
         'num_epochs': 30,
         'weight_decay': 0,
@@ -572,7 +579,44 @@ def edsrDistill():
             'repeat': 20,
         },
         'rgb_range': 255,
-        "seed": 234,
+        "seed": [233, 234, 335, 336],
+        'test_benchmark': True,
+    }
+
+    return random_params(params)
+
+
+def edsrDistillBaseline():
+    pretrained_paths = [
+        (
+        '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
+        {'arch': 'EDSR_sr', 'nf': 50, 'scale': 4}),
+    ]
+
+    path, config = random_params(pretrained_paths)
+    config['nf'] = 12
+
+    params = {
+        'project_name': 'edsr_distill_baseline',
+        'gpus': 1,
+        'num_epochs': 30,
+        # 'num_epochs': 300,
+        'weight_decay': 0,
+        'max_lr': [2e-4],  # 2e-4
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'backbone': config,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 16,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        # "seed": [233, 234, 235, 236],
+        "seed": 233,
         'test_benchmark': True,
     }
 
@@ -580,7 +624,7 @@ def edsrDistill():
 
 
 def params_for_SR():
-    params = planeDistillBaseline()
+    params = edsrDistillBaseline()
 
     if params['dataset']['name'] == 'DIV2K':
         params['dataset']['test_bz'] = 1

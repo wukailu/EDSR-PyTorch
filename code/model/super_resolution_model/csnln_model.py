@@ -85,11 +85,10 @@ class RecurrentProjection(nn.Module):
 
 
 class CSNLN_Model(nn.Module):
-    def __init__(self, depth=12, rgb_range=255, n_colors=3, nf=64, scale=4, conv=common.default_conv, **kwargs):
+    def __init__(self, depth=12, rgb_range=255, n_colors=3, n_feats=64, scale=4, conv=common.default_conv, **kwargs):
         super(CSNLN_Model, self).__init__()
 
         # n_convblock = args.n_convblocks
-        n_feats = nf
         self.depth = depth
         kernel_size = 3
 

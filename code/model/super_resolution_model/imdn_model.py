@@ -56,9 +56,10 @@ class IMDN_AS(nn.Module):
 
 
 class IMDN_Model(nn.Module):
-    def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, scale=4, **kwargs):
+    def __init__(self, in_nc=3, n_feats=64, num_modules=6, out_nc=3, scale=4, **kwargs):
         super(IMDN_Model, self).__init__()
 
+        nf = n_feats
         self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
 
         # IMDBs
@@ -91,9 +92,10 @@ class IMDN_Model(nn.Module):
 
 
 class IMDN_free_Model(nn.Module):
-    def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, scale=4, **kwargs):
+    def __init__(self, in_nc=3, n_feats=64, num_modules=6, out_nc=3, scale=4, **kwargs):
         super(IMDN_free_Model, self).__init__()
 
+        nf = n_feats
         self.scale = scale
         self.out_nc = out_nc
         self.final_nc = out_nc*(scale**2)

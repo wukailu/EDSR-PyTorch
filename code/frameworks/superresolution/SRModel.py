@@ -119,7 +119,7 @@ class SRDistillation(SR_LightModel):
         self.scale = hparams['scale']
         self.self_ensemble = hparams['self_ensemble']
 
-        self.teacher = SR_LightModel.load_from_checkpoint(checkpoint_path=hparams['teacher']).model
+        self.teacher = load_model({'load_from': hparams['teacher']}).model
         self.model = get_classifier(hparams["backbone"], hparams["dataset"])
 
         from model.utils import freeze
@@ -151,12 +151,12 @@ class SRDistillation(SR_LightModel):
             else:
                 out_t, feat_t = self.teacher(lr, with_feature=True)
                 if self.current_epoch < self.hparams['start_distill'] and self.hparams['pretrain_distill']:
-                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], feat_t)
+                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], [ft.detach() for ft in feat_t])
                 else:
                     dist_loss = self.dist_method(feat_s, feat_t)
+                self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
                 loss = task_loss + dist_loss * self.hparams['distill_coe']
 
-                self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
             self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
 
         else:
@@ -288,13 +288,18 @@ def load_model(params):
     if 'load_from' in params:
         path = params['load_from']
         assert isinstance(path, str)
-        model = Selected_Model.load_from_checkpoint(checkpoint_path=path).cuda()
+        try:
+            model = Selected_Model.load_from_checkpoint(checkpoint_path=path)
+        except TypeError as e:
+            cp = torch.load(path)
+            model = Selected_Model(cp['hyper_parameters'])
+            model.load_state_dict(cp['state_dict'])
     elif 'load_model_from' in params:
         path = params['load_model_from']
         assert isinstance(path, str)
-        model_inside = SR_LightModel.load_from_checkpoint(checkpoint_path=path).model.cuda()
-        model = Selected_Model(params).cuda()
+        model_inside = SR_LightModel.load_from_checkpoint(checkpoint_path=path).model
+        model = Selected_Model(params)
         model.model = model_inside
     else:
-        model = Selected_Model(params).cuda()
+        model = Selected_Model(params)
     return model

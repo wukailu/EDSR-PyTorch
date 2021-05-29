@@ -11,9 +11,10 @@ def RFDN(**kwargs):
 
 
 class RFDN_Model(nn.Module):
-    def __init__(self, in_nc=3, nf=50, out_nc=3, scale=4, **kwargs):
+    def __init__(self, in_nc=3, n_feats=50, out_nc=3, scale=4, **kwargs):
         super(RFDN_Model, self).__init__()
 
+        nf = n_feats
         self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
 
         num_modules = 4

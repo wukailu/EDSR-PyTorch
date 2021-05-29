@@ -13,8 +13,10 @@ def Plane(**kwargs):
 
 
 class Plane_Model(nn.Module):
-    def __init__(self, in_nc=3, nf=50, num_modules=4, out_nc=3, scale=4, **kwargs):
+    def __init__(self, in_nc=3, n_feats=50, num_modules=4, out_nc=3, scale=4, **kwargs):
         super(Plane_Model, self).__init__()
+
+        nf = n_feats
         self.num_modules = num_modules
         self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
         self.out_nc = out_nc
