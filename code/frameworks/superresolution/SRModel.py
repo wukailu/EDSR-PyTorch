@@ -118,25 +118,32 @@ class SRDistillation(SR_LightModel):
         LightningModule.__init__(self, hparams)
         self.scale = hparams['scale']
         self.self_ensemble = hparams['self_ensemble']
-
-        self.teacher = load_model({'load_from': hparams['teacher']}).model
         self.model = get_classifier(hparams["backbone"], hparams["dataset"])
 
-        from model.utils import freeze
-        freeze(self.teacher)
+        self.teacher = self.load_teacher()
+        self.dist_method = self.init_distill()
 
+    def load_teacher(self):
+        model = load_model({'load_from': self.hparams['teacher']}).model
+        from model.utils import freeze
+        freeze(model)
+        return model
+
+    def init_distill(self):
         sample, _, _ = self.train_dataloader().dataset[0]  # TODO: get this message from data provider
         sample = sample.unsqueeze(dim=0)
         with torch.no_grad():
             out_t, feat_t = self.teacher(sample, with_feature=True)
             out_s, feat_s = self.model(sample, with_feature=True)
-            self.dist_method = get_distill_method(hparams['dist_method'])(feat_s, feat_t)
+            dist_method = get_distill_method(self.hparams['dist_method'])(feat_s, feat_t)
+        return dist_method
 
     def complete_hparams(self):
         default_sr_list = {
             'distill_coe': 1,
             'start_distill': 0,
             'pretrain_distill': False,
+            'dist_method': 'L2Distillation',
         }
         self.hparams = {**default_sr_list, **self.hparams}
         SR_LightModel.complete_hparams(self)
@@ -167,19 +174,43 @@ class SRDistillation(SR_LightModel):
         return {'loss': loss}
 
 
+class MeanTeacherSRDistillation(SRDistillation):
+    def load_teacher(self):
+        import copy
+        from model.utils import freeze
+        model = copy.deepcopy(self.model)
+        freeze(model)
+        return model
+
+    def complete_hparams(self):
+        default_list = {
+            'mean_teacher_momentum': 0.9,
+        }
+        self.hparams = {**default_list, **self.hparams}
+        SRDistillation.complete_hparams(self)
+
+    def step(self, meter, batch):
+        teacher_dict = self.teacher.state_dict()
+        student_dict = self.model.state_dict()
+        alpha = self.hparams['mean_teacher_momentum']
+        for key, value in student_dict.items():
+            teacher_dict[key] = teacher_dict[key] * alpha + value * (1 - alpha)
+        self.teacher.load_state_dict(teacher_dict)
+
+        return SRDistillation.step(self, meter, batch)
+
+
 def get_distill_method(name):
-    if name == 'CKA':
-        return CKA
-    elif name == 'FD':
-        return DistillationMethod
-    elif name == 'FD_Conv1x1':
-        return FD_Conv1x1
-    elif name == 'FD_CloseForm':
-        return FD_CloseForm
-    elif name == 'FD_BN1x1':
-        return FD_BN1x1
-    else:
-        raise NotImplementedError()
+    methods = {
+        'CKA': CKA,
+        'L2Distillation': L2Distillation,
+        'L1Distillation': L1Distillation,
+        'FD_Conv1x1': FD_Conv1x1,
+        'FD_CloseForm': FD_CloseForm,
+        'FD_BN1x1': FD_BN1x1,
+        'FD_Conv1x1_MSE': FD_Conv1x1_MSE
+    }
+    return methods[name]
 
 
 class DistillationMethod(torch.nn.Module):
@@ -187,7 +218,29 @@ class DistillationMethod(torch.nn.Module):
         super().__init__()
 
     def forward(self, feat_s, feat_t):
-        return torch.dist(feat_s[-1], feat_t[-1], p=1)
+        pass
+
+
+class L2Distillation(DistillationMethod):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, feat_s, feat_t):
+        loss = []
+        for fs, ft in zip(feat_s, feat_t):
+            loss.append(torch.mean((fs - ft)**2))
+        return torch.mean(torch.stack(loss))
+
+
+class L1Distillation(DistillationMethod):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, feat_s, feat_t):
+        loss = []
+        for fs, ft in zip(feat_s, feat_t):
+            loss.append(torch.mean(torch.abs(fs - ft)))
+        return torch.mean(torch.stack(loss))
 
 
 class FD_Conv1x1(DistillationMethod):
@@ -202,6 +255,20 @@ class FD_Conv1x1(DistillationMethod):
         for fs, ft, conv in zip(feat_s, feat_t, self.convs):
             loss += torch.mean(torch.abs(conv(fs) - ft))
         return loss
+
+
+class FD_Conv1x1_MSE(DistillationMethod):
+    def __init__(self, feat_s, feat_t, *args, **kwargs):
+        super().__init__()
+        self.convs = torch.nn.ModuleList([
+            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t)
+        ])
+
+    def forward(self, feat_s, feat_t):
+        loss = []
+        for fs, ft, conv in zip(feat_s, feat_t, self.convs):
+            loss.append(torch.mean((conv(fs) - ft)**2))
+        return torch.mean(torch.stack(loss))
 
 
 class FD_BN1x1(DistillationMethod):
@@ -279,6 +346,7 @@ def load_model(params):
         'TwoStageSR': TwoStageSR,
         'SR_LightModel': SR_LightModel,
         'SRDistillation': SRDistillation,
+        'MeanTeacherSRDistillation': MeanTeacherSRDistillation,
     }
     if 'method' not in params:
         Selected_Model = SR_LightModel

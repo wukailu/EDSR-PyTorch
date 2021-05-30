@@ -232,25 +232,33 @@ def get_final_few():
 
 def final_test_for_plane():
     backbones = [
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+         'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+         'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': False},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2,
+         'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True},
         {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'bn', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True},
         {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 2, 'use_act': True,
          'norm_before_relu': False, 'use_esa': False, 'use_spade': True, 'large_ori': True},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1,
+         'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': False},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2,
+         'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': False},
         {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 1, 'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True},
@@ -294,29 +302,41 @@ def final_test_for_plane():
 
 def final_test_for_plane_x2():
     backbones = [
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+         'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': True, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': True, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 3, 'norm_type': 'spade', 'conv_in_block': 2,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': False, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': True, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 1,
+         'use_act': False,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 2,
+         'use_act': True,
          'norm_before_relu': False, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'spade', 'conv_in_block': 3,
+         'use_act': True,
          'norm_before_relu': False, 'use_esa': True, 'use_spade': True, 'large_ori': False, 'scale': 2},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 2, 'use_act': False,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 4, 'norm_type': 'none', 'conv_in_block': 2,
+         'use_act': False,
          'norm_before_relu': False, 'use_esa': True, 'use_spade': True, 'large_ori': False, 'scale': 2},
     ]
 
@@ -348,9 +368,11 @@ def final_test_for_plane_x2():
 
 def full_test_plane_x4():
     backbones = [
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4},
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2,
+         'use_act': True,
          'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4},
     ]
 
@@ -459,7 +481,8 @@ def planeDistill():
         #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
         (
             '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
-            {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
+            {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+             'use_act': True,
              'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4})
     ]
 
@@ -497,6 +520,7 @@ def planeDistill():
         # "seed": [233],
         "seed": [233, 234, 235, 236],
         'test_benchmark': True,
+        'save_model': False,
     }
 
     return random_params(params)
@@ -508,9 +532,10 @@ def planeDistillBaseline():
         #  {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
         #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
         (
-        '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
-        {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
-         'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4}),
+            '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
+            {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+             'use_act': True,
+             'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4}),
         # ('/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
         # {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3, 'use_act': True,
         #  'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'add_input': False, 'scale': 4})
@@ -549,8 +574,8 @@ def planeDistillBaseline():
 def edsrDistill():
     pretrained_paths = [
         (
-        '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
-        {'arch': 'EDSR_sr', 'n_feats': 50, 'scale': 4}),
+            '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
+            {'arch': 'EDSR_sr', 'n_feats': 50, 'scale': 4}),
     ]
 
     path, config = random_params(pretrained_paths)
@@ -559,9 +584,9 @@ def edsrDistill():
     params = {
         'project_name': 'edsr_distill_30',
         'method': 'SRDistillation',
-        'dist_method': ['FD_Conv1x1'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
-        'distill_coe': [0.01],  # for FD_Conv1x1
-        'start_distill': [0, 1, 2],  # 10 is usually better than 50
+        'dist_method': ['FD_Conv1x1_MSE'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
+        'distill_coe': [0.01, 0.003, 0.001, 3e-4, 1e-4],  # 0.01 for FD_Conv1x1
+        'start_distill': [0, 1],  # 10 is usually better than 50
         'gpus': 1,
         'num_epochs': 30,
         'weight_decay': 0,
@@ -579,8 +604,9 @@ def edsrDistill():
             'repeat': 20,
         },
         'rgb_range': 255,
-        "seed": [233, 234, 335, 336],
+        "seed": [233, 234],
         'test_benchmark': True,
+        'save_model': False,
     }
 
     return random_params(params)
@@ -589,8 +615,8 @@ def edsrDistill():
 def edsrDistillBaseline():
     pretrained_paths = [
         (
-        '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
-        {'arch': 'EDSR_sr', 'n_feats': 50, 'scale': 4}),
+            '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
+            {'arch': 'EDSR_sr', 'n_feats': 50, 'scale': 4}),
     ]
 
     path, config = random_params(pretrained_paths)
@@ -615,7 +641,7 @@ def edsrDistillBaseline():
             'repeat': 20,
         },
         'rgb_range': 255,
-        "seed": [233, 234, 235, 236],
+        "seed": [235, 236],
         # "seed": 233,
         'test_benchmark': True,
     }
@@ -623,8 +649,163 @@ def edsrDistillBaseline():
     return random_params(params)
 
 
+def edsrMeanTeacher():
+    pretrained_paths = [
+        (
+            '/data/kailu/.foundations/job_data/archive/bf01e17a-c4e0-4ab2-90e9-e8b690810adb/user_artifacts/335epoch=295.ckpt',
+            {'arch': 'EDSR_sr', 'n_feats': 50, 'scale': 4}),
+    ]
+
+    path, config = random_params(pretrained_paths)
+    config['n_feats'] = 12
+
+    params = {
+        'project_name': 'edsrMeanTeacher',
+        'method': 'MeanTeacherSRDistillation',
+        'gpus': 1,
+        'num_epochs': 30,
+        'weight_decay': 0,
+        # 'distill_coe': [0.01, 0.03, 0.003, 0.001, 0.0003, 0.0001],  # 1e-2 for FD_Conv1x1
+        'distill_coe': [0.1, 0.3, 1, 3, 10, 30],  # 1e-2 for FD_Conv1x1
+        'pretrain_distill': True,
+        'start_distill': [1],
+        'max_lr': [2e-4],  # 2e-4
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'backbone': config,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 16,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": [233],
+        'test_benchmark': True,
+        'save_model': False,
+    }
+
+    return random_params(params)
+
+
+def purePlaneDistill():
+    pretrained_paths = [
+        # ('/data/kailu/.foundations/job_data/archive/439a9a75-982d-4ebd-a747-3006c4993ed6/user_artifacts/233epoch=298.ckpt',
+        #  {'arch': 'Plane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 2, 'use_act': True,
+        #   'norm_before_relu': True, 'use_esa': False, 'use_spade': True, 'large_ori': True, 'scale': 4}),
+        (
+            '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
+            {'arch': 'PurePlane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+             'use_act': True,
+             'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4})
+    ]
+
+    path, config = random_params(pretrained_paths)
+    config['n_feats'] = 64  # distill 128 -> 64
+
+    params = {
+        'project_name': 'planeModel_distill_30',
+        'method': 'SRDistillation',
+        'dist_method': ['FD_Conv1x1_MSE'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
+        'distill_coe': [0.01, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5],  # 1e-2 for FD_Conv1x1
+        'pretrain_distill': True,
+        'start_distill': [0, 1],
+        'gpus': 1,
+        'num_epochs': 30,
+        'weight_decay': 0,
+        'max_lr': 1e-3,  # 2e-5
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'teacher': path,
+        'backbone': config,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 512,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234],
+        'test_benchmark': True,
+        'save_model': False,
+    }
+
+    return random_params(params)
+
+
+def purePlaneDistillBaseline():
+    pretrained_paths = [
+        (
+            '/data/kailu/.foundations/job_data/archive/cc3c122f-89c7-421a-927f-cafdd2bfd4d8/user_artifacts/233epoch=267.ckpt',
+            {'arch': 'PurePlane_sr', 'n_feats': 128, 'num_modules': 2, 'norm_type': 'spade', 'conv_in_block': 3,
+             'use_act': True,
+             'norm_before_relu': True, 'use_esa': False, 'use_spade': False, 'large_ori': True, 'scale': 4}),
+    ]
+
+    path, config = random_params(pretrained_paths)
+    config['n_feats'] = 64  # distill 128 -> 64
+
+    params = {
+        'project_name': 'planeModel_distill_baseline',
+        'gpus': 1,
+        # 'num_epochs': 100,
+        'num_epochs': 30,
+        'weight_decay': 0,
+        # 'max_lr': [1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5],  # 2e-5
+        'max_lr': [1e-3],  # 2e-5
+        'optimizer': 'Adam',
+        'lr_scheduler': 'OneCycLR',
+        'backbone': config,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 512,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": [335, 336],
+        'test_benchmark': True,
+    }
+
+    return random_params(params)
+
+
+def naiveBaseline():
+    params = {
+        'project_name': 'distill_baseline',
+        'gpus': 1,
+        'num_epochs': 1,
+        'backbone': {'arch': 'DirectScale_sr'},
+        'skip_train': True,
+        'scale': 4,
+        'save_model': False,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 512,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 335, 336],
+        'test_benchmark': True,
+    }
+
+    return random_params(params)
+
+
 def params_for_SR():
-    params = edsrDistill()
+    # params = naiveBaseline()
+    # params = edsrDistillBaseline()
+    params = edsrMeanTeacher()
+    # params = edsrDistill()
+    # params = purePlaneDistill()
 
     if params['dataset']['name'] == 'DIV2K':
         params['dataset']['test_bz'] = 1

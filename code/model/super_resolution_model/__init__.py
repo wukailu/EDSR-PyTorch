@@ -11,3 +11,4 @@ from .plane_model import *
 from .csnln_model import *
 from .han_model import *
 from .imdn_model import *
+from .baseline_model import *

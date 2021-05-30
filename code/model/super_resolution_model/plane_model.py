@@ -12,11 +12,17 @@ def Plane(**kwargs):
     return model
 
 
-class Plane_Model(nn.Module):
-    def __init__(self, in_nc=3, n_feats=50, num_modules=4, out_nc=3, scale=4, **kwargs):
-        super(Plane_Model, self).__init__()
+@register_model
+def PurePlane(**kwargs):
+    model = PurePlaneModel(**kwargs)
+    return model
 
-        nf = n_feats
+
+class Plane_Model(nn.Module):
+    def __init__(self, in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale=4, **kwargs):
+        super().__init__()
+
+        nf = n_feats if nf is None else nf
         self.num_modules = num_modules
         self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
         self.out_nc = out_nc
@@ -142,43 +148,59 @@ class RepBlock(nn.Module):
         return out
 
 
+class PurePlaneModel(nn.Module):
+    def __init__(self, in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale=4, record_input_in_feature=False, **kwargs):
+        super().__init__()
 
-# class PurePlaneBlock(nn.Module):
-#     def __init__(self, in_channel, conv_in_block=1, use_act=True, norm_before_relu=False,
-#                  use_esa=False, use_spade=True, large_ori=False, add_input=True, **kwargs):
-#         super().__init__()
-#         self.norm_type = norm_type
-#         self.large_ori = large_ori
-#         self.add_input = add_input
-#
-#         conv_in = in_channel + ((3 * (in_channel // 3) if large_ori else 3) if add_input else 0)
-#         self.convs = nn.ModuleList()
-#         for i in range(conv_in_block):
-#             if norm_before_relu:
-#                 if norm_type == 'spade':
-#                     self.convs.append(SPADE('spadebatch3x3', in_channel))
-#                 elif norm_type == 'bn':
-#                     self.norm = nn.BatchNorm2d(in_channel)
-#                 elif norm_type == 'in':
-#                     self.norm = nn.InstanceNorm2d(in_channel)
-#             if use_act:
-#                 self.convs.append(activation('lrelu', neg_slope=0.05))
-#             self.convs.append(conv_layer(conv_in, in_channel, 3))
-#
-#         if use_spade:
-#             self.convs.append(SPADE('spadebatch3x3', in_channel))
-#
-#         if use_esa:
-#             self.convs.append(ESA(in_channel, nn.Conv2d))
-#
-#     def forward(self, x, ori_input):
-#         out = x
-#         if self.large_ori:
-#             ori_input = torch.cat([ori_input] * (x.size(1) // ori_input.size(1)), dim=1)
-#         for m in self.convs:
-#             if isinstance(m, nn.Conv2d) and self.add_input:
-#                 out = torch.cat([ori_input, out], dim=1)
-#             # TODO 如何解决 ori_input 只占3 channel 但 conv parameters 分布均匀的问题
-#             out = m(out)
-#
-#         return out
+        nf = n_feats if nf is None else nf
+        self.num_modules = num_modules
+        self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
+        self.out_nc = out_nc
+        self.scale = scale
+        self.record_in = record_input_in_feature
+
+        self.features = nn.ModuleList([PurePlaneBlock(in_channel=nf, **kwargs) for i in range(num_modules)])
+        self.up_conv = conv_layer(nf, out_nc * (scale ** 2), 1, 1)
+        self.shuffle = nn.PixelShuffle(scale)
+
+    def forward(self, input: torch.Tensor, with_feature=False):
+        f_list = []
+        out = self.fea_conv(input)
+        for m in self.features:
+            if self.record_in:
+                f_list.append(torch.cat([out, input], dim=1))
+            else:
+                f_list.append(out)
+            out = m(out)
+        if self.record_in:
+            f_list.append(torch.cat([out, input], dim=1))
+        else:
+            f_list.append(out)
+
+        inp = torch.cat([torch.stack([input[:, c, :, :]] * (self.scale ** 2), dim=1) for c in range(self.out_nc)],
+                        dim=1)
+        out = self.up_conv(out) + inp
+        out = self.shuffle(out)
+
+        if with_feature:
+            return out, f_list
+        else:
+            return out
+
+
+class PurePlaneBlock(nn.Module):
+    def __init__(self, in_channel, conv_in_block=1, use_act=True, **kwargs):
+        super().__init__()
+
+        conv_in = in_channel
+        self.convs = nn.ModuleList()
+        for i in range(conv_in_block):
+            if use_act:
+                self.convs.append(activation('lrelu', neg_slope=0.05))
+            self.convs.append(conv_layer(conv_in, in_channel, 3))
+
+    def forward(self, x):
+        out = x
+        for m in self.convs:
+            out = m(out)
+        return out

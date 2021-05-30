@@ -4,7 +4,6 @@ import torch.nn as nn
 from model.super_resolution_model import common
 from .utils import register_model, unpack_feature, pack_feature
 
-
 url = {
     'r16f64x2': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_baseline_x2-1bc95232.pt',
     'r16f64x3': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_baseline_x3-abf2a44e.pt',
@@ -13,6 +12,7 @@ url = {
     'r32f256x3': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_x3-ea3ef2c6.pt',
     'r32f256x4': 'https://cv.snu.ac.kr/research/EDSR/models/edsr_x4-4f62e9ef.pt'
 }
+
 
 @register_model
 def EDSR(pretrained=False, **hparams):
@@ -24,12 +24,14 @@ def EDSR(pretrained=False, **hparams):
         model.load_state_dict(load_from, strict=False)
     return model
 
+
 class EDSR_Model(nn.Module):
-    def __init__(self, n_resblocks=16, n_feats=64, scale=4, rgb_range=255, n_colors=3, res_scale=1, conv=common.default_conv, **kwargs):
+    def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, res_scale=1,
+                 conv=common.default_conv, **kwargs):
         super(EDSR_Model, self).__init__()
 
         n_resblocks = n_resblocks
-        n_feats = n_feats
+        n_feats = n_feats if nf is None else nf
         kernel_size = 3
         act = nn.ReLU(True)
         url_name = 'r{}f{}x{}'.format(n_resblocks, n_feats, scale)
@@ -97,4 +99,3 @@ class EDSR_Model(nn.Module):
                 if name.find('tail') == -1:
                     raise KeyError('unexpected key "{}" in state_dict'
                                    .format(name))
-
