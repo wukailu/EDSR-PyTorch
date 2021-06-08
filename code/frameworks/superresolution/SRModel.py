@@ -165,7 +165,6 @@ class SRDistillation(SR_LightModel):
                 loss = task_loss + dist_loss * self.hparams['distill_coe']
 
             self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
-
         else:
             out_s = self.forward(lr)
             loss = self.criterion(out_s, hr)

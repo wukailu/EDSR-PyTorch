@@ -5,17 +5,29 @@ import time
 
 if __name__ == '__main__':
     params = {
-        'arch': 'Plane_sr',
-        'scale': 3,
-        'nf': 50
+        'arch': 'resnet20_act_wise',
     }
 
-    model = get_classifier(params, "div2k")
+    model = get_classifier(params, "cifar10")
     model.cuda().eval()
-    x_test = torch.randint(0, 256, (16, 3, 24, 24)).float().cuda()
+    x_test = torch.randint(0, 256, (16, 3, 32, 32)).float().cuda()
     with torch.no_grad():
-        outs = model(x_test)
-        print(outs.shape)
+        feats, outs = model(x_test, with_feature=True)
+        for f in feats:
+            print(f.min(), f.max(), f.shape)
+
+    # params = {
+    #     'arch': 'Plane_sr',
+    #     'scale': 3,
+    #     'nf': 50
+    # }
+    #
+    # model = get_classifier(params, "div2k")
+    # model.cuda().eval()
+    # x_test = torch.randint(0, 256, (16, 3, 24, 24)).float().cuda()
+    # with torch.no_grad():
+    #     outs = model(x_test)
+    #     print(outs.shape)
 
     # backbones = [
     #     # {'arch': 'inn_sr', 'version': 'new_spade_act', 'norm_type': 'spade', 'block_skip': False, 'add_ori': False,
