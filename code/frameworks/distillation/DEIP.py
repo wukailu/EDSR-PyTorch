@@ -24,11 +24,15 @@ class DEIP_LightModel(LightningModule):
         import time
         start_time = time.clock()
         # First version, no progressive learning
-        for batch in self.dataProvider.train_dl[:1]:
+        for batch in self.dataProvider.train_dl:
             widths = self.calc_width(input_batch=batch)
             print("calculated width = ", widths)
-            for w in widths[:-1]:
-                self.append_layer(w)
+            with torch.no_grad():
+                images, labels = batch
+                f_list, _ = self.teacher_model(images, with_feature=True)
+                f_shapes = [images.shape] + [f.shape for f in f_list]
+                for idx, w in enumerate(widths[:-1]):
+                    self.append_layer(w, f_shapes[idx][2:], f_shapes[idx+1][2:])
             self.append_fc(widths[-1])
             print("initialization student width used ", time.clock() - start_time)
             break
@@ -37,6 +41,7 @@ class DEIP_LightModel(LightningModule):
         default_sr_list = {
             'input_channel': 3,
             'progressive_distillation': False,
+            'rank_eps': 5e-2,
         }
         self.hparams = {**default_sr_list, **self.hparams}
         LightningModule.complete_hparams(self)
@@ -61,8 +66,13 @@ class DEIP_LightModel(LightningModule):
         acc = (torch.max(predictions, dim=1)[1] == labels).float().mean()
         return {'loss': loss, 'progress_bar': {'acc': acc}}
 
-    def append_layer(self, channels, kernel_size=3):
-        new_layer = nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size)
+    def append_layer(self, channels, previous_f_size, current_f_size, kernel_size=3):
+        if previous_f_size == current_f_size:
+            new_layer = nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size//2)
+        else:
+            stride_w = previous_f_size[0] // current_f_size[0]
+            stride_h = previous_f_size[1] // current_f_size[1]
+            new_layer = nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size//2, stride=(stride_w, stride_h))
         self.last_channel = channels
         self.plane_model.append(new_layer)
 
@@ -82,7 +92,7 @@ class DEIP_LightModel(LightningModule):
                     #  Here Simple SVD is used, which is the best approximation to min_{D'} ||D-D'||_F where rank(D') <= r
                     #  A question is, how to solve min_{D'} ||(D-D')*W||_F where rank(D') <= r, W is matrix with positive weights and * is element-wise production
                     #  refer to wiki, it's called `Weighted low-rank approximation problems`, which does not have an analytic solution
-                    ret.append(rank_estimate(f))
+                    ret.append(rank_estimate(f, eps=self.hparams['rank_eps']))
                 ret.append(f_list[-1].size(1))  # num classes
             return ret
 
@@ -98,13 +108,22 @@ def rank_estimate(feature, weight=None, eps=5e-2):
     if weight is not None:
         f = f * weight
     f = f.permute((1, 2, 0)).flatten(start_dim=1)
+
+    # svd can not solve too large feature maps, so take samples
+    if f.size(1) > 32768:
+        perm = torch.randperm(f.size(1))[:32768]
+        f = f[:, perm]
     u, s, v = torch.svd(f)
+
     error = 0
     for r in range(1, f.size(0) + 1):
+        # print('now at ', r, 'error = ', error)
         approx = torch.mm(torch.mm(u[:, :r], torch.diag(s[:r])), v[:, :r].t())
-        error = torch.max(torch.abs(f - approx) / (torch.abs(f)+1e-4))
+        error = torch.max(torch.abs(f - approx))  # take absolute error, you can use weight to balance it.
         if error < eps:
             return r
+    print("rank estimation failed! feature shape is ", feature.shape)
+    print("max value and min value in feature is ", feature.max(), feature.min())
     raise AssertionError(f"rank estimation failed! The last error is {error}")
 
 # TODO: DEIP_Distillation, DEIP_Progressive_Distillation

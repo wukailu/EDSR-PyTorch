@@ -108,23 +108,46 @@ def show_all(filter_dict, net_name=None):
 
 
 def parse_params(params: dict):
+    # Process trainer
+    defaults = {
+        'use_amp': False,
+        'deterministic': True,
+        'benchmark': True,
+        'gpus': 1,
+        'num_epochs': 1,
+    }
+    params = {**defaults, **params}
+    if "backend" not in params:
+        params["backend"] = "ddp" if params["gpus"] > 1  else None
+
+    # Process backbone
     backbone_list = ['vgg11_bn', 'vgg13_bn', 'vgg16_bn', 'vgg19_bn', 'resnet18',
                      'resnet34', 'resnet50', 'resnet101', 'resnet152', 'densenet121',
                      'densenet161', 'densenet169', 'mobilenet_v2', 'googlenet', 'inception_v3',
                      'Rep_ResNet50', 'resnet20']
-    optimizer_list = ['SGD', 'Adam']
-    scheduler_list = ['ExpLR', 'CosLR', 'StepLR', 'OneCycLR', 'MultiStepLR', 'MultiStepLR_CRD']
 
     if 'backbone' in params and isinstance(params['backbone'], int):
         params['backbone'] = backbone_list[params['backbone']]
-    if 'optimizer' in params and isinstance(params['optimizer'], int):
-        params['optimizer'] = optimizer_list[params['optimizer']]
-    if 'lr_scheduler' in params and isinstance(params['lr_scheduler'], int):
-        params['lr_scheduler'] = scheduler_list[params['lr_scheduler']]
+
+    # Process dataset
+    if isinstance(params['dataset'], str):
+        params['dataset'] = {'name': params['dataset']}
+    default_dataset_params = {
+        'workers': 8,
+    }
+    params['dataset'] = {**default_dataset_params, **params['dataset']}
     if 'total_batch_size' in params['dataset'] and 'batch_size' not in params['dataset']:
         params['dataset']["batch_size"] = params['dataset']["total_batch_size"] // params["gpus"]
     if 'total_batch_size' not in params['dataset'] and 'batch_size' in params['dataset']:
         params['dataset']["total_batch_size"] = params['dataset']["batch_size"] * params["gpus"]
+
+    # Process Training Settings
+    optimizer_list = ['SGD', 'Adam']
+    scheduler_list = ['ExpLR', 'CosLR', 'StepLR', 'OneCycLR', 'MultiStepLR', 'MultiStepLR_CRD']
+    if 'optimizer' in params and isinstance(params['optimizer'], int):
+        params['optimizer'] = optimizer_list[params['optimizer']]
+    if 'lr_scheduler' in params and isinstance(params['lr_scheduler'], int):
+        params['lr_scheduler'] = scheduler_list[params['lr_scheduler']]
 
     equivalent_keys = [('learning_rate', 'lr', 'max_lr')]
     for groups in equivalent_keys:
@@ -135,25 +158,6 @@ def parse_params(params: dict):
                     params[key2] = val
                 break
 
-    # not important information
-    defaults = {
-        'use_amp': False,
-        'deterministic': True,
-        'benchmark': True,
-        'gpus': 1,
-        'num_epochs': 1,
-    }
-    params = {**defaults, **params}
-    default_dataset_params = {
-        'workers': 8,
-    }
-    if isinstance(params['dataset'], str):
-        params['dataset'] = {'name': params['dataset']}
-    params['dataset'] = {**default_dataset_params, **params['dataset']}
-    if params["gpus"] > 1 and "backend" not in params:
-        params["backend"] = "ddp"  # serious bug with dp, some bugs with ddp
-    else:
-        params["backend"] = None
     return params
 
 

@@ -7,15 +7,14 @@ from utils.foundation_tools import submit_jobs, random_params
 def params_for_direct_train():
     params = {
         'project_name': 'deip_test',
-        'total_batch_size': 256,  # real batch size will be gpus * batch size
         'gpus': 1,
-        'num_epochs': 2,
+        'num_epochs': 300,
         'weight_decay': 5e-4,
         'max_lr': 0.01,
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
         'backbone': 'resnet20_act_wise',
-        "dataset": "cifar100",
+        "dataset": {'name': "cifar100", 'total_batch_size': 256},
         "seed": 0,
     }
 

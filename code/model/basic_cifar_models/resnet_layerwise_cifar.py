@@ -64,10 +64,11 @@ class BasicBlock_2(nn.Module):
 class LastLinearLayer(nn.Module):
     def __init__(self, linear_in, num_classes):
         super().__init__()
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
         self.linear = nn.Linear(linear_in, num_classes)
 
     def forward(self, x):
-        x = F.avg_pool2d(x, x.size()[3])
+        x = self.pool(x)
         x = x.view(x.size(0), -1)
         return self.linear(x)
 

@@ -27,11 +27,6 @@ def get_params():
 def prepare_params(params):
     from utils.foundation_tools import parse_params
     params = parse_params(params)
-    if params['backbone'] == 'VDSR':
-        if isinstance(params['datasets'], dict):
-            params['datasets']['input_large'] = True
-        else:
-            params['datasets'] = {'name': params['datasets'], 'input_large': True}
     default_keys = {
         'inference_statics': True,
         'skip_train': False,

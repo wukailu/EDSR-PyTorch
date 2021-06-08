@@ -10,12 +10,14 @@ if __name__ == '__main__':
 
     model = get_classifier(params, "cifar10")
     model.cuda().eval()
-    x_test = torch.randint(0, 256, (16, 3, 32, 32)).float().cuda()
+    x_test = torch.randn((128, 3, 32, 32)).float().cuda()
     with torch.no_grad():
         feats, outs = model(x_test, with_feature=True)
         for f in feats:
             print(f.min(), f.max(), f.shape)
-
+        from frameworks.distillation.DEIP import rank_estimate
+        for f in feats:
+            print(rank_estimate(f.cuda()))
     # params = {
     #     'arch': 'Plane_sr',
     #     'scale': 3,
