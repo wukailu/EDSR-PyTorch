@@ -44,7 +44,7 @@ def direct_train_model(model, params):
     from foundations import set_tensorboard_logdir
     set_tensorboard_logdir(f'../logs/model_distillation')
 
-    checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor='acc', prefix=str(params["seed"]))
+    checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor='validation/acc', prefix=str(params["seed"]))
     t_params = get_trainer_params(params)
     trainer = Trainer(logger=logger, checkpoint_callback=checkpoint_callback, progress_bar_refresh_rate=100, **t_params)
     trainer.fit(model)
@@ -56,7 +56,7 @@ def direct_train_model(model, params):
         if params['save_model']:
             save_artifact(checkpoint_callback.best_model_path, key='best_model_checkpoint')
         log_val = checkpoint_callback.best_model_score.item()
-        log_metric("val_PSNR", float(np.clip(log_val, -1e10, 1e10)))
+        log_metric("acc", float(np.clip(log_val, -1e10, 1e10)))
 
     print("Training finished")
     return model
@@ -91,3 +91,9 @@ if __name__ == "__main__":
             used_memory = torch.cuda.max_memory_allocated()
             log_metric('Inference_Time(ms)', float(total_time / 20 * 1000))
             log_metric('Memory(MB)', int(used_memory/1024/1024))
+
+        from thop import profile
+        x_test = torch.stack([model.val_dataloader().dataset[0][0]], dim=0).float().cuda()
+        flops, params = profile(model, inputs=(x_test,))
+        log_metric('flops(M)', float(flops/1024/1024))
+        log_metric('parameters(K)', float(params / 1024))

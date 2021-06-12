@@ -9,6 +9,7 @@ def params_for_direct_train():
         'project_name': 'deip_test',
         'gpus': 1,
         'num_epochs': 300,
+        'rank_eps': [5e-2, 0.1, 0.2, 0.3, 0.4, 0.5],  #  5e-2
         'weight_decay': 5e-4,
         'max_lr': 0.01,
         'lr_scheduler': 'OneCycLR',

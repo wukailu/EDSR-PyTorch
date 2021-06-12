@@ -19,10 +19,11 @@ class DEIP_LightModel(LightningModule):
         self.teacher_start_layer = 0
         self.last_channel = self.hparams['input_channel']
         self.init_student()
+        print(self.plane_model)
 
     def init_student(self):
         import time
-        start_time = time.clock()
+        start_time = time.process_time()
         # First version, no progressive learning
         for batch in self.dataProvider.train_dl:
             widths = self.calc_width(input_batch=batch)
@@ -34,7 +35,7 @@ class DEIP_LightModel(LightningModule):
                 for idx, w in enumerate(widths[:-1]):
                     self.append_layer(w, f_shapes[idx][2:], f_shapes[idx+1][2:])
             self.append_fc(widths[-1])
-            print("initialization student width used ", time.clock() - start_time)
+            print("initialization student width used ", time.process_time() - start_time)
             break
 
     def complete_hparams(self):
@@ -42,6 +43,7 @@ class DEIP_LightModel(LightningModule):
             'input_channel': 3,
             'progressive_distillation': False,
             'rank_eps': 5e-2,
+            'use_bn': True,
         }
         self.hparams = {**default_sr_list, **self.hparams}
         LightningModule.complete_hparams(self)
@@ -75,6 +77,9 @@ class DEIP_LightModel(LightningModule):
             new_layer = nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size//2, stride=(stride_w, stride_h))
         self.last_channel = channels
         self.plane_model.append(new_layer)
+        if self.hparams['use_bn']:
+            self.plane_model.append(nn.BatchNorm2d(channels))
+        self.plane_model.append(nn.ReLU())
 
     def append_fc(self, num_classes):
         self.plane_model.append(LastLinearLayer(self.last_channel, num_classes))
@@ -95,6 +100,13 @@ class DEIP_LightModel(LightningModule):
                     ret.append(rank_estimate(f, eps=self.hparams['rank_eps']))
                 ret.append(f_list[-1].size(1))  # num classes
             return ret
+
+    def calc_flops(self):
+        ret = 0
+        last_shape = (3, 32, 32)
+        for m in self.plane_model:
+            if isinstance(m, nn.Conv2d):
+                k = m.kernel_size
 
 
 def rank_estimate(feature, weight=None, eps=5e-2):
