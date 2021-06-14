@@ -1,5 +1,6 @@
 import torch
 
+from frameworks.distillation.feature_distillation import get_distill_module
 from model import get_classifier
 from frameworks.lightning_base_model import LightningModule
 
@@ -121,7 +122,7 @@ class SRDistillation(SR_LightModel):
         self.model = get_classifier(hparams["backbone"], hparams["dataset"])
 
         self.teacher = self.load_teacher()
-        self.dist_method = self.init_distill()
+        self.dist_method = self.get_distillation_module()
 
     def load_teacher(self):
         model = load_model({'load_from': self.hparams['teacher']}).model
@@ -129,13 +130,13 @@ class SRDistillation(SR_LightModel):
         freeze(model)
         return model
 
-    def init_distill(self):
+    def get_distillation_module(self):
         sample, _, _ = self.train_dataloader().dataset[0]  # TODO: get this message from data provider
         sample = sample.unsqueeze(dim=0)
         with torch.no_grad():
-            out_t, feat_t = self.teacher(sample, with_feature=True)
-            out_s, feat_s = self.model(sample, with_feature=True)
-            dist_method = get_distill_method(self.hparams['dist_method'])(feat_s, feat_t)
+            feat_t, out_t = self.teacher(sample, with_feature=True)
+            feat_s, out_s = self.model(sample, with_feature=True)
+            dist_method = get_distill_module(self.hparams['dist_method'])(feat_s, feat_t)
         return dist_method
 
     def complete_hparams(self):
@@ -151,16 +152,16 @@ class SRDistillation(SR_LightModel):
     def step(self, meter, batch):
         lr, hr, filenames = batch
         if self.training:
-            out_s, feat_s = self.model(lr, with_feature=True)
+            feat_s, out_s = self.model(lr, with_feature=True)
             task_loss = self.criterion(out_s, hr)
             if self.current_epoch < self.hparams['start_distill'] and not self.hparams['pretrain_distill']:
                 loss = task_loss
             else:
-                out_t, feat_t = self.teacher(lr, with_feature=True)
+                feat_t, out_t = self.teacher(lr, with_feature=True)
                 if self.current_epoch < self.hparams['start_distill'] and self.hparams['pretrain_distill']:
-                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], [ft.detach() for ft in feat_t])
+                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], [ft.detach() for ft in feat_t], self.current_epoch/self.hparams['num_epochs'])
                 else:
-                    dist_loss = self.dist_method(feat_s, feat_t)
+                    dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.hparams['num_epochs'])
                 self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
                 loss = task_loss + dist_loss * self.hparams['distill_coe']
 
@@ -197,147 +198,6 @@ class MeanTeacherSRDistillation(SRDistillation):
         self.teacher.load_state_dict(teacher_dict)
 
         return SRDistillation.step(self, meter, batch)
-
-
-def get_distill_method(name):
-    methods = {
-        'CKA': CKA,
-        'L2Distillation': L2Distillation,
-        'L1Distillation': L1Distillation,
-        'FD_Conv1x1': FD_Conv1x1,
-        'FD_CloseForm': FD_CloseForm,
-        'FD_BN1x1': FD_BN1x1,
-        'FD_Conv1x1_MSE': FD_Conv1x1_MSE
-    }
-    return methods[name]
-
-
-class DistillationMethod(torch.nn.Module):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
-    def forward(self, feat_s, feat_t):
-        pass
-
-
-class L2Distillation(DistillationMethod):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
-    def forward(self, feat_s, feat_t):
-        loss = []
-        for fs, ft in zip(feat_s, feat_t):
-            loss.append(torch.mean((fs - ft)**2))
-        return torch.mean(torch.stack(loss))
-
-
-class L1Distillation(DistillationMethod):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
-    def forward(self, feat_s, feat_t):
-        loss = []
-        for fs, ft in zip(feat_s, feat_t):
-            loss.append(torch.mean(torch.abs(fs - ft)))
-        return torch.mean(torch.stack(loss))
-
-
-class FD_Conv1x1(DistillationMethod):
-    def __init__(self, feat_s, feat_t, *args, **kwargs):
-        super().__init__()
-        self.convs = torch.nn.ModuleList([
-            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t)
-        ])
-
-    def forward(self, feat_s, feat_t):
-        loss = 0
-        for fs, ft, conv in zip(feat_s, feat_t, self.convs):
-            loss += torch.mean(torch.abs(conv(fs) - ft))
-        return loss
-
-
-class FD_Conv1x1_MSE(DistillationMethod):
-    def __init__(self, feat_s, feat_t, *args, **kwargs):
-        super().__init__()
-        self.convs = torch.nn.ModuleList([
-            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t)
-        ])
-
-    def forward(self, feat_s, feat_t):
-        loss = []
-        for fs, ft, conv in zip(feat_s, feat_t, self.convs):
-            loss.append(torch.mean((conv(fs) - ft)**2))
-        return torch.mean(torch.stack(loss))
-
-
-class FD_BN1x1(DistillationMethod):
-    def __init__(self, feat_s, feat_t, *args, **kwargs):
-        super().__init__()
-        self.convs = torch.nn.ModuleList([
-            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t)
-        ])
-        self.bn_t = torch.nn.ModuleList([
-            torch.nn.BatchNorm2d(ft.size(1)) for fs, ft in zip(feat_s, feat_t)
-        ])
-        self.bn_s = torch.nn.ModuleList([
-            torch.nn.BatchNorm2d(fs.size(1)) for fs, ft in zip(feat_s, feat_t)
-        ])
-
-    def forward(self, feat_s, feat_t):
-        loss = 0
-        for fs, ft, conv, bn_t, bn_s in zip(feat_s, feat_t, self.convs, self.bn_t, self.bn_s):
-            ft = bn_t(ft)
-            fs = bn_s(fs)
-            loss += torch.mean(torch.abs(conv(fs) - ft))
-        return loss
-
-
-class FD_CloseForm(DistillationMethod):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
-    def forward(self, feat_s, feat_t):
-        loss = 0
-        for fs, ft in zip(feat_s, feat_t):
-            # 1x1 conv equivalent to AX = B, where A is of shape [N, HxW, C_s], X is [N, C_s, C_t], B is [N, HxW, C_t]
-            # lstsq with batch is available in torch.linalg.lstsq with torch >= 1.9.0
-            # torch.lstsq does not support grad
-            A = torch.flatten(fs, start_dim=2).permute((0, 2, 1))
-            B = torch.flatten(ft, start_dim=2).permute((0, 2, 1))
-
-            # MSE over batches, this might be numerical unstable
-            f_cnt = 0
-            flag = False
-            while not flag:
-                flag = True
-                A += torch.randn_like(A) * 0.1
-                try:
-                    s = A.pinverse() @ B
-                except RuntimeError as e:
-                    flag = False
-                    f_cnt += 1
-                if not flag:
-                    A += torch.randn_like(A) * 0.1
-            if f_cnt != 0:
-                print(f"pinverse failed! repeated {f_cnt} times to get succeeded.")
-                assert False
-
-            r = (A @ s - B)
-            loss += torch.mean(r ** 2)
-        return loss
-
-
-class CKA(DistillationMethod):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        from frameworks.nnmetric.feature_similarity_measurement import cka_loss
-        self.cka = cka_loss()
-
-    def forward(self, feat_s, feat_t):
-        loss = 0
-        for fs, ft in zip(feat_s, feat_t):
-            loss += self.cka(fs, ft)
-        return loss
 
 
 def load_model(params):

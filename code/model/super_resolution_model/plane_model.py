@@ -183,7 +183,7 @@ class PurePlaneModel(nn.Module):
         out = self.shuffle(out)
 
         if with_feature:
-            return out, f_list
+            return f_list, out
         else:
             return out
 

@@ -6,6 +6,7 @@ from torch import nn
 from model import get_classifier, freeze
 from frameworks.lightning_base_model import LightningModule
 from model.basic_cifar_models.resnet_layerwise_cifar import LayerWiseModel, LastLinearLayer
+from frameworks.distillation.feature_distillation import get_distill_module
 
 
 # TODO: 首先实现一个确定宽度，然后直接 Train。
@@ -33,7 +34,7 @@ class DEIP_LightModel(LightningModule):
                 f_list, _ = self.teacher_model(images, with_feature=True)
                 f_shapes = [images.shape] + [f.shape for f in f_list]
                 for idx, w in enumerate(widths[:-1]):
-                    self.append_layer(w, f_shapes[idx][2:], f_shapes[idx+1][2:])
+                    self.append_layer(w, f_shapes[idx][2:], f_shapes[idx + 1][2:])
             self.append_fc(widths[-1])
             print("initialization student width used ", time.process_time() - start_time)
             break
@@ -69,17 +70,19 @@ class DEIP_LightModel(LightningModule):
         return {'loss': loss, 'progress_bar': {'acc': acc}}
 
     def append_layer(self, channels, previous_f_size, current_f_size, kernel_size=3):
+        new_layers = []
         if previous_f_size == current_f_size:
-            new_layer = nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size//2)
+            new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2))
         else:
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
-            new_layer = nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size//2, stride=(stride_w, stride_h))
+            new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2,
+                                  stride=(stride_w, stride_h)))
         self.last_channel = channels
-        self.plane_model.append(new_layer)
         if self.hparams['use_bn']:
-            self.plane_model.append(nn.BatchNorm2d(channels))
-        self.plane_model.append(nn.ReLU())
+            new_layers.append(nn.BatchNorm2d(channels))
+        new_layers.append(nn.ReLU())
+        self.plane_model.append(nn.Sequential(*new_layers))
 
     def append_fc(self, num_classes):
         self.plane_model.append(LastLinearLayer(self.last_channel, num_classes))
@@ -100,13 +103,6 @@ class DEIP_LightModel(LightningModule):
                     ret.append(rank_estimate(f, eps=self.hparams['rank_eps']))
                 ret.append(f_list[-1].size(1))  # num classes
             return ret
-
-    def calc_flops(self):
-        ret = 0
-        last_shape = (3, 32, 32)
-        for m in self.plane_model:
-            if isinstance(m, nn.Conv2d):
-                k = m.kernel_size
 
 
 def rank_estimate(feature, weight=None, eps=5e-2):
@@ -138,17 +134,61 @@ def rank_estimate(feature, weight=None, eps=5e-2):
     print("max value and min value in feature is ", feature.max(), feature.min())
     raise AssertionError(f"rank estimation failed! The last error is {error}")
 
-# TODO: DEIP_Distillation, DEIP_Progressive_Distillation
 
+# TODO: 啥时候把蒸馏改成多继承
+
+class DEIP_Distillation(DEIP_LightModel):
+    def __init__(self, hparams):
+        super().__init__(hparams)
+        self.dist_method = self.get_distillation_module()
+
+    def get_distillation_module(self):
+        sample, _ = self.train_dataloader().dataset[0]
+        sample = sample.unsqueeze(dim=0)
+        with torch.no_grad():
+            feat_t, out_t = self.teacher_model(sample, with_feature=True)
+            feat_s, out_s = self(sample, with_feature=True)
+            dist_method = get_distill_module(self.hparams['dist_method'])(feat_s, feat_t)
+        return dist_method
+
+    def complete_hparams(self):
+        default_sr_list = {
+            'dist_method': 'FD_Conv1x1_MSE',
+            'distill_coe': 1,
+        }
+        self.hparams = {**default_sr_list, **self.hparams}
+        DEIP_LightModel.complete_hparams(self)
+
+    def step(self, meter, batch):
+        images, labels = batch
+
+        if self.training:
+            feat_s, predictions = self(images, with_feature=True)
+            task_loss = self.criterion(predictions, labels)
+
+            feat_t, out_t = self.teacher_model(images, with_feature=True)
+            assert len(feat_s) == len(feat_t)
+            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.hparams['num_epochs'])
+            loss = task_loss + dist_loss * self.hparams['distill_coe']
+
+            self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
+            self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
+        else:
+            predictions = self.forward(images)
+            loss = self.criterion(predictions, labels)
+
+        meter.update(labels, predictions.detach(), loss.detach())
+        acc = (torch.max(predictions.detach(), dim=1)[1] == labels).float().mean()
+        return {'loss': loss, 'progress_bar': {'acc': acc}}
+
+
+# TODO: DEIP_Progressive_Distillation
 
 def load_model(params):
+    params = {'method': 'DirectTrain', **params}
     methods = {
         'DirectTrain': DEIP_LightModel,
+        'Distillation': DEIP_Distillation,
     }
-    if 'method' not in params:
-        Selected_Model = DEIP_LightModel
-    else:
-        Selected_Model = methods[params['method']]
-
-    model = Selected_Model(params)
+    model = methods[params['method']](params)
     return model

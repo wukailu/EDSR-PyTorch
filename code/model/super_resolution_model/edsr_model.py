@@ -77,7 +77,7 @@ class EDSR_Model(nn.Module):
         x = self.add_mean(x)
 
         if with_feature:
-            return x, feat
+            return feat, x
         else:
             return x
 
