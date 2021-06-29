@@ -38,6 +38,13 @@ def freeze(model: torch.nn.Module):
         param.requires_grad = False
 
 
+def unfreeze_BN(model: torch.nn.Module):
+    for m in model.modules():
+        if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
+            for p in m.parameters():
+                p.requires_grad = True
+
+
 def get_trainable_params(model):
     # print("Params to learn:")
     params_to_update = []

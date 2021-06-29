@@ -10,7 +10,7 @@ def params_for_direct_train():
         'description': 'direct_training',
         'gpus': 1,
         'num_epochs': 300,
-        'rank_eps': [5e-2, 0.2, 0.3, 0.5],  #  5e-2
+        'rank_eps': [5e-2, 0.2, 0.3, 0.5],  # 5e-2
         'weight_decay': 5e-4,
         'max_lr': 0.01,
         'lr_scheduler': 'OneCycLR',
@@ -26,16 +26,39 @@ def params_for_direct_train():
 def params_for_deip_distillation():
     params = {
         'project_name': 'deip_test',
-        'description': 'distillation_with_FD_Conv1x1_MSE_and_coe_1',
+        'description': 'progressive_distillation_with_fake_PKKD',
         'method': 'Distillation',
+        'dist_method': 'Progressive_FD',
         'gpus': 1,
         'num_epochs': 300,
-        'rank_eps': [5e-2, 0.2, 0.3, 0.5],  #  5e-2
-        # 'rank_eps': 5e-2,
-        'distill_coe': [1, 2, 4],
+        'rank_eps': 5e-2,
+        'distill_coe': [2, 3, 7, 9],
         'weight_decay': 5e-4,
         'max_lr': 0.01,
         'lr_scheduler': 'OneCycLR',
+        'optimizer': 'SGD',
+        'backbone': 'resnet20_act_wise',
+        "dataset": {'name': "cifar100", 'total_batch_size': 256},
+        "seed": 0,
+    }
+
+    return params
+
+
+def params_for_deip_progressive_distillation():
+    params = {
+        'project_name': 'deip_test',
+        'description': 'progressive_distillation_with_bug_fix',
+        'method': 'Progressive_Distillation',
+        'gpus': 1,
+        'num_epochs': 400,
+        'track_grad_norm': True,
+        # 'rank_eps': [5e-2, 0.2, 0.3, 0.5],  #  5e-2
+        'rank_eps': 5e-2,
+        # 'distill_coe': [1, 0.1, 0.01],
+        'distill_coe': 0,
+        'weight_decay': 5e-4,
+        'max_lr': [1e-5, 1e-4, 1e-3, 1e-2],
         'optimizer': 'SGD',
         'backbone': 'resnet20_act_wise',
         "dataset": {'name': "cifar100", 'total_batch_size': 256},

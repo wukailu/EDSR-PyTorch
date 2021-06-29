@@ -3,7 +3,7 @@
 import torch
 from torch import nn
 
-from model import get_classifier, freeze
+from model import get_classifier, freeze, unfreeze_BN
 from frameworks.lightning_base_model import LightningModule
 from model.basic_cifar_models.resnet_layerwise_cifar import LayerWiseModel, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
@@ -50,16 +50,11 @@ class DEIP_LightModel(LightningModule):
         LightningModule.complete_hparams(self)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        if not with_feature:
-            for m in self.plane_model:
-                x = m(x)
-            return x
-        else:
-            f_list = []
-            for m in self.plane_model[start_forward_from: until]:
-                x = m(x)
-                f_list.append(x)
-            return f_list, x
+        f_list = []
+        for m in self.plane_model[start_forward_from: until]:
+            x = m(x)
+            f_list.append(x)
+        return (f_list, x) if with_feature else x
 
     def step(self, meter, batch):
         images, labels = batch
@@ -166,7 +161,8 @@ class DEIP_Distillation(DEIP_LightModel):
             feat_s, predictions = self(images, with_feature=True)
             task_loss = self.criterion(predictions, labels)
 
-            feat_t, out_t = self.teacher_model(images, with_feature=True)
+            with torch.no_grad():
+                feat_t, out_t = self.teacher_model(images, with_feature=True)
             assert len(feat_s) == len(feat_t)
             dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.hparams['num_epochs'])
             loss = task_loss + dist_loss * self.hparams['distill_coe']
@@ -182,13 +178,69 @@ class DEIP_Distillation(DEIP_LightModel):
         return {'loss': loss, 'progress_bar': {'acc': acc}}
 
 
-# TODO: DEIP_Progressive_Distillation
+class DEIP_Progressive_Distillation(DEIP_Distillation):
+    def __init__(self, hparams):
+        super().__init__(hparams)
+        self.current_layer = 0
+        self.milestone_epochs = list(range(0, self.hparams['num_epochs'], self.hparams['num_epochs']//len(self.plane_model)))[1:]
+        print(f'there are totally {len(self.plane_model)} layers in student, milestones are {self.milestone_epochs}')
+        self.bridges = self.init_bridges()
+        unfreeze_BN(self.teacher_model)
+
+    def init_bridges(self):
+        sample, _ = self.train_dataloader().dataset[0]
+        sample = sample.unsqueeze(dim=0)
+        ret = nn.ModuleList()
+        with torch.no_grad():
+            feat_t, out_t = self.teacher_model(sample, with_feature=True)
+            feat_s, out_s = self(sample, with_feature=True)
+            for fs, ft in zip(feat_s, feat_t):
+                if fs.shape != ft.shape:
+                    ret.append(nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1))
+                else:
+                    ret.append(nn.Identity())
+        return ret
+
+    def step(self, meter, batch):
+        if self.current_epoch in self.milestone_epochs:
+            print(f'freezing layer {self.current_layer}')
+            freeze(self.plane_model[self.current_layer])
+            self.current_layer += 1
+            self.milestone_epochs = self.milestone_epochs[1:]
+
+        images, labels = batch
+
+        if self.training:
+            feat_s, predictions = self(images, with_feature=True)
+            with torch.no_grad():
+                feat_t, out_t = self.teacher_model(images, with_feature=True)
+            assert len(feat_s) == len(feat_t)
+            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.hparams['num_epochs'])
+
+            mid_feature = self.forward(images, until=self.current_layer+1)
+            transfer_feature = self.bridges[self.current_layer](mid_feature)
+            predictions = self.teacher_model(transfer_feature, start_forward_from=self.current_layer+1)
+            task_loss = self.criterion(predictions, labels)
+            loss = task_loss + dist_loss * self.hparams['distill_coe']
+
+            self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
+            self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
+        else:
+            mid_feature = self.forward(images, until=self.current_layer + 1)
+            transfer_feature = self.bridges[self.current_layer](mid_feature)
+            predictions = self.teacher_model(transfer_feature, start_forward_from=self.current_layer + 1)
+            loss = self.criterion(predictions, labels)
+
+        meter.update(labels, predictions.detach(), loss.detach())
+        acc = (torch.max(predictions.detach(), dim=1)[1] == labels).float().mean()
+        return {'loss': loss, 'progress_bar': {'acc': acc}}
 
 def load_model(params):
     params = {'method': 'DirectTrain', **params}
     methods = {
         'DirectTrain': DEIP_LightModel,
         'Distillation': DEIP_Distillation,
+        'Progressive_Distillation': DEIP_Progressive_Distillation,
     }
     model = methods[params['method']](params)
     return model

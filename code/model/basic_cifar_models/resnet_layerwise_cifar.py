@@ -112,7 +112,7 @@ class ResNet_CIFAR(LayerWiseModel):
         for m in self.sequential_models[start_forward_from: until]:
             x = m(x)
             f_list.append(x)
-        return f_list, x if with_feature else x
+        return (f_list, x) if with_feature else x
 
     def __len__(self):
         return len(self.sequential_models)

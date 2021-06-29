@@ -10,7 +10,8 @@ def get_distill_module(name):
         'FD_Conv1x1': FD_Conv1x1,
         'FD_CloseForm': FD_CloseForm,
         'FD_BN1x1': FD_BN1x1,
-        'FD_Conv1x1_MSE': FD_Conv1x1_MSE
+        'FD_Conv1x1_MSE': FD_Conv1x1_MSE,
+        'Progressive_FD': Progressive_FD
     }
     return methods[name]
 
@@ -68,13 +69,30 @@ class FD_Conv1x1(DistillationMethod):
     def __init__(self, feat_s, feat_t, *args, **kwargs):
         super().__init__()
         self.convs = torch.nn.ModuleList([
-            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t)
+            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t) if len(fs.shape) == 4
         ])
 
     def forward(self, feat_s, feat_t, epoch_ratio):
         loss = []
         for fs, ft, conv in zip(feat_s, feat_t, self.convs):
             loss.append(torch.mean(torch.abs(conv(fs) - ft)))
+        return torch.mean(torch.stack(loss))
+
+
+class Progressive_FD(DistillationMethod):  # usually 5 for distill, 5*dist_loss + 1*cross_entropy
+    def __init__(self, feat_s, feat_t, *args, **kwargs):
+        super().__init__()
+        self.convs = torch.nn.ModuleList([
+            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t) if len(fs.shape) == 4
+        ])
+        self.layer_idx = [idx  for idx, (fs, ft) in enumerate(zip(feat_s, feat_t)) if len(fs.shape) == 4]
+
+    def forward(self, feat_s, feat_t, epoch_ratio):
+        assert 0 <= epoch_ratio <= 1
+        loss = []
+        idx = self.layer_idx[int((len(self.layer_idx)-1e-4) * epoch_ratio)]
+        fs, ft, conv = feat_s[idx], feat_t[idx], self.convs[idx]
+        loss.append(torch.mean(torch.abs(conv(fs) - ft)))
         return torch.mean(torch.stack(loss))
 
 
