@@ -5,14 +5,14 @@ from utils.foundation_tools import submit_jobs, random_params
 
 def params_for_single_train():
     params = {
-        'project_name': 'framework_test',
+        'project_name': 'deip_test',
         'gpus': 1,
-        'num_epochs': 2,
+        'num_epochs': 300,
         'weight_decay': 5e-4,
-        'max_lr': 0.01,
+        'max_lr': [0.1, 0.2, 0.3],
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
-        'backbone': ['resnet20'],
+        'backbone': ['resnet20_act_wise'],
         "dataset": {'name': "cifar100", 'total_batch_size': 256},
         "seed": 0,
     }
@@ -20,4 +20,4 @@ def params_for_single_train():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_single_train, 'frameworks/SingleModel/train_single_model.py', number_jobs=1000, job_directory='.')
+    submit_jobs(params_for_single_train, 'frameworks/singlemodel/train_single_model.py', number_jobs=1000, job_directory='.')

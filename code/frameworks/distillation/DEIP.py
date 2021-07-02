@@ -45,6 +45,7 @@ class DEIP_LightModel(LightningModule):
             'progressive_distillation': False,
             'rank_eps': 5e-2,
             'use_bn': True,
+            'layer_type': 'normal',
         }
         self.hparams = {**default_sr_list, **self.hparams}
         LightningModule.complete_hparams(self)
@@ -65,19 +66,30 @@ class DEIP_LightModel(LightningModule):
         return {'loss': loss, 'progress_bar': {'acc': acc}}
 
     def append_layer(self, channels, previous_f_size, current_f_size, kernel_size=3):
-        new_layers = []
-        if previous_f_size == current_f_size:
-            new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2))
-        else:
+        new_layer = nn.Identity()
+        if self.hparams['layer_type'] == 'normal':
+            new_layers = []
+            if previous_f_size == current_f_size:
+                    new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2))
+            else:
+                stride_w = previous_f_size[0] // current_f_size[0]
+                stride_h = previous_f_size[1] // current_f_size[1]
+                new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2,
+                                      stride=(stride_w, stride_h)))
+            if self.hparams['use_bn']:
+                new_layers.append(nn.BatchNorm2d(channels))
+            new_layers.append(nn.ReLU())
+            new_layer = nn.Sequential(*new_layers)
+        elif self.hparams['layer_type'] == 'repvgg':
+            from model.basic_cifar_models.repvgg import RepVGGBlock
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
-            new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2,
-                                  stride=(stride_w, stride_h)))
+            new_layer = RepVGGBlock(self.last_channel, channels, kernel_size, stride=(stride_w, stride_h), padding = kernel_size//2)
+        else:
+            raise NotImplementedError()
+
         self.last_channel = channels
-        if self.hparams['use_bn']:
-            new_layers.append(nn.BatchNorm2d(channels))
-        new_layers.append(nn.ReLU())
-        self.plane_model.append(nn.Sequential(*new_layers))
+        self.plane_model.append(new_layer)
 
     def append_fc(self, num_classes):
         self.plane_model.append(LastLinearLayer(self.last_channel, num_classes))

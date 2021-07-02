@@ -6,6 +6,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from utils.foundation_tools import parse_params, get_trainer_params
+import numpy as np
 
 ###
 # python -m torch.distributed.launch --nproc_per_node=8 ../main.py
@@ -31,7 +32,7 @@ if USE_FOUNDATIONS:
     from foundations import set_tensorboard_logdir
     set_tensorboard_logdir(f'../logs/{params["backbone"]}')
 
-checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor='acc', prefix=str(params["seed"]))
+checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor='validation/acc', prefix=str(params["seed"]))
 t_params = get_trainer_params(params)
 trainer = Trainer(logger=logger, checkpoint_callback=checkpoint_callback, **t_params)
 trainer.fit(model)
@@ -39,6 +40,6 @@ trainer.fit(model)
 if USE_FOUNDATIONS and checkpoint_callback.best_model_path != "":
     from foundations import log_metric, save_artifact
     save_artifact(checkpoint_callback.best_model_path, key='best_model_checkpoint')
-    log_metric("val_acc", float(checkpoint_callback.best_model_score))
+    log_metric("acc", float(np.clip(float(checkpoint_callback.best_model_score), -1e10, 1e10)))
 
 print("Training finished")
