@@ -5,13 +5,15 @@ def get_distill_module(name):
     methods = {
         'KD': KD,
         'CKA': CKA,
+        'CKA_on_logits': CKA_on_logits,
+        'CKA_on_channel': CKA_on_channel,
         'L2Distillation': L2Distillation,
         'L1Distillation': L1Distillation,
         'FD_Conv1x1': FD_Conv1x1,
         'FD_CloseForm': FD_CloseForm,
         'FD_BN1x1': FD_BN1x1,
         'FD_Conv1x1_MSE': FD_Conv1x1_MSE,
-        'Progressive_FD': Progressive_FD
+        'Progressive_FD': Progressive_FD,
     }
     return methods[name]
 
@@ -25,7 +27,7 @@ class DistillationMethod(torch.nn.Module):
 
 
 class KD(DistillationMethod):
-    def __init__(self, *args, T=4, **kwargs):
+    def __init__(self, *args, T=3, **kwargs):
         super().__init__()
         self.T = T
 
@@ -39,8 +41,7 @@ class KD(DistillationMethod):
                 p_t = F.softmax(ft / self.T, dim=1)
                 loss += F.kl_div(p_s, p_t, size_average=False) * (self.T ** 2) / fs.size(0)
                 cnt += 1
-        return loss/cnt
-
+        return loss / cnt
 
 
 class L2Distillation(DistillationMethod):
@@ -69,7 +70,8 @@ class FD_Conv1x1(DistillationMethod):
     def __init__(self, feat_s, feat_t, *args, **kwargs):
         super().__init__()
         self.convs = torch.nn.ModuleList([
-            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t) if len(fs.shape) == 4
+            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t) if
+            len(fs.shape) == 4
         ])
 
     def forward(self, feat_s, feat_t, epoch_ratio):
@@ -83,14 +85,15 @@ class Progressive_FD(DistillationMethod):  # usually 5 for distill, 5*dist_loss 
     def __init__(self, feat_s, feat_t, *args, **kwargs):
         super().__init__()
         self.convs = torch.nn.ModuleList([
-            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t) if len(fs.shape) == 4
+            torch.nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1) for fs, ft in zip(feat_s, feat_t) if
+            len(fs.shape) == 4
         ])
-        self.layer_idx = [idx  for idx, (fs, ft) in enumerate(zip(feat_s, feat_t)) if len(fs.shape) == 4]
+        self.layer_idx = [idx for idx, (fs, ft) in enumerate(zip(feat_s, feat_t)) if len(fs.shape) == 4]
 
     def forward(self, feat_s, feat_t, epoch_ratio):
         assert 0 <= epoch_ratio <= 1
         loss = []
-        idx = self.layer_idx[int((len(self.layer_idx)-1e-4) * epoch_ratio)]
+        idx = self.layer_idx[int((len(self.layer_idx) - 1e-4) * epoch_ratio)]
         fs, ft, conv = feat_s[idx], feat_t[idx], self.convs[idx]
         loss.append(torch.mean(torch.abs(conv(fs) - ft)))
         return torch.mean(torch.stack(loss))
@@ -177,6 +180,43 @@ class CKA(DistillationMethod):
 
     def forward(self, feat_s, feat_t, epoch_ratio):
         loss = 0
+        cnt = 0
         for fs, ft in zip(feat_s, feat_t):
             loss += self.cka(fs, ft)
-        return loss
+            cnt += 1
+        return loss / cnt
+
+
+class CKA_on_logits(DistillationMethod):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        from frameworks.nnmetric.feature_similarity_measurement import cka_loss
+        self.cka = cka_loss()
+
+    def forward(self, feat_s, feat_t, epoch_ratio):
+        loss = 0
+        cnt = 0
+        for fs, ft in zip(feat_s, feat_t):
+            if len(fs.shape) == 2 and fs.shape == ft.shape:
+                loss += self.cka(fs, ft)
+                cnt += 1
+        return loss / cnt
+
+
+class CKA_on_channel(DistillationMethod):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        from frameworks.nnmetric.feature_similarity_measurement import cka_loss
+        self.cka = cka_loss()
+
+    def forward(self, feat_s, feat_t, epoch_ratio):
+        loss = 0
+        cnt = 0
+        for fs, ft in zip(feat_s, feat_t):
+            if len(fs.shape) == 4 and fs.shape[:3] == ft.shape[:3]:
+                fs = fs.reshape(-1, fs.size(3))
+                ft = ft.reshape(-1, ft.size(3))
+            if len(fs.shape) == 2 and fs.shape[:1] == ft.shape[:1]:
+                loss += self.cka(fs, ft)
+                cnt += 1
+        return loss / cnt

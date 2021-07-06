@@ -84,6 +84,8 @@ class LightningModule(pl.LightningModule, ABC):
             scheduler = {'scheduler': scheduler, 'interval': 'step'}
         elif self.hparams['lr_scheduler'] == 'StepLR':
             scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
+        elif self.hparams['lr_scheduler'] == 'StepLR100':
+            scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
         elif self.hparams['lr_scheduler'] == 'OneCycLR':
             # + 1 to avoid over flow in steps() when there's totally 800 steps specified and 801 steps called
             # there will be such errors.
