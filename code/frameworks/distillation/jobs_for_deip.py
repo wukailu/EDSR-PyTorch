@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('/home/kailu/EDSR-PyTorch/code/')
-from utils.foundation_tools import submit_jobs, random_params
+from utils.tools import submit_jobs, random_params
 
 
 def params_for_direct_train():
@@ -29,7 +29,8 @@ def params_for_deip_distillation():
         'project_name': 'deip_distillation_repeat',
         'description': 'distillation_test',
         'method': 'Distillation',
-        'dist_method': ['CKA_on_logits', 'KD', 'Progressive_FD', 'FD_Conv1x1_MSE'],  # 'CKA_on_channel'
+        # 'dist_method': ['CKA_on_logits', 'KD', 'Progressive_FD', 'FD_Conv1x1_MSE'],
+        'dist_method': 'CKA_on_channel',
         'layer_type': 'repvgg',
         'gpus': 1,
         'num_epochs': 300,

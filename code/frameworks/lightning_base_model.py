@@ -10,12 +10,13 @@ __all__ = ["LightningModule", "_Module", "Test_Module"]
 
 class LightningModule(pl.LightningModule, ABC):
     def __init__(self, hparams):
-        super().__init__()  # must name after hparams or there will be plenty of bugs
-        self.hparams = hparams  # params must be save in self.hparams to make sure checkpoint contain hparams for reconstruction
+        super().__init__()  # must name after hparams or there will be plenty of bugs in early version of lightning
+        self.save_hyperparameters(hparams)
+        self.params = hparams
         self.complete_hparams()
         self.criterion = self.choose_loss()
         self.dataProvider = DataProvider(params=hparams['dataset'])
-        self.steps_per_epoch = len(self.train_dataloader().dataset) // self.hparams['dataset']["total_batch_size"]
+        self.steps_per_epoch = len(self.train_dataloader().dataset) // self.params['dataset']["total_batch_size"]
         self.train_meter = self.get_meter("train")
         self.val_meter = self.get_meter("validation")
         self.test_meter = self.get_meter("test")
@@ -26,7 +27,7 @@ class LightningModule(pl.LightningModule, ABC):
 
     def get_meter(self, phase: str) -> Meter:
         from meter.classification_meter import ClassificationMeter as Meter
-        workers = 1 if phase == "test" or self.hparams["backend"] != "ddp" else self.hparams["gpus"]
+        workers = 1 if phase == "test" or self.params["backend"] != "ddp" else self.params["gpus"]
         return Meter(phase=phase, workers=workers, criterion=self.criterion, num_class=10)
 
     def get_parameters_generator(self):
@@ -45,11 +46,11 @@ class LightningModule(pl.LightningModule, ABC):
             'batch_size': 128,
             'total_batch_size': 128,
         }
-        self.hparams = {**default_list, **self.hparams}
-        self.hparams['dataset'] = {**default_dataset_values, **self.hparams['dataset']}
+        self.params = {**default_list, **self.params}
+        self.params['dataset'] = {**default_dataset_values, **self.params['dataset']}
 
     def choose_loss(self):
-        if self.hparams['loss'] == 'CrossEntropy':
+        if self.params['loss'] == 'CrossEntropy':
             return torch.nn.CrossEntropyLoss()
         return None
 
@@ -61,13 +62,13 @@ class LightningModule(pl.LightningModule, ABC):
 
         params = gen()
         from torch.optim import SGD, Adam
-        if self.hparams['optimizer'] == 'SGD':
-            optimizer = SGD(params, lr=self.hparams["max_lr"],
-                            weight_decay=self.hparams["weight_decay"],
+        if self.params['optimizer'] == 'SGD':
+            optimizer = SGD(params, lr=self.params["max_lr"],
+                            weight_decay=self.params["weight_decay"],
                             momentum=0.9, nesterov=True)
-        elif self.hparams['optimizer'] == 'Adam':
-            optimizer = Adam(params, lr=self.hparams['max_lr'],
-                             weight_decay=self.hparams['weight_decay'])
+        elif self.params['optimizer'] == 'Adam':
+            optimizer = Adam(params, lr=self.params['max_lr'],
+                             weight_decay=self.params['weight_decay'])
         else:
             assert False, "optimizer not implemented"
         return optimizer
@@ -77,25 +78,25 @@ class LightningModule(pl.LightningModule, ABC):
             return None
 
         from torch.optim import lr_scheduler
-        if self.hparams['lr_scheduler'] == 'ExpLR':
+        if self.params['lr_scheduler'] == 'ExpLR':
             scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.97)
-        elif self.hparams['lr_scheduler'] == 'CosLR':
+        elif self.params['lr_scheduler'] == 'CosLR':
             scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=20 * self.steps_per_epoch + 1, eta_min=0)
             scheduler = {'scheduler': scheduler, 'interval': 'step'}
-        elif self.hparams['lr_scheduler'] == 'StepLR':
+        elif self.params['lr_scheduler'] == 'StepLR':
             scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1)
-        elif self.hparams['lr_scheduler'] == 'StepLR100':
+        elif self.params['lr_scheduler'] == 'StepLR100':
             scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
-        elif self.hparams['lr_scheduler'] == 'OneCycLR':
+        elif self.params['lr_scheduler'] == 'OneCycLR':
             # + 1 to avoid over flow in steps() when there's totally 800 steps specified and 801 steps called
             # there will be such errors.
-            scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=self.hparams["max_lr"],
+            scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=self.params["max_lr"],
                                                 steps_per_epoch=self.steps_per_epoch + 1,
-                                                epochs=self.hparams["num_epochs"])
+                                                epochs=self.params["num_epochs"])
             scheduler = {'scheduler': scheduler, 'interval': 'step'}
-        elif self.hparams['lr_scheduler'] == 'MultiStepLR':
+        elif self.params['lr_scheduler'] == 'MultiStepLR':
             scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[70, 140, 190], gamma=0.1)
-        elif self.hparams['lr_scheduler'] == 'MultiStepLR_EDSR_300':
+        elif self.params['lr_scheduler'] == 'MultiStepLR_EDSR_300':
             scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[200], gamma=0.5)
         else:
             return None
@@ -158,7 +159,6 @@ class LightningModule(pl.LightningModule, ABC):
         ret = self.epoch_ends(outputs, self.train_meter)
         if 'save_result' in ret:
             self.train_results = ret['save_result']
-        return ret
 
     def validation_step(self, batch, batch_idx):
         return self.step(self.val_meter, batch)
@@ -176,7 +176,6 @@ class LightningModule(pl.LightningModule, ABC):
         ret = self.epoch_ends(outputs, self.test_meter)
         if 'save_result' in ret:
             self.test_results = ret['save_result']
-        return ret
 
 
 class _Module(LightningModule):
@@ -191,14 +190,14 @@ class _Module(LightningModule):
 class Test_Module(pl.LightningModule, ABC):
     def __init__(self, hparams):
         super().__init__()
-        self.hparams = hparams
+        self.params = hparams
         self.dataProvider = DataProvider(params=hparams['dataset'])
         self.criterion = torch.nn.CrossEntropyLoss()
         self.test_meter = self.get_meter("test")
 
     def get_meter(self, phase: str):
         from meter.classification_meter import ClassificationMeter as Meter
-        workers = 1 if phase == "test" or self.hparams["backend"] != "ddp" else self.hparams["gpus"]
+        workers = 1 if phase == "test" or self.params["backend"] != "ddp" else self.params["gpus"]
         return Meter(phase=phase, workers=workers, criterion=self.criterion, num_class=10)
 
     def test_dataloader(self):

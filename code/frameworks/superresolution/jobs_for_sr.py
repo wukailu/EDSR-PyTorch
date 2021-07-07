@@ -1,7 +1,7 @@
 import sys
 
 sys.path.append('/home/kailu/EDSR-PyTorch/code/')
-from utils.foundation_tools import submit_jobs, random_params
+from utils.tools import submit_jobs, random_params
 
 
 def search_for_plane():

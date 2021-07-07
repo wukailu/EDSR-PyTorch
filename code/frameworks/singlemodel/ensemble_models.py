@@ -139,7 +139,7 @@ class Proposed_Ensemble(LightningModule):
         loss_class1 = torch.mean(torch.stack([self.criterion(xs[i], labels) for i in range(self.num)]))
         loss_class2 = self.criterion(x_st, labels)
         loss_kd_logits = loss_fn_kd(x_st, torch.mean(torch.stack(xs), dim=0))
-        weights = torch.tensor(self.hparams["weights"]).to(loss_class1.device)
+        weights = torch.tensor(self.params["weights"]).to(loss_class1.device)
 
         # loss_cos = -torch.mean(torch.stack([weights[i] * torch.cosine_similarity(
         #     middle_st[i].view((batchsize, -1)), middles[i].detach().view(batchsize, -1)) for i in range(4)])) + 1
@@ -150,10 +150,10 @@ class Proposed_Ensemble(LightningModule):
         # loss_kd_feature = torch.mean(torch.stack([
         #     weights[i] * torch.nn.functional.mse_loss(middle_st[i], middles[i]) ** 0.5 for i in range(4)]))
 
-        if self.hparams["train_student"]:
-            loss = (loss_class1 + loss_class2) / 2 * (1 - self.hparams["weight_kd"]) + (
-                    loss_kd_feature * self.hparams["weight_feature"] + loss_kd_logits * (
-                    1 - self.hparams["weight_feature"])) * self.hparams["weight_kd"]
+        if self.params["train_student"]:
+            loss = (loss_class1 + loss_class2) / 2 * (1 - self.params["weight_kd"]) + (
+                    loss_kd_feature * self.params["weight_feature"] + loss_kd_logits * (
+                    1 - self.params["weight_feature"])) * self.params["weight_kd"]
         else:
             loss = loss_class1
 
@@ -162,7 +162,7 @@ class Proposed_Ensemble(LightningModule):
             pdb.set_trace()
 
         with torch.no_grad():
-            if not self.hparams["train_student"]:
+            if not self.params["train_student"]:
                 predictions = xs
                 acc = torch.zeros(self.num)
                 for i in range(self.num):
@@ -216,11 +216,11 @@ class Proposed_Metric(LightningModule):
         from torch.optim import SGD, Adam
         from model.utils import get_trainable_params
         params_to_update = get_trainable_params(self)
-        if self.hparams['optimizer'] == 'SGD':
-            optimizer = SGD(params_to_update, lr=self.hparams["max_lr"], weight_decay=self.hparams["weight_decay"],
+        if self.params['optimizer'] == 'SGD':
+            optimizer = SGD(params_to_update, lr=self.params["max_lr"], weight_decay=self.params["weight_decay"],
                             momentum=0.9, nesterov=True)
-        elif self.hparams['optimizer'] == 'Adam':
-            optimizer = Adam(params_to_update, lr=self.hparams['max_lr'], weight_decay=self.hparams['weight_decay'])
+        elif self.params['optimizer'] == 'Adam':
+            optimizer = Adam(params_to_update, lr=self.params['max_lr'], weight_decay=self.params['weight_decay'])
         else:
             assert False, "optimizer not implemented"
         return optimizer
@@ -257,12 +257,12 @@ class Proposed_Metric(LightningModule):
     def forward(self, images: torch.Tensor):
         x0 = images
         x1 = images.clone()
-        x0 = self.subblock_interval(self.models[0], 0, self.hparams["pos"], x0)
-        x1 = self.subblock_interval(self.models[1], 0, self.hparams["pos"], x1)
+        x0 = self.subblock_interval(self.models[0], 0, self.params["pos"], x0)
+        x1 = self.subblock_interval(self.models[1], 0, self.params["pos"], x1)
         x0 = self.gen0(x0)
         x1 = self.gen1(x1)
-        x0 = self.subblock_interval(self.models[1], self.hparams["pos"], 6, x0)
-        x1 = self.subblock_interval(self.models[0], self.hparams["pos"], 6, x1)
+        x0 = self.subblock_interval(self.models[1], self.params["pos"], 6, x0)
+        x1 = self.subblock_interval(self.models[0], self.params["pos"], 6, x1)
 
         return x0, x1
 
@@ -284,5 +284,5 @@ class Proposed_Metric(LightningModule):
 
     def get_meter(self, phase: str):
         from meter.classification_meter import MultiClassificationMeter as Meter
-        workers = 1 if phase == "test" or self.hparams["backend"] != "ddp" else self.hparams["gpus"]
+        workers = 1 if phase == "test" or self.params["backend"] != "ddp" else self.params["gpus"]
         return Meter(phase=phase, workers=workers, criterion=self.criterion, num_class=10, model_num=2)

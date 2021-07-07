@@ -17,17 +17,17 @@ class SR_LightModel(LightningModule):
             'loss': 'L1',
             'self_ensemble': False,
         }
-        self.hparams = {**default_sr_list, **self.hparams}
+        self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)
 
     def choose_loss(self):
         from .loss import Loss
-        return Loss(self.hparams)
+        return Loss(self.params)
 
     def get_meter(self, phase: str):
         from meter.super_resolution_meter import SuperResolutionMeter as Meter
-        workers = 1 if phase == "test" or self.hparams["backend"] != "ddp" else self.hparams["gpus"]
-        return Meter(phase=phase, workers=workers, scale=self.hparams['scale'])
+        workers = 1 if phase == "test" or self.params["backend"] != "ddp" else self.params["gpus"]
+        return Meter(phase=phase, workers=workers, scale=self.params['scale'])
 
     def step(self, meter, batch):
         lr, hr, filenames = batch
@@ -125,7 +125,7 @@ class SRDistillation(SR_LightModel):
         self.dist_method = self.get_distillation_module()
 
     def load_teacher(self):
-        model = load_model({'load_from': self.hparams['teacher']}).model
+        model = load_model({'load_from': self.params['teacher']}).model
         from model.utils import freeze
         freeze(model)
         return model
@@ -136,7 +136,7 @@ class SRDistillation(SR_LightModel):
         with torch.no_grad():
             feat_t, out_t = self.teacher(sample, with_feature=True)
             feat_s, out_s = self.model(sample, with_feature=True)
-            dist_method = get_distill_module(self.hparams['dist_method'])(feat_s, feat_t)
+            dist_method = get_distill_module(self.params['dist_method'])(feat_s, feat_t)
         return dist_method
 
     def complete_hparams(self):
@@ -146,7 +146,7 @@ class SRDistillation(SR_LightModel):
             'pretrain_distill': False,
             'dist_method': 'L2Distillation',
         }
-        self.hparams = {**default_sr_list, **self.hparams}
+        self.params = {**default_sr_list, **self.params}
         SR_LightModel.complete_hparams(self)
 
     def step(self, meter, batch):
@@ -154,16 +154,16 @@ class SRDistillation(SR_LightModel):
         if self.training:
             feat_s, out_s = self.model(lr, with_feature=True)
             task_loss = self.criterion(out_s, hr)
-            if self.current_epoch < self.hparams['start_distill'] and not self.hparams['pretrain_distill']:
+            if self.current_epoch < self.params['start_distill'] and not self.params['pretrain_distill']:
                 loss = task_loss
             else:
                 feat_t, out_t = self.teacher(lr, with_feature=True)
-                if self.current_epoch < self.hparams['start_distill'] and self.hparams['pretrain_distill']:
-                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], [ft.detach() for ft in feat_t], self.current_epoch/self.hparams['num_epochs'])
+                if self.current_epoch < self.params['start_distill'] and self.params['pretrain_distill']:
+                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], [ft.detach() for ft in feat_t], self.current_epoch/self.params['num_epochs'])
                 else:
-                    dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.hparams['num_epochs'])
+                    dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.params['num_epochs'])
                 self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
-                loss = task_loss + dist_loss * self.hparams['distill_coe']
+                loss = task_loss + dist_loss * self.params['distill_coe']
 
             self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
         else:
@@ -186,13 +186,13 @@ class MeanTeacherSRDistillation(SRDistillation):
         default_list = {
             'mean_teacher_momentum': 0.9,
         }
-        self.hparams = {**default_list, **self.hparams}
+        self.params = {**default_list, **self.params}
         SRDistillation.complete_hparams(self)
 
     def step(self, meter, batch):
         teacher_dict = self.teacher.state_dict()
         student_dict = self.model.state_dict()
-        alpha = self.hparams['mean_teacher_momentum']
+        alpha = self.params['mean_teacher_momentum']
         for key, value in student_dict.items():
             teacher_dict[key] = teacher_dict[key] * alpha + value * (1 - alpha)
         self.teacher.load_state_dict(teacher_dict)

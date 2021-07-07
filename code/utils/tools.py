@@ -110,15 +110,16 @@ def show_all(filter_dict, net_name=None):
 def parse_params(params: dict):
     # Process trainer
     defaults = {
-        'use_amp': False,
+        'precision': 32,
         'deterministic': True,
         'benchmark': True,
         'gpus': 1,
         'num_epochs': 1,
+        "progress_bar_refresh_rate": 100,
     }
     params = {**defaults, **params}
     if "backend" not in params:
-        params["backend"] = "ddp" if params["gpus"] > 1  else None
+        params["backend"] = "ddp" if params["gpus"] > 1 else None
 
     # Process backbone
     backbone_list = ['vgg11_bn', 'vgg13_bn', 'vgg16_bn', 'vgg19_bn', 'resnet18',
@@ -164,10 +165,14 @@ def parse_params(params: dict):
 def get_trainer_params(params) -> dict:
     name_mapping = {
         "gpus": "gpus",
-        "backend": "distributed_backend",
+        "backend": "accelerator",
+        "accumulate": "accumulate_grad_batches",
+        "auto_scale_batch_size": "auto_scale_batch_size",
+        "auto_select_gpus": "auto_select_gpus",
         "num_epochs": "max_epochs",
-        "use_amp": "use_amp",
+        "benchmark": "benchmark",
         "deterministic": "deterministic",
+        "progress_bar_refresh_rate": "progress_bar_refresh_rate",
         "gradient_clip_val": "gradient_clip_val",
         "track_grad_norm": "track_grad_norm",
     }
@@ -194,9 +199,9 @@ def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None,
             hyper_params['gpus'] = 1
 
         name = project_name if 'project_name' not in hyper_params else hyper_params['project_name']
-        from foundations import submit
-        submit(scheduler_config='scheduler', job_directory=job_directory, command=command, params=hyper_params,
-               stream_job_logs=False, num_gpus=hyper_params["gpus"], project_name=name)
+        import utils.backend as backend
+        backend.submit(scheduler_config='scheduler', job_directory=job_directory, command=command, params=hyper_params,
+                       stream_job_logs=False, num_gpus=hyper_params["gpus"], project_name=name)
 
         print(f"Task {idx}, {hyper_params}")
 

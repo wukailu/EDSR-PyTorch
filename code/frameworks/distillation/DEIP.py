@@ -18,7 +18,7 @@ class DEIP_LightModel(LightningModule):
 
         self.plane_model = nn.ModuleList()
         self.teacher_start_layer = 0
-        self.last_channel = self.hparams['input_channel']
+        self.last_channel = self.params['input_channel']
         self.init_student()
         print(self.plane_model)
 
@@ -47,7 +47,7 @@ class DEIP_LightModel(LightningModule):
             'use_bn': True,
             'layer_type': 'normal',
         }
-        self.hparams = {**default_sr_list, **self.hparams}
+        self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
@@ -67,7 +67,7 @@ class DEIP_LightModel(LightningModule):
 
     def append_layer(self, channels, previous_f_size, current_f_size, kernel_size=3):
         new_layer = nn.Identity()
-        if self.hparams['layer_type'] == 'normal':
+        if self.params['layer_type'] == 'normal':
             new_layers = []
             if previous_f_size == current_f_size:
                     new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2))
@@ -76,11 +76,11 @@ class DEIP_LightModel(LightningModule):
                 stride_h = previous_f_size[1] // current_f_size[1]
                 new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2,
                                       stride=(stride_w, stride_h)))
-            if self.hparams['use_bn']:
+            if self.params['use_bn']:
                 new_layers.append(nn.BatchNorm2d(channels))
             new_layers.append(nn.ReLU())
             new_layer = nn.Sequential(*new_layers)
-        elif self.hparams['layer_type'] == 'repvgg':
+        elif self.params['layer_type'] == 'repvgg':
             from model.basic_cifar_models.repvgg import RepVGGBlock
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
@@ -95,7 +95,7 @@ class DEIP_LightModel(LightningModule):
         self.plane_model.append(LastLinearLayer(self.last_channel, num_classes))
 
     def calc_width(self, input_batch):
-        if self.hparams['progressive_distillation']:  # progressive 更好会不会是训得更久所以效果更好
+        if self.params['progressive_distillation']:  # progressive 更好会不会是训得更久所以效果更好
             # TODO: calculate next layer width
             pass
         else:
@@ -107,7 +107,7 @@ class DEIP_LightModel(LightningModule):
                     #  Here Simple SVD is used, which is the best approximation to min_{D'} ||D-D'||_F where rank(D') <= r
                     #  A question is, how to solve min_{D'} ||(D-D')*W||_F where rank(D') <= r, W is matrix with positive weights and * is element-wise production
                     #  refer to wiki, it's called `Weighted low-rank approximation problems`, which does not have an analytic solution
-                    ret.append(rank_estimate(f, eps=self.hparams['rank_eps']))
+                    ret.append(rank_estimate(f, eps=self.params['rank_eps']))
                 ret.append(f_list[-1].size(1))  # num classes
             return ret
 
@@ -155,7 +155,7 @@ class DEIP_Distillation(DEIP_LightModel):
         with torch.no_grad():
             feat_t, out_t = self.teacher_model(sample, with_feature=True)
             feat_s, out_s = self(sample, with_feature=True)
-            dist_method = get_distill_module(self.hparams['dist_method'])(feat_s, feat_t)
+            dist_method = get_distill_module(self.params['dist_method'])(feat_s, feat_t)
         return dist_method
 
     def complete_hparams(self):
@@ -163,7 +163,7 @@ class DEIP_Distillation(DEIP_LightModel):
             'dist_method': 'FD_Conv1x1_MSE',
             'distill_coe': 1,
         }
-        self.hparams = {**default_sr_list, **self.hparams}
+        self.params = {**default_sr_list, **self.params}
         DEIP_LightModel.complete_hparams(self)
 
     def step(self, meter, batch):
@@ -176,8 +176,8 @@ class DEIP_Distillation(DEIP_LightModel):
             with torch.no_grad():
                 feat_t, out_t = self.teacher_model(images, with_feature=True)
             assert len(feat_s) == len(feat_t)
-            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.hparams['num_epochs'])
-            loss = task_loss + dist_loss * self.hparams['distill_coe']
+            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.params['num_epochs'])
+            loss = task_loss + dist_loss * self.params['distill_coe']
 
             self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
             self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
@@ -194,7 +194,7 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
     def __init__(self, hparams):
         super().__init__(hparams)
         self.current_layer = 0
-        self.milestone_epochs = list(range(0, self.hparams['num_epochs'], self.hparams['num_epochs']//len(self.plane_model)))[1:]
+        self.milestone_epochs = list(range(0, self.params['num_epochs'], self.params['num_epochs']//len(self.plane_model)))[1:]
         print(f'there are totally {len(self.plane_model)} layers in student, milestones are {self.milestone_epochs}')
         self.bridges = self.init_bridges()
         unfreeze_BN(self.teacher_model)
@@ -227,13 +227,13 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
             with torch.no_grad():
                 feat_t, out_t = self.teacher_model(images, with_feature=True)
             assert len(feat_s) == len(feat_t)
-            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.hparams['num_epochs'])
+            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.params['num_epochs'])
 
             mid_feature = self.forward(images, until=self.current_layer+1)
             transfer_feature = self.bridges[self.current_layer](mid_feature)
             predictions = self.teacher_model(transfer_feature, start_forward_from=self.current_layer+1)
             task_loss = self.criterion(predictions, labels)
-            loss = task_loss + dist_loss * self.hparams['distill_coe']
+            loss = task_loss + dist_loss * self.params['distill_coe']
 
             self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
             self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
