@@ -1,6 +1,7 @@
 import sys
+import os
 
-sys.path.append('/job/job_source/')
+sys.path.append(os.getcwd())
 
 from frameworks.distillation.DEIP import load_model
 from frameworks.singlemodel.train_single_model import get_params, prepare_params, train_model, inference_statics

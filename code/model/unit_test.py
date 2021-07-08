@@ -1,7 +1,6 @@
-from datasets.utils import Normalize
 from model import get_classifier
+from torch import nn
 import torch
-import time
 
 if __name__ == '__main__':
     params = {
@@ -9,15 +8,32 @@ if __name__ == '__main__':
     }
 
     model = get_classifier(params, "cifar10")
-    model.cuda().eval()
-    x_test = torch.randn((128, 3, 32, 32)).float().cuda()
-    with torch.no_grad():
-        feats, outs = model(x_test, with_feature=True)
-        for f in feats:
-            print(f.min(), f.max(), f.shape)
-        from frameworks.distillation.DEIP import rank_estimate
-        for f in feats:
-            print(rank_estimate(f.cuda()))
+
+    from model.basic_cifar_models.resnet_layerwise_cifar import BasicBlock_2
+    for layer in model.sequential_models:
+        if isinstance(layer, BasicBlock_2):
+            kernel, bias = layer.get_equivalent_kernel()
+            out_channel, in_channel, ks, _ = kernel.shape
+            conv = nn.Conv2d(in_channel, out_channel, kernel_size=ks, padding=1)
+            conv.weight.data = kernel
+            conv.bias.data = bias
+
+            with torch.no_grad():
+                x_test = torch.randn((16, in_channel, 8, 8))
+                ans = layer(x_test)
+                out = nn.ReLU()(conv(x_test))
+                diff_max = (ans - out).abs().max()
+                print("diff_max = ", diff_max)  # this should be smaller than 1e-5
+
+    # model.cuda().eval()
+    # x_test = torch.randn((128, 3, 32, 32)).float().cuda()
+    # with torch.no_grad():
+    #     feats, outs = model(x_test, with_feature=True)
+    #     for f in feats:
+    #         print(f.min(), f.max(), f.shape)
+    #     from frameworks.distillation.DEIP import rank_estimate
+    #     for f in feats:
+    #         print(rank_estimate(f.cuda()))
     # params = {
     #     'arch': 'Plane_sr',
     #     'scale': 3,

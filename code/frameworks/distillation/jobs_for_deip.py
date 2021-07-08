@@ -30,10 +30,11 @@ def params_for_deip_distillation():
         'description': 'distillation_test',
         'method': 'Distillation',
         # 'dist_method': ['CKA_on_logits', 'KD', 'Progressive_FD', 'FD_Conv1x1_MSE'],
-        'dist_method': 'CKA_on_channel',
+        'dist_method': 'KA_on_channel',
         'layer_type': 'repvgg',
         'gpus': 1,
-        'num_epochs': 300,
+        # 'num_epochs': 300,
+        'num_epochs': 1,
         'rank_eps': 5e-2,
         'distill_coe': [1, 0.1, 0.01, 0.001],
         # 'distill_coe': [0],
@@ -80,4 +81,4 @@ def params_for_deip():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=100, job_directory='.')
+    submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=1, job_directory='.')

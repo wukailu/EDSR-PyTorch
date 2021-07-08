@@ -39,6 +39,10 @@ class DEIP_LightModel(LightningModule):
             print("initialization student width used ", time.process_time() - start_time)
             break
 
+        if self.params['init_stu_with_teacher']:
+            # TODO: Implement this
+            pass
+
     def complete_hparams(self):
         default_sr_list = {
             'input_channel': 3,
@@ -46,6 +50,7 @@ class DEIP_LightModel(LightningModule):
             'rank_eps': 5e-2,
             'use_bn': True,
             'layer_type': 'normal',
+            'init_stu_with_teacher': False,
         }
         self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)

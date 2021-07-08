@@ -11,7 +11,7 @@ class cka_loss(torch.nn.Module):
 
     def forward(self, x: Tensor, y: Tensor) -> Tensor:
         batch_size = x.size(0)
-        x = x.view(batch_size, -1)
+        x = x.view(batch_size, -1)  # shape of N x M
         y = y.view(batch_size, -1)
         if self.rbf_threshold < 0:
             return self._cka(self._gram_linear(x), self._gram_linear(y))
@@ -19,6 +19,7 @@ class cka_loss(torch.nn.Module):
             return self._cka(self._gram_rbf(x, self.rbf_threshold), self._gram_rbf(y, self.rbf_threshold))
         pass
 
+    # Complexity O(N^2M)
     @staticmethod
     def _gram_linear(features_x: Tensor):
         return features_x.mm(features_x.transpose(0, 1))
@@ -56,7 +57,29 @@ class cka_loss(torch.nn.Module):
         assert 0 < normalization_x
         assert 0 < normalization_y
         # decreasing 0 -> similar 1 -> not similar
-        return 1 - scaled_hsic / (normalization_x * normalization_y)
+        return - scaled_hsic / (normalization_x * normalization_y) + 1
+
+
+class ka_loss(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: Tensor, y: Tensor) -> Tensor:
+        batch_size = x.size(0)
+        x = x.view(batch_size, -1)  # shape of N x M
+        y = y.view(batch_size, -1)
+        if batch_size < max(x.size(1), y.size(1)):
+            fx = x @ x.T
+            fy = y @ y.T
+            hisc = (fx * fy).sum()
+            norm_x = torch.norm(fx) + 1e-5
+            norm_y = torch.norm(fy) + 1e-5
+            return - hisc / (norm_x * norm_y) + 1
+        else:
+            hisc = ((x.T @ y)**2).sum()
+            norm_x = torch.norm(x.T @ x) + 1e-5
+            norm_y = torch.norm(y.T @ y) + 1e-5
+            return - hisc / (norm_x * norm_y) + 1
 
 
 class layer_loss(torch.nn.Module):

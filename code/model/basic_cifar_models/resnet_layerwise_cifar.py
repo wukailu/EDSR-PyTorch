@@ -43,6 +43,10 @@ class BasicBlock_1(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         return torch.cat([x, shortcut], dim=1)
 
+    def get_equivalent_kernel(self):
+        # TODO: implement this
+        pass
+
 
 class BasicBlock_2(nn.Module):
     expansion = 1
@@ -53,12 +57,34 @@ class BasicBlock_2(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
 
     def forward(self, x):
-        planes = x.size(1)//2
+        planes = x.size(1) // 2
         x, shortcut = x[:, :planes], x[:, planes:]
 
         x = self.bn2(self.conv2(x))
         x += shortcut
         return F.relu(x)
+
+    #  (x @ conv - mean) /var * weight +bias = x @ (conv/var*weight) - mean/var*weight + bias
+    #
+    #
+    #
+    def get_equivalent_kernel(self):
+        # TODO: implement bias
+        self.eval()
+        out_channel, in_channel, kernel_size, _ = self.conv2.weight.shape
+        kernel = torch.zeros((out_channel, in_channel * 2, kernel_size, kernel_size))
+
+        var = self.bn2.running_var.data
+        weight = self.bn2.weight.data
+        gamma = weight / (var + self.bn2.eps)
+
+        conv_data = self.conv2.weight.data * gamma.reshape((-1, 1, 1, 1))
+        bias = self.bn2.bias.data - self.bn2.running_mean.data * gamma
+
+        kernel[:, :in_channel, :, :] = conv_data
+        for i in range(out_channel):
+            kernel[i, i + in_channel, kernel_size // 2, kernel_size // 2] = 1
+        return kernel, bias
 
 
 class LastLinearLayer(nn.Module):
@@ -72,12 +98,29 @@ class LastLinearLayer(nn.Module):
         x = x.view(x.size(0), -1)
         return self.linear(x)
 
+    def get_equivalent_kernel(self):
+        pass
+
 
 class LayerWiseModel(nn.Module):
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         pass
 
     def __len__(self):
+        pass
+
+
+class ConvBNReLULayer(nn.Module):
+    def __init__(self, in_planes, planes, kernel_size=3, stride=1, padding=1):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=kernel_size, stride=stride, padding=padding, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        return self.relu(self.bn1(self.conv1(x)))
+
+    def get_equivalent_kernel(self):
         pass
 
 
@@ -88,11 +131,7 @@ class ResNet_CIFAR(LayerWiseModel):
 
         self.sequential_models = nn.ModuleList()
 
-        self.conv1 = nn.Conv2d(3, num_filters[0], kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(num_filters[0])
-
-        self.sequential_models.append(nn.Sequential(self.conv1, self.bn1, nn.ReLU()))
-
+        self.sequential_models.append(ConvBNReLULayer(3, num_filters[0]))
         self.sequential_models += self._make_layer(num_filters[1], num_blocks[0], stride=1, option=option)
         self.sequential_models += self._make_layer(num_filters[2], num_blocks[1], stride=2, option=option)
         self.sequential_models += self._make_layer(num_filters[3], num_blocks[2], stride=2, option=option)

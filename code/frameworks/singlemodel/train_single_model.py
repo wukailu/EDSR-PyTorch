@@ -46,7 +46,7 @@ def train_model(model, params, save_name='default', checkpoint_monitor='validati
     t_params = get_trainer_params(params)
     trainer = Trainer(logger=logger, callbacks=[checkpoint_callback], **t_params)
     trainer.fit(model)
-    trainer.test(model)
+    # trainer.test(model)
 
     if checkpoint_callback.best_model_path != "":
         import numpy as np
@@ -54,6 +54,8 @@ def train_model(model, params, save_name='default', checkpoint_monitor='validati
             backend.save_artifact(checkpoint_callback.best_model_path, key='best_model_checkpoint')
         log_val = checkpoint_callback.best_model_score.item()
         backend.log_metric(checkpoint_monitor.replace('/', '_'), float(np.clip(log_val, -1e10, 1e10)))
+    else:
+        backend.log("Best_model_path not found!")
 
     backend.log("Training finished")
     return model

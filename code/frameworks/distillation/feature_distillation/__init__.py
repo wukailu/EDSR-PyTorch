@@ -6,7 +6,7 @@ def get_distill_module(name):
         'KD': KD,
         'CKA': CKA,
         'CKA_on_logits': CKA_on_logits,
-        'CKA_on_channel': CKA_on_channel,
+        'KA_on_channel': KA_on_channel,
         'L2Distillation': L2Distillation,
         'L1Distillation': L1Distillation,
         'FD_Conv1x1': FD_Conv1x1,
@@ -203,11 +203,11 @@ class CKA_on_logits(DistillationMethod):
         return loss / cnt
 
 
-class CKA_on_channel(DistillationMethod):
+class KA_on_channel(DistillationMethod):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        from frameworks.nnmetric.feature_similarity_measurement import cka_loss
-        self.cka = cka_loss()
+        from frameworks.nnmetric.feature_similarity_measurement import ka_loss
+        self.ka = ka_loss()
 
     def forward(self, feat_s, feat_t, epoch_ratio):
         loss = 0
@@ -217,6 +217,6 @@ class CKA_on_channel(DistillationMethod):
                 fs = fs.reshape(-1, fs.size(3))
                 ft = ft.reshape(-1, ft.size(3))
             if len(fs.shape) == 2 and fs.shape[:1] == ft.shape[:1]:
-                loss += self.cka(fs, ft)
+                loss += self.ka(fs, ft)
                 cnt += 1
         return loss / cnt
