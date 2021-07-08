@@ -16,6 +16,7 @@ class SR_LightModel(LightningModule):
         default_sr_list = {
             'loss': 'L1',
             'self_ensemble': False,
+            'metric': 'psnr255',  # no shave to the boundary
         }
         self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)
@@ -24,17 +25,13 @@ class SR_LightModel(LightningModule):
         from .loss import Loss
         return Loss(self.params)
 
-    def get_meter(self, phase: str):
-        from meter.super_resolution_meter import SuperResolutionMeter as Meter
-        workers = 1 if phase == "test" or self.params["backend"] != "ddp" else self.params["gpus"]
-        return Meter(phase=phase, workers=workers, scale=self.params['scale'])
-
-    def step(self, meter, batch):
+    def step(self, batch, phase):
         lr, hr, filenames = batch
         predictions = self.forward(lr)
         loss = self.criterion(predictions, hr)
-        meter.update(hr, predictions.detach(), loss.detach())
-        return {'loss': loss}
+        metric = self.metric(predictions, hr)
+        self.log(phase + '/' + self.params['metric'], metric)
+        return loss
 
     def do_forward(self, x):
         return self.model(x)
@@ -162,16 +159,16 @@ class SRDistillation(SR_LightModel):
                     dist_loss = self.dist_method([fs.detach() for fs in feat_s], [ft.detach() for ft in feat_t], self.current_epoch/self.params['num_epochs'])
                 else:
                     dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.params['num_epochs'])
-                self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
+                self.log('train/dist_loss', dist_loss)
                 loss = task_loss + dist_loss * self.params['distill_coe']
 
-            self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
+            self.log('train/task_loss', task_loss)
         else:
             out_s = self.forward(lr)
             loss = self.criterion(out_s, hr)
 
         meter.update(hr, out_s.detach(), loss.detach())
-        return {'loss': loss}
+        return loss
 
 
 class MeanTeacherSRDistillation(SRDistillation):

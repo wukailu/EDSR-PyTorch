@@ -42,7 +42,7 @@ def train_model(model, params, save_name='default', checkpoint_monitor='validati
     logger = TensorBoardLogger("../logs", name=save_name)
     backend.set_tensorboard_logdir(f'../logs/{save_name}')
 
-    checkpoint_callback = ModelCheckpoint(save_top_k=1, monitor=checkpoint_monitor, mode=mode)
+    checkpoint_callback = ModelCheckpoint(dirpath='../saves', save_top_k=1, monitor=checkpoint_monitor, mode=mode)
     t_params = get_trainer_params(params)
     trainer = Trainer(logger=logger, callbacks=[checkpoint_callback], **t_params)
     trainer.fit(model)
@@ -53,7 +53,7 @@ def train_model(model, params, save_name='default', checkpoint_monitor='validati
         if params['save_model']:
             backend.save_artifact(checkpoint_callback.best_model_path, key='best_model_checkpoint')
         log_val = checkpoint_callback.best_model_score.item()
-        backend.log_metric(checkpoint_monitor.replace('/', '_'), float(np.clip(log_val, -1e10, 1e10)))
+        backend.log_metric(checkpoint_monitor.split('/')[-1], float(np.clip(log_val, -1e10, 1e10)))
     else:
         backend.log("Best_model_path not found!")
 

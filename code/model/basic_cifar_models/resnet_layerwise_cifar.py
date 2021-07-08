@@ -3,8 +3,27 @@ import torch.nn as nn
 import torch.nn.functional as F
 from model.basic_cifar_models.utils import register_model
 
+relu_offset = 0  # It's lucky that all feature in resnet is positive
 
-# Credit to https://github.com/akamaster/pytorch_resnet_cifar10
+
+def convbn_to_conv(conv: nn.Conv2d, bn: nn.BatchNorm2d):
+    bn.eval()
+    out_channel, in_channel, kernel_size, _ = conv.weight.shape
+
+    var = bn.running_var.data
+    weight = bn.weight.data
+    gamma = weight / (var + bn.eps)
+
+    bias = 0 if conv.bias is None else conv.bias.data
+
+    conv_data = conv.weight.data * gamma.reshape((-1, 1, 1, 1))
+    bias = bn.bias.data + (bias - bn.running_mean.data) * gamma
+
+    ret = nn.Conv2d(conv.in_channels, conv.out_channels, conv.kernel_size, conv.stride, conv.padding, bias=True,
+                    padding_mode=conv.padding_mode)
+    ret.weight.data = conv_data
+    ret.bias.data = bias
+    return ret
 
 
 class LambdaLayer(nn.Module):
@@ -43,9 +62,33 @@ class BasicBlock_1(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         return torch.cat([x, shortcut], dim=1)
 
-    def get_equivalent_kernel(self):
-        # TODO: implement this
-        pass
+    def simplify_layer(self):
+        eq_conv = convbn_to_conv(self.conv1, self.bn1)
+        channel = eq_conv.out_channels
+        conv = nn.Conv2d(eq_conv.in_channels, eq_conv.out_channels * 2, eq_conv.kernel_size, eq_conv.stride,
+                         eq_conv.padding, bias=True, padding_mode=eq_conv.padding_mode)
+        kernel = torch.zeros_like(conv.weight)
+        bias = torch.zeros_like(conv.bias)
+
+        kernel[:channel, ...] = eq_conv.weight.data
+        bias[:channel] = eq_conv.bias.data
+
+        if isinstance(self.shortcut, LambdaLayer):
+            assert eq_conv.out_channels == eq_conv.in_channels * 2
+            for i in range(eq_conv.in_channels):
+                kernel[channel + channel // 4 + i, i, eq_conv.kernel_size[0] // 2, eq_conv.kernel_size[1] // 2] = 1
+        else:
+            # Identity
+            assert eq_conv.out_channels == eq_conv.in_channels
+            for i in range(eq_conv.in_channels):
+                kernel[channel + i, i, eq_conv.kernel_size[0] // 2, eq_conv.kernel_size[1] // 2] = 1
+
+        # make sure the identity can pass relu
+        bias[channel:] = relu_offset  # TODO: How will the offset change distillation results?
+
+        conv.weight.data = kernel
+        conv.bias.data = bias
+        return conv, nn.ReLU()
 
 
 class BasicBlock_2(nn.Module):
@@ -64,27 +107,19 @@ class BasicBlock_2(nn.Module):
         x += shortcut
         return F.relu(x)
 
-    #  (x @ conv - mean) /var * weight +bias = x @ (conv/var*weight) - mean/var*weight + bias
-    #
-    #
-    #
-    def get_equivalent_kernel(self):
-        # TODO: implement bias
-        self.eval()
-        out_channel, in_channel, kernel_size, _ = self.conv2.weight.shape
+    def simplify_layer(self):
+        eq_conv = convbn_to_conv(self.conv2, self.bn2)
+
+        out_channel, in_channel, kernel_size, _ = eq_conv.weight.shape
         kernel = torch.zeros((out_channel, in_channel * 2, kernel_size, kernel_size))
-
-        var = self.bn2.running_var.data
-        weight = self.bn2.weight.data
-        gamma = weight / (var + self.bn2.eps)
-
-        conv_data = self.conv2.weight.data * gamma.reshape((-1, 1, 1, 1))
-        bias = self.bn2.bias.data - self.bn2.running_mean.data * gamma
-
-        kernel[:, :in_channel, :, :] = conv_data
+        kernel[:, :in_channel, :, :] = eq_conv.weight.data
         for i in range(out_channel):
             kernel[i, i + in_channel, kernel_size // 2, kernel_size // 2] = 1
-        return kernel, bias
+
+        conv = nn.Conv2d(in_channel * 2, out_channel, kernel_size=kernel_size, padding=eq_conv.padding)
+        conv.weight.data = kernel
+        conv.bias.data = eq_conv.bias.data
+        return conv, nn.ReLU()
 
 
 class LastLinearLayer(nn.Module):
@@ -98,8 +133,8 @@ class LastLinearLayer(nn.Module):
         x = x.view(x.size(0), -1)
         return self.linear(x)
 
-    def get_equivalent_kernel(self):
-        pass
+    def simplify_layer(self):
+        raise NotImplementedError
 
 
 class LayerWiseModel(nn.Module):
@@ -120,8 +155,9 @@ class ConvBNReLULayer(nn.Module):
     def forward(self, x):
         return self.relu(self.bn1(self.conv1(x)))
 
-    def get_equivalent_kernel(self):
-        pass
+    def simplify_layer(self):
+        conv = convbn_to_conv(self.conv1, self.bn1)
+        return conv, self.relu
 
 
 class ResNet_CIFAR(LayerWiseModel):

@@ -43,6 +43,7 @@ class SuperResolutionMeter(Meter):
         self._records = {m.name: [] for m in self._meters}
 
 
+# TODO: Implement this as the format of torchmetric
 class PSNR:
     """Peak Signal to Noise Ratio
     img1 and img2 have range [0, 255]"""

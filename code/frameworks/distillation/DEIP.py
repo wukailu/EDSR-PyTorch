@@ -41,6 +41,7 @@ class DEIP_LightModel(LightningModule):
 
         if self.params['init_stu_with_teacher']:
             # TODO: Implement this
+
             pass
 
     def complete_hparams(self):
@@ -62,25 +63,18 @@ class DEIP_LightModel(LightningModule):
             f_list.append(x)
         return (f_list, x) if with_feature else x
 
-    def step(self, meter, batch):
-        images, labels = batch
-        predictions = self.forward(images)
-        loss = self.criterion(predictions, labels)
-        meter.update(labels, predictions.detach(), loss.detach())
-        acc = (torch.max(predictions, dim=1)[1] == labels).float().mean()
-        return {'loss': loss, 'progress_bar': {'acc': acc}}
-
     def append_layer(self, channels, previous_f_size, current_f_size, kernel_size=3):
-        new_layer = nn.Identity()
         if self.params['layer_type'] == 'normal':
             new_layers = []
             if previous_f_size == current_f_size:
-                    new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2))
+                new_layers.append(
+                    nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2))
             else:
                 stride_w = previous_f_size[0] // current_f_size[0]
                 stride_h = previous_f_size[1] // current_f_size[1]
-                new_layers.append(nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2,
-                                      stride=(stride_w, stride_h)))
+                new_layers.append(
+                    nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2,
+                              stride=(stride_w, stride_h)))
             if self.params['use_bn']:
                 new_layers.append(nn.BatchNorm2d(channels))
             new_layers.append(nn.ReLU())
@@ -89,7 +83,8 @@ class DEIP_LightModel(LightningModule):
             from model.basic_cifar_models.repvgg import RepVGGBlock
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
-            new_layer = RepVGGBlock(self.last_channel, channels, kernel_size, stride=(stride_w, stride_h), padding = kernel_size//2)
+            new_layer = RepVGGBlock(self.last_channel, channels, kernel_size, stride=(stride_w, stride_h),
+                                    padding=kernel_size // 2)
         else:
             raise NotImplementedError()
 
@@ -171,7 +166,7 @@ class DEIP_Distillation(DEIP_LightModel):
         self.params = {**default_sr_list, **self.params}
         DEIP_LightModel.complete_hparams(self)
 
-    def step(self, meter, batch):
+    def step(self, batch, phase: str):
         images, labels = batch
 
         if self.training:
@@ -181,25 +176,26 @@ class DEIP_Distillation(DEIP_LightModel):
             with torch.no_grad():
                 feat_t, out_t = self.teacher_model(images, with_feature=True)
             assert len(feat_s) == len(feat_t)
-            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.params['num_epochs'])
+            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch / self.params['num_epochs'])
             loss = task_loss + dist_loss * self.params['distill_coe']
 
-            self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
-            self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
+            self.log('train/dist_loss', dist_loss)
+            self.log('train/task_loss', task_loss)
         else:
             predictions = self.forward(images)
             loss = self.criterion(predictions, labels)
 
-        meter.update(labels, predictions.detach(), loss.detach())
-        acc = (torch.max(predictions.detach(), dim=1)[1] == labels).float().mean()
-        return {'loss': loss, 'progress_bar': {'acc': acc}}
+        metric = self.metric(predictions, labels)
+        self.log(phase + '/' + self.params['metric'], metric)
+        return loss
 
 
 class DEIP_Progressive_Distillation(DEIP_Distillation):
     def __init__(self, hparams):
         super().__init__(hparams)
         self.current_layer = 0
-        self.milestone_epochs = list(range(0, self.params['num_epochs'], self.params['num_epochs']//len(self.plane_model)))[1:]
+        self.milestone_epochs = list(
+            range(0, self.params['num_epochs'], self.params['num_epochs'] // len(self.plane_model)))[1:]
         print(f'there are totally {len(self.plane_model)} layers in student, milestones are {self.milestone_epochs}')
         self.bridges = self.init_bridges()
         unfreeze_BN(self.teacher_model)
@@ -218,7 +214,7 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
                     ret.append(nn.Identity())
         return ret
 
-    def step(self, meter, batch):
+    def step(self, batch, phase: str):
         if self.current_epoch in self.milestone_epochs:
             print(f'freezing layer {self.current_layer}')
             freeze(self.plane_model[self.current_layer])
@@ -232,25 +228,26 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
             with torch.no_grad():
                 feat_t, out_t = self.teacher_model(images, with_feature=True)
             assert len(feat_s) == len(feat_t)
-            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.params['num_epochs'])
+            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch / self.params['num_epochs'])
 
-            mid_feature = self.forward(images, until=self.current_layer+1)
+            mid_feature = self.forward(images, until=self.current_layer + 1)
             transfer_feature = self.bridges[self.current_layer](mid_feature)
-            predictions = self.teacher_model(transfer_feature, start_forward_from=self.current_layer+1)
+            predictions = self.teacher_model(transfer_feature, start_forward_from=self.current_layer + 1)
             task_loss = self.criterion(predictions, labels)
             loss = task_loss + dist_loss * self.params['distill_coe']
 
-            self.logger.log_metrics({'train/dist_loss': dist_loss.detach()}, step=self.global_step)
-            self.logger.log_metrics({'train/task_loss': task_loss.detach()}, step=self.global_step)
+            self.log('train/dist_loss', dist_loss)
+            self.log('train/task_loss', task_loss)
         else:
             mid_feature = self.forward(images, until=self.current_layer + 1)
             transfer_feature = self.bridges[self.current_layer](mid_feature)
             predictions = self.teacher_model(transfer_feature, start_forward_from=self.current_layer + 1)
             loss = self.criterion(predictions, labels)
 
-        meter.update(labels, predictions.detach(), loss.detach())
-        acc = (torch.max(predictions.detach(), dim=1)[1] == labels).float().mean()
-        return {'loss': loss, 'progress_bar': {'acc': acc}}
+        metric = self.metric(predictions, labels)
+        self.log(phase + '/' + self.params['metric'], metric)
+        return loss
+
 
 def load_model(params):
     params = {'method': 'DirectTrain', **params}

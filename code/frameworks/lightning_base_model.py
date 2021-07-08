@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 import torch
 import pytorch_lightning as pl
+import torchmetrics
 from datasets.dataProvider import DataProvider
 from meter.utils import Meter
 from model import get_classifier
 
-__all__ = ["LightningModule", "_Module", "Test_Module"]
+__all__ = ["LightningModule", "_Module"]
 
 
 class LightningModule(pl.LightningModule, ABC):
@@ -17,18 +18,19 @@ class LightningModule(pl.LightningModule, ABC):
         self.criterion = self.choose_loss()
         self.dataProvider = DataProvider(params=hparams['dataset'])
         self.steps_per_epoch = len(self.train_dataloader().dataset) // self.params['dataset']["total_batch_size"]
-        self.train_meter = self.get_meter("train")
-        self.val_meter = self.get_meter("validation")
-        self.test_meter = self.get_meter("test")
+        self.metric = self.choose_metric()
         self.need_to_learn = True
         self.train_results = {}
         self.val_results = {}
         self.test_results = {}
 
-    def get_meter(self, phase: str) -> Meter:
-        from meter.classification_meter import ClassificationMeter as Meter
-        workers = 1 if phase == "test" or self.params["backend"] != "ddp" else self.params["gpus"]
-        return Meter(phase=phase, workers=workers, criterion=self.criterion, num_class=10)
+    def choose_metric(self):
+        metric_map = {
+            'acc': torchmetrics.Accuracy(),
+            'psnr': torchmetrics.image.PSNR(),
+            'psnr255': torchmetrics.image.PSNR(data_range=255),
+        }
+        return metric_map[self.params['metric'].lower()]
 
     def get_parameters_generator(self):
         return self.parameters
@@ -40,7 +42,8 @@ class LightningModule(pl.LightningModule, ABC):
             'max_lr': 0.1,
             'weight_decay': 5e-4,
             'step_decay': 0.1,
-            'loss': 'CrossEntropy'
+            'loss': 'CrossEntropy',
+            'metric': 'acc',
         }
         default_dataset_values = {
             'batch_size': 128,
@@ -123,59 +126,22 @@ class LightningModule(pl.LightningModule, ABC):
     def forward(self, x):
         return x
 
-    def step(self, meter, batch):
+    def step(self, batch, phase: str):
         images, labels = batch
         predictions = self.forward(images)
         loss = self.criterion(predictions, labels)
-        meter.update(labels, predictions.detach(), loss.detach())
-        acc = (torch.max(predictions, dim=1)[1] == labels).float().mean()
-        return {'loss': loss, 'progress_bar': {'acc': acc}}
-
-    def epoch_ends(self, outputs, meter):
-        log_ret = meter.log_metric()
-        meter.reset()
-        ret = {key.split('/')[-1]: values for key, values in log_ret.items()}
-
-        append_log = {}
-        if "log" in outputs[0]:
-            logs = {key: [out[key] for out in outputs] for key in outputs[0].keys()}
-            for key, data_list in logs.items():
-                try:
-                    data = torch.mean(data_list)
-                    append_log[meter.phase + "_log/" + key] = data
-                except TypeError:
-                    pass
-
-        all_logs = {**log_ret, **append_log}
-        print("logging", all_logs, "step = ", self.global_step)
-        if self.logger is not None:
-            self.logger.log_metrics(all_logs, step=self.global_step)
-        return {**log_ret, 'loss': ret['loss'], 'log': all_logs}
+        metric = self.metric(predictions, labels)
+        self.log(phase + '/' + self.params['metric'], metric)
+        return loss
 
     def training_step(self, batch, batch_idx):
-        return self.step(self.train_meter, batch)
-
-    def training_epoch_end(self, outputs):
-        ret = self.epoch_ends(outputs, self.train_meter)
-        if 'save_result' in ret:
-            self.train_results = ret['save_result']
+        return self.step(batch, 'train')
 
     def validation_step(self, batch, batch_idx):
-        return self.step(self.val_meter, batch)
-
-    def validation_epoch_end(self, outputs):
-        ret = self.epoch_ends(outputs, self.val_meter)
-        if 'save_result' in ret:
-            self.val_results = ret['save_result']
-        return ret
+        return self.step(batch, 'validation')
 
     def test_step(self, batch, batch_nb):
-        return self.step(self.test_meter, batch)
-
-    def test_epoch_end(self, outputs):
-        ret = self.epoch_ends(outputs, self.test_meter)
-        if 'save_result' in ret:
-            self.test_results = ret['save_result']
+        return self.step(batch, 'test')
 
 
 class _Module(LightningModule):
@@ -185,54 +151,3 @@ class _Module(LightningModule):
 
     def forward(self, images):
         return self.model(images)
-
-
-class Test_Module(pl.LightningModule, ABC):
-    def __init__(self, hparams):
-        super().__init__()
-        self.params = hparams
-        self.dataProvider = DataProvider(params=hparams['dataset'])
-        self.criterion = torch.nn.CrossEntropyLoss()
-        self.test_meter = self.get_meter("test")
-
-    def get_meter(self, phase: str):
-        from meter.classification_meter import ClassificationMeter as Meter
-        workers = 1 if phase == "test" or self.params["backend"] != "ddp" else self.params["gpus"]
-        return Meter(phase=phase, workers=workers, criterion=self.criterion, num_class=10)
-
-    def test_dataloader(self):
-        return self.dataProvider.test_dl
-
-    @abstractmethod
-    def forward(self, x):
-        return x
-
-    def step(self, meter, batch):
-        images, labels = batch
-        predictions = self.forward(images)
-        loss = self.criterion(predictions, labels)
-        meter.update(labels, predictions.detach(), loss.detach())
-        acc = (torch.max(predictions, dim=1)[1] == labels).float().mean()
-        return {'loss': loss, 'progress_bar': {'acc': acc}}
-
-    def epoch_ends(self, outputs, meter):
-        log_ret = meter.log_metric()
-        meter.reset()
-        ret = {key.split('/')[-1]: values for key, values in log_ret.items()}
-
-        append_log = {}
-        if "log" in outputs[0]:
-            logs = {key: [out[key] for out in outputs] for key in outputs[0].keys()}
-            for key, data_list in logs.items():
-                try:
-                    data = torch.mean(data_list)
-                    append_log[meter.phase + "_log/" + key] = data
-                except TypeError:
-                    pass
-        return {'loss': ret['loss'], 'log': {**log_ret, **append_log}}
-
-    def test_step(self, batch, batch_nb):
-        return self.step(self.test_meter, batch)
-
-    def test_epoch_end(self, outputs):
-        return self.epoch_ends(outputs, self.test_meter)
