@@ -6,14 +6,15 @@ from utils.tools import submit_jobs, random_params
 
 def params_for_direct_train():
     params = {
-        'project_name': 'deip_distillation_repeat',
+        'project_name': 'deip_init_with_teacher',
         'description': 'repvgg_direct',
-        'layer_type': 'repvgg',
+        'init_stu_with_teacher': [True, False],
+        # 'layer_type': 'repvgg',
         'gpus': 1,
         'num_epochs': 300,
         'rank_eps': [5e-2],  # 5e-2
         'weight_decay': 5e-4,
-        'max_lr': [0.5],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'max_lr': [0.05],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
         'backbone': 'resnet20_act_wise',
@@ -74,7 +75,7 @@ def params_for_deip_progressive_distillation():
 
 
 def params_for_deip():
-    params = params_for_deip_distillation()
+    params = params_for_direct_train()
 
     return random_params(params)
 

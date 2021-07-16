@@ -1,19 +1,53 @@
-# Distill Everything Into a Plane model
+# Distill Everything Into a Plain model
 
 import torch
 from torch import nn
 
 from model import get_classifier, freeze, unfreeze_BN
 from frameworks.lightning_base_model import LightningModule
-from model.basic_cifar_models.resnet_layerwise_cifar import LayerWiseModel, LastLinearLayer
+from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
 
 
-# TODO: 首先实现一个确定宽度，然后直接 Train。
+def matmul_on_first_two_dim(m1: torch.Tensor, m2: torch.Tensor):
+    if len(m1.shape) == 2:
+        assert len(m2.shape) >= 2
+        shape = m2.shape
+        m2 = m2.flatten(start_dim=2).permute((2, 0, 1))
+        ret = (m1 @ m2).permute((1, 2, 0))
+        return ret.reshape(list(ret.shape[:2]) + list(shape[2:]))
+    elif len(m2.shape) == 2:
+        return matmul_on_first_two_dim(m2.transpose(0, 1), m1.transpose(0, 1)).transpose(0, 1)
+    else:
+        raise NotImplementedError()
+
+
+def conv_convert(conv_t, conv_s, M):
+    assert isinstance(conv_s, torch.nn.Conv2d)
+    assert isinstance(conv_t, torch.nn.Conv2d)
+    assert conv_s.stride == conv_t.stride
+    assert conv_s.kernel_size == conv_t.kernel_size
+    # 忽略Bias 误差 1e-5~1e-6, Bias = M^-1 Bias 误差 1e-2
+    # 把 Kernel 看成一个 element 是向量的矩阵就行
+
+    t_kernel = matmul_on_first_two_dim(conv_t.weight.data, M)
+
+    u, s, v = torch.svd(t_kernel.flatten(start_dim=1))  # u and v are real orthogonal matrices
+    r = conv_s.out_channels
+    M = u[:, :r] @ torch.diag(s[:r])
+
+    s_kernel = v.T[:r].reshape(conv_s.weight.shape)
+    s_bias = M.pinverse() @ conv_t.bias.data
+
+    conv_s.weight.data = s_kernel
+    conv_s.weight.bias = s_bias
+    return M
+
+
 class DEIP_LightModel(LightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
-        self.teacher_model: LayerWiseModel = get_classifier(hparams["backbone"], hparams["dataset"])
+        self.teacher_model: ResNet_CIFAR = get_classifier(hparams["backbone"], hparams["dataset"])
         freeze(self.teacher_model.eval())
 
         self.plane_model = nn.ModuleList()
@@ -40,8 +74,50 @@ class DEIP_LightModel(LightningModule):
             break
 
         if self.params['init_stu_with_teacher']:
-            # TODO: Implement this
+            print("init student with teacher!")
+            # TODO: Implement initialize student with teacher
+            # teacher and student has different #input_channel and #out_channel
+            # Method 1: ignore the relu layer, then student can be initialized at start
+            # Method 1, branch 2: merge bias into conv by adding a constant channel to feature map
+            # Method 2: Feature map mapping is kept by layer distillation, use the matrix from distillation, but this
+            # need to be calculated on-the-fly.
+            # Choice 1: Shall we restrict the feature map before relu or after relu?
+            # Note 1: Pay attention to gradient vanishing after intialization.
 
+            # Implement Method 1:
+            self.M_maps = []
+            M = torch.diag(torch.ones((3,)))  # M is of shape C_t x C_s
+            for layer_s, layer_t in zip(self.plane_model, self.teacher_model.sequential_models):
+                if isinstance(layer_t, LastLinearLayer):
+                    layer_s.linear.weight.data = layer_t.linear.weight.data @ M
+                    layer_s.linear.bias.data = layer_t.linear.bias
+                else:
+                    if self.params['layer_type'] == 'normal':
+                        M = conv_convert(layer_t.simplify_layer()[0], layer_s[0], M)
+                    elif self.params['layer_type'] == 'repvgg':
+                        from model.basic_cifar_models.repvgg import RepVGGBlock
+                        assert isinstance(layer_s, RepVGGBlock)
+                        conv_s: nn.Conv2d = layer_s.rbr_dense.conv
+                        conv = nn.Conv2d(in_channels=conv_s.in_channels, out_channels=conv_s.out_channels,
+                                         kernel_size=conv_s.kernel_size, stride=conv_s.stride, padding=conv_s.padding,
+                                         groups=conv_s.groups, bias=True)
+                        M = conv_convert(layer_t.simplify_layer()[0], conv, M)
+
+                        k = conv.kernel_size[0]
+                        if hasattr(layer_s, 'rbr_1x1'):
+                            for i in range(conv.out_channels):
+                                for j in range(conv.in_channels):
+                                    conv.weight.data[i, j, k//2, k//2] -= layer_s.rbr_1x1.conv.weight.data[i, j, 0, 0]
+                        if hasattr(layer_s, 'rbr_identity'):
+                            for i in range(conv.out_channels):
+                                conv.weight.data[i, i, k // 2, k // 2] -= 1
+
+                        layer_s.rbr_dense.bn.bias.data = conv.bias  # maybe we should average this into three part of bn
+                        layer_s.rbr_dense.conv.weight.data = conv.weight
+                    else:
+                        raise NotImplementedError()
+
+                    self.M_maps.append(M.detach())
             pass
 
     def complete_hparams(self):

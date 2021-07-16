@@ -183,7 +183,8 @@ def get_trainer_params(params) -> dict:
     return ret
 
 
-def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None, job_directory='.', global_seed=23336666, ignore_exist=False):
+def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None, job_directory='.',
+                global_seed=23336666, ignore_exist=False):
     update_dirs()
     numpy.random.seed(global_seed)
     submitted_jobs = [{}]
@@ -249,3 +250,20 @@ def cnt_all_combinations(obj):
             else:
                 comb *= cnt_all_combinations(values)
     return comb
+
+
+# def summarize_result(exp_filter):
+#     targets = get_targets(exp_filter)
+#     assert len(targets) > 0
+#     params = {t: get_hparams(t) for t in targets}
+#     example = params[targets[0]]
+#     for key, value in example.items():
+#         all_same = True
+#         for t in targets:
+#             if params[t][key] != value:
+#                 all_same = False
+#                 break
+#         if all_same:
+#             for t in targets:
+#                 params[t].pop(key)
+#
