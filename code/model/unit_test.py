@@ -4,7 +4,7 @@ import torch
 
 if __name__ == '__main__':
     params = {
-        'arch': 'resnet20_act_wise',
+        'arch': 'resnet20_layerwise',
     }
 
     model = get_classifier(params, "cifar10")

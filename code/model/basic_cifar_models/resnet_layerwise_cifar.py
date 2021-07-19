@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from model import LayerWiseModel, ConvertibleLayer
 from model.basic_cifar_models.utils import register_model
 
 relu_offset = 0  # It's lucky that all feature in resnet is positive
@@ -35,7 +37,7 @@ class LambdaLayer(nn.Module):
         return self.lambd(x)
 
 
-class BasicBlock_1(nn.Module):
+class BasicBlock_1(ConvertibleLayer):
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1, option='A'):
@@ -91,7 +93,7 @@ class BasicBlock_1(nn.Module):
         return conv, nn.ReLU()
 
 
-class BasicBlock_2(nn.Module):
+class BasicBlock_2(ConvertibleLayer):
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1, option='A'):
@@ -122,7 +124,7 @@ class BasicBlock_2(nn.Module):
         return conv, nn.ReLU()
 
 
-class LastLinearLayer(nn.Module):
+class LastLinearLayer(ConvertibleLayer):
     def __init__(self, linear_in, num_classes):
         super().__init__()
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
@@ -133,19 +135,17 @@ class LastLinearLayer(nn.Module):
         x = x.view(x.size(0), -1)
         return self.linear(x)
 
+    def init_student(self, layer_s, M):
+        assert isinstance(layer_s, LastLinearLayer)
+        layer_s.linear.weight.data = self.linear.weight.data @ M
+        layer_s.linear.bias.data = self.linear.bias
+        return torch.diag(torch.ones((self.linear.out_features,)))
+
     def simplify_layer(self):
         raise NotImplementedError
 
 
-class LayerWiseModel(nn.Module):
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        pass
-
-    def __len__(self):
-        pass
-
-
-class ConvBNReLULayer(nn.Module):
+class ConvBNReLULayer(ConvertibleLayer):
     def __init__(self, in_planes, planes, kernel_size=3, stride=1, padding=1):
         super().__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=kernel_size, stride=stride, padding=padding, bias=False)
@@ -162,10 +162,8 @@ class ConvBNReLULayer(nn.Module):
 
 class ResNet_CIFAR(LayerWiseModel):
     def __init__(self, num_blocks, num_classes=10, num_filters=(16, 16, 32, 64), option='A'):
-        super(ResNet_CIFAR, self).__init__()
+        super().__init__()
         self.in_planes = num_filters[0]
-
-        self.sequential_models = nn.ModuleList()
 
         self.sequential_models.append(ConvBNReLULayer(3, num_filters[0]))
         self.sequential_models += self._make_layer(num_filters[1], num_blocks[0], stride=1, option=option)
@@ -182,21 +180,11 @@ class ResNet_CIFAR(LayerWiseModel):
             self.in_planes = planes
         return layers
 
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        f_list = []
-        for m in self.sequential_models[start_forward_from: until]:
-            x = m(x)
-            f_list.append(x)
-        return (f_list, x) if with_feature else x
-
-    def __len__(self):
-        return len(self.sequential_models)
-
 
 def _resnet20(expansion=1.0, **kwargs):
     return ResNet_CIFAR(num_blocks=[3, 3, 3], num_filters=[int(i * expansion) for i in [16, 16, 32, 64]], **kwargs)
 
 
 @register_model
-def resnet20_act_wise(**kwargs):
+def resnet20_layerwise(**kwargs):
     return _resnet20(expansion=1, **kwargs)

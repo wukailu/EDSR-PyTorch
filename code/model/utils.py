@@ -1,7 +1,7 @@
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
-from torch import nn
+from torch import nn, nn as nn
 from torch.utils.tensorboard.summary import hparams
 from datasets import query_dataset
 
@@ -164,3 +164,31 @@ def print_model_params(model):
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print(f'total number of params: {pytorch_total_params:,}')
     return pytorch_total_params
+
+
+class LayerWiseModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.sequential_models = nn.ModuleList()
+
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+        f_list = []
+        for m in self.sequential_models[start_forward_from: until]:
+            x = m(x)
+            f_list.append(x)
+        return (f_list, x) if with_feature else x
+
+    def __len__(self):
+        return len(self.sequential_models)
+
+
+class ConvertibleLayer(nn.Module):
+
+    def init_student(self, conv_s, M):
+        conv = self.simplify_layer()[0]
+        from frameworks.distillation.DEIP import init_conv_with_conv
+        return init_conv_with_conv(conv, conv_s, M)
+
+    def simplify_layer(self):
+        pass
+        # return conv, ...

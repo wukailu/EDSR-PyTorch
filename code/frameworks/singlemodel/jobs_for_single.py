@@ -13,7 +13,7 @@ def params_for_single_train():
         'max_lr': [0.1, 0.2, 0.3],
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
-        'backbone': ['resnet20_act_wise'],
+        'backbone': ['resnet20_layerwise'],
         "dataset": {'name': "cifar100", 'total_batch_size': 256},
         "seed": 0,
     }

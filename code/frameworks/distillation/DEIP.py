@@ -3,7 +3,7 @@
 import torch
 from torch import nn
 
-from model import get_classifier, freeze, unfreeze_BN
+from model import get_classifier, freeze, unfreeze_BN, ConvertibleLayer
 from frameworks.lightning_base_model import LightningModule
 from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
@@ -22,7 +22,7 @@ def matmul_on_first_two_dim(m1: torch.Tensor, m2: torch.Tensor):
         raise NotImplementedError()
 
 
-def conv_convert(conv_t, conv_s, M):
+def init_conv_with_conv(conv_t, conv_s, M):
     assert isinstance(conv_s, torch.nn.Conv2d)
     assert isinstance(conv_t, torch.nn.Conv2d)
     assert conv_s.stride == conv_t.stride
@@ -47,6 +47,7 @@ def conv_convert(conv_t, conv_s, M):
 class DEIP_LightModel(LightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
+        self.M_maps = []
         self.teacher_model: ResNet_CIFAR = get_classifier(hparams["backbone"], hparams["dataset"])
         freeze(self.teacher_model.eval())
 
@@ -54,7 +55,6 @@ class DEIP_LightModel(LightningModule):
         self.teacher_start_layer = 0
         self.last_channel = self.params['input_channel']
         self.init_student()
-        print(self.plane_model)
 
     def init_student(self):
         import time
@@ -62,7 +62,7 @@ class DEIP_LightModel(LightningModule):
         # First version, no progressive learning
         for batch in self.dataProvider.train_dl:
             widths = self.calc_width(input_batch=batch)
-            print("calculated width = ", widths)
+
             with torch.no_grad():
                 images, labels = batch
                 f_list, _ = self.teacher_model(images, with_feature=True)
@@ -85,15 +85,14 @@ class DEIP_LightModel(LightningModule):
             # Note 1: Pay attention to gradient vanishing after intialization.
 
             # Implement Method 1:
-            self.M_maps = []
             M = torch.diag(torch.ones((3,)))  # M is of shape C_t x C_s
             for layer_s, layer_t in zip(self.plane_model, self.teacher_model.sequential_models):
                 if isinstance(layer_t, LastLinearLayer):
-                    layer_s.linear.weight.data = layer_t.linear.weight.data @ M
-                    layer_s.linear.bias.data = layer_t.linear.bias
+                    M = layer_t.init_student(layer_s, M)
                 else:
+                    assert isinstance(layer_t, ConvertibleLayer)
                     if self.params['layer_type'] == 'normal':
-                        M = conv_convert(layer_t.simplify_layer()[0], layer_s[0], M)
+                        M = layer_t.init_student(layer_s[0], M)
                     elif self.params['layer_type'] == 'repvgg':
                         from model.basic_cifar_models.repvgg import RepVGGBlock
                         assert isinstance(layer_s, RepVGGBlock)
@@ -101,7 +100,8 @@ class DEIP_LightModel(LightningModule):
                         conv = nn.Conv2d(in_channels=conv_s.in_channels, out_channels=conv_s.out_channels,
                                          kernel_size=conv_s.kernel_size, stride=conv_s.stride, padding=conv_s.padding,
                                          groups=conv_s.groups, bias=True)
-                        M = conv_convert(layer_t.simplify_layer()[0], conv, M)
+
+                        M = layer_t.init_student(conv, M)
 
                         k = conv.kernel_size[0]
                         if hasattr(layer_s, 'rbr_1x1'):
@@ -176,15 +176,19 @@ class DEIP_LightModel(LightningModule):
             pass
         else:
             ret = []
+            teacher = []
             with torch.no_grad():
                 images, labels = input_batch
                 f_list, _ = self.teacher_model(images, with_feature=True)
+                teacher = [f.size(1) for f in f_list]
                 for f in f_list[:-1]:
                     #  Here Simple SVD is used, which is the best approximation to min_{D'} ||D-D'||_F where rank(D') <= r
                     #  A question is, how to solve min_{D'} ||(D-D')*W||_F where rank(D') <= r, W is matrix with positive weights and * is element-wise production
                     #  refer to wiki, it's called `Weighted low-rank approximation problems`, which does not have an analytic solution
                     ret.append(rank_estimate(f, eps=self.params['rank_eps']))
                 ret.append(f_list[-1].size(1))  # num classes
+            print("calculated teacher width = ", teacher)
+            print("calculated student width = ", ret)
             return ret
 
 
