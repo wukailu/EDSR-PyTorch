@@ -2,30 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model import LayerWiseModel, ConvertibleLayer
+from model import LayerWiseModel, ConvertibleLayer, convbn_to_conv
 from model.basic_cifar_models.utils import register_model
 
 relu_offset = 0  # It's lucky that all feature in resnet is positive
-
-
-def convbn_to_conv(conv: nn.Conv2d, bn: nn.BatchNorm2d):
-    bn.eval()
-    out_channel, in_channel, kernel_size, _ = conv.weight.shape
-
-    var = bn.running_var.data
-    weight = bn.weight.data
-    gamma = weight / (var + bn.eps)
-
-    bias = 0 if conv.bias is None else conv.bias.data
-
-    conv_data = conv.weight.data * gamma.reshape((-1, 1, 1, 1))
-    bias = bn.bias.data + (bias - bn.running_mean.data) * gamma
-
-    ret = nn.Conv2d(conv.in_channels, conv.out_channels, conv.kernel_size, conv.stride, conv.padding, bias=True,
-                    padding_mode=conv.padding_mode)
-    ret.weight.data = conv_data
-    ret.bias.data = bias
-    return ret
 
 
 class LambdaLayer(nn.Module):

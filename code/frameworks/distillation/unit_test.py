@@ -1,5 +1,6 @@
 from frameworks.singlemodel.train_single_model import prepare_params
-from frameworks.distillation.DEIP import load_model, matmul_on_first_two_dim
+from frameworks.distillation.DEIP import load_model
+from model import matmul_on_first_two_dim
 from torch import nn
 import torch
 

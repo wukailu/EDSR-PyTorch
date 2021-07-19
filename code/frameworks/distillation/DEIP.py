@@ -9,41 +9,6 @@ from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLi
 from frameworks.distillation.feature_distillation import get_distill_module
 
 
-def matmul_on_first_two_dim(m1: torch.Tensor, m2: torch.Tensor):
-    if len(m1.shape) == 2:
-        assert len(m2.shape) >= 2
-        shape = m2.shape
-        m2 = m2.flatten(start_dim=2).permute((2, 0, 1))
-        ret = (m1 @ m2).permute((1, 2, 0))
-        return ret.reshape(list(ret.shape[:2]) + list(shape[2:]))
-    elif len(m2.shape) == 2:
-        return matmul_on_first_two_dim(m2.transpose(0, 1), m1.transpose(0, 1)).transpose(0, 1)
-    else:
-        raise NotImplementedError()
-
-
-def init_conv_with_conv(conv_t, conv_s, M):
-    assert isinstance(conv_s, torch.nn.Conv2d)
-    assert isinstance(conv_t, torch.nn.Conv2d)
-    assert conv_s.stride == conv_t.stride
-    assert conv_s.kernel_size == conv_t.kernel_size
-    # 忽略Bias 误差 1e-5~1e-6, Bias = M^-1 Bias 误差 1e-2
-    # 把 Kernel 看成一个 element 是向量的矩阵就行
-
-    t_kernel = matmul_on_first_two_dim(conv_t.weight.data, M)
-
-    u, s, v = torch.svd(t_kernel.flatten(start_dim=1))  # u and v are real orthogonal matrices
-    r = conv_s.out_channels
-    M = u[:, :r] @ torch.diag(s[:r])
-
-    s_kernel = v.T[:r].reshape(conv_s.weight.shape)
-    s_bias = M.pinverse() @ conv_t.bias.data
-
-    conv_s.weight.data = s_kernel
-    conv_s.weight.bias = s_bias
-    return M
-
-
 class DEIP_LightModel(LightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)

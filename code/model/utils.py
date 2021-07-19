@@ -4,6 +4,7 @@ from pytorch_lightning.utilities import rank_zero_only
 from torch import nn, nn as nn
 from torch.utils.tensorboard.summary import hparams
 from datasets import query_dataset
+from abc import ABC, abstractmethod
 
 
 class Partial_Detach(nn.Module):
@@ -186,9 +187,80 @@ class ConvertibleLayer(nn.Module):
 
     def init_student(self, conv_s, M):
         conv = self.simplify_layer()[0]
-        from frameworks.distillation.DEIP import init_conv_with_conv
         return init_conv_with_conv(conv, conv_s, M)
 
+    @abstractmethod
+    def forward(self, x):
+        pass
+
+    @abstractmethod
     def simplify_layer(self):
         pass
         # return conv, ...
+
+
+def convbn_to_conv(conv: nn.Conv2d, bn: nn.BatchNorm2d):
+    bn.eval()
+    out_channel, in_channel, kernel_size, _ = conv.weight.shape
+
+    var = bn.running_var.data
+    weight = bn.weight.data
+    gamma = weight / (var + bn.eps)
+
+    bias = 0 if conv.bias is None else conv.bias.data
+
+    conv_data = conv.weight.data * gamma.reshape((-1, 1, 1, 1))
+    bias = bn.bias.data + (bias - bn.running_mean.data) * gamma
+
+    ret = nn.Conv2d(conv.in_channels, conv.out_channels, conv.kernel_size, conv.stride, conv.padding, bias=True,
+                    padding_mode=conv.padding_mode)
+    ret.weight.data = conv_data
+    ret.bias.data = bias
+    return ret
+
+
+def merge_1x1_and_3x3(conv1: nn.Conv2d, conv3: nn.Conv2d):
+    assert conv1.out_channels == conv3.in_channels
+    kernel = matmul_on_first_two_dim(conv3.weight.data, conv1.weight.data.view(conv1.weight.shape[:2]))
+    bias = (conv3.bias.data if conv3.bias else torch.zeros((conv3.out_channels,))) + \
+        conv3.weight.data.sum(dim=-1).sum(dim=-1) @ (conv1.bias.data if conv1.bias else torch.zeros((conv1.out_channels, )))
+    conv = nn.Conv2d(in_channels=conv1.in_channels, out_channels=conv3.out_channels, kernel_size=conv3.kernel_size,
+                     stride=conv3.stride, padding=conv3.padding, bias=True)
+    conv.weight.data = kernel
+    conv.bias.data = bias
+    return conv
+
+
+def matmul_on_first_two_dim(m1: torch.Tensor, m2: torch.Tensor):
+    if len(m1.shape) == 2:
+        assert len(m2.shape) >= 2
+        shape = m2.shape
+        m2 = m2.flatten(start_dim=2).permute((2, 0, 1))
+        ret = (m1 @ m2).permute((1, 2, 0))
+        return ret.reshape(list(ret.shape[:2]) + list(shape[2:]))
+    elif len(m2.shape) == 2:
+        return matmul_on_first_two_dim(m2.transpose(0, 1), m1.transpose(0, 1)).transpose(0, 1)
+    else:
+        raise NotImplementedError()
+
+
+def init_conv_with_conv(conv_t, conv_s, M):
+    assert isinstance(conv_s, torch.nn.Conv2d)
+    assert isinstance(conv_t, torch.nn.Conv2d)
+    assert conv_s.stride == conv_t.stride
+    assert conv_s.kernel_size == conv_t.kernel_size
+    # 忽略Bias 误差 1e-5~1e-6, Bias = M^-1 Bias 误差 1e-2
+    # 把 Kernel 看成一个 element 是向量的矩阵就行
+
+    t_kernel = matmul_on_first_two_dim(conv_t.weight.data, M)
+
+    u, s, v = torch.svd(t_kernel.flatten(start_dim=1))  # u and v are real orthogonal matrices
+    r = conv_s.out_channels
+    M = u[:, :r] @ torch.diag(s[:r])
+
+    s_kernel = v.T[:r].reshape(conv_s.weight.shape)
+    s_bias = M.pinverse() @ conv_t.bias.data
+
+    conv_s.weight.data = s_kernel
+    conv_s.weight.bias = s_bias
+    return M

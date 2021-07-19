@@ -8,13 +8,13 @@ def params_for_direct_train():
     params = {
         'project_name': 'deip_init_with_teacher',
         'description': 'direct_find_best_lr',
-        'init_stu_with_teacher': [True],
-        # 'layer_type': 'repvgg',
+        'init_stu_with_teacher': [1, 0],
+        'layer_type': ['repvgg', 'normal'],
         'gpus': 1,
         'num_epochs': 300,
         'rank_eps': [5e-2],  # 5e-2
         'weight_decay': 5e-4,
-        'max_lr': [0.3, 0.5],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'max_lr': [0.1],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         # 'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
         'backbone': 'resnet20_layerwise',

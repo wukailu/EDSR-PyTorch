@@ -10,6 +10,7 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True):
         padding=(kernel_size // 2), bias=bias)
 
 
+# Tips: 相当令人迷惑的代码, 可能是为了在 GPU 上更快吧
 class MeanShift(nn.Conv2d):
     def __init__(
             self, rgb_range,
