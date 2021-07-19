@@ -119,7 +119,7 @@ class LastLinearLayer(ConvertibleLayer):
         assert isinstance(layer_s, LastLinearLayer)
         layer_s.linear.weight.data = self.linear.weight.data @ M
         layer_s.linear.bias.data = self.linear.bias
-        return torch.diag(torch.ones((self.linear.out_features,)))
+        return torch.eye(self.linear.out_features)
 
     def simplify_layer(self):
         raise NotImplementedError

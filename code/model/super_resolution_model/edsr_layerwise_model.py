@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 from model.super_resolution_model import common
 from .utils import register_model
 from .. import LayerWiseModel, ConvertibleLayer, merge_1x1_and_3x3
@@ -24,56 +25,165 @@ class HeadLayer(ConvertibleLayer):
         return merge_1x1_and_3x3(self.sub_mean, self.conv)
 
 
-# TODO: write this as layerwise model
+class ConvLayer(ConvertibleLayer):
+    def __init__(self, in_channel, out_channel, kernel_size, act=None, bias=True):
+        super().__init__()
+        self.conv = common.default_conv(in_channel, out_channel, kernel_size, bias=bias)
+        self.act = act
+
+    def simplify_layer(self):
+        return self.conv
+
+    def forward(self, x):
+        if self.act is not None:
+            return self.conv(x), self.act
+        return self.conv(x)
+
+
+class IdLayer(ConvertibleLayer):
+    def __init__(self, channel):
+        super().__init__()
+        self.conv = common.default_conv(channel, channel, 1, bias=False)
+        self.conv.weight.data = torch.eye(channel).view((channel, channel, 1, 1))
+        self.conv.weight.requires_grad = False
+
+    def simplify_layer(self):
+        return self.conv
+
+    def forward(self, x):
+        return self.conv(x)
+
+
+class ConcatLayer(ConvertibleLayer):
+    def __init__(self, layer1, layer2, share_input=False, sum_output=False):
+        super().__init__()
+        assert isinstance(layer1, ConvertibleLayer)
+        assert isinstance(layer2, ConvertibleLayer)
+        self.eq_conv1: nn.Conv2d = layer1.simplify_layer()[0]
+        self.eq_conv2: nn.Conv2d = layer2.simplify_layer()[0]
+        self.layer1 = layer1
+        self.layer2 = layer2
+        self.share_input = share_input
+        self.sum_output = sum_output
+
+    def forward(self, x):
+        if self.share_input:
+            x1, x2 = x, x
+        else:
+            assert x.size(1) == self.eq_conv1.in_channels + self.eq_conv2.in_channels
+            x1, x2 = x[:, :self.eq_conv1.in_channels], x[:, self.eq_conv1.in_channels:]
+
+        x1, x2 = self.layer1(x1), self.layer2(x2)
+
+        if self.sum_output:
+            assert x1.shape == x2.shape
+            return x1 + x2
+        else:
+            return torch.cat([x1, x2], dim=1)
+
+    def simplify_layer(self):
+        assert self.eq_conv1.kernel_size[0] == self.eq_conv1.kernel_size[1]
+        assert self.eq_conv2.kernel_size[0] == self.eq_conv2.kernel_size[1]
+        assert self.eq_conv1.padding[0] == self.eq_conv1.padding[1]
+        assert self.eq_conv2.padding[0] == self.eq_conv2.padding[1]
+        assert self.eq_conv1.kernel_size[0] % 2 == 1
+        assert self.eq_conv2.kernel_size[0] % 2 == 1
+        assert self.eq_conv1.kernel_size[0] // 2 == self.eq_conv1.padding[0]
+        assert self.eq_conv2.kernel_size[0] // 2 == self.eq_conv2.padding[0]
+        assert self.eq_conv1.stride == self.eq_conv2.stride
+        assert self.eq_conv1.padding_mode == self.eq_conv2.padding_mode
+
+        if self.share_input:
+            assert self.eq_conv1.in_channels == self.eq_conv2.in_channels
+
+        if self.sum_output:
+            assert self.eq_conv1.out_channels == self.eq_conv2.out_channels
+
+        conv = nn.Conv2d(in_channels=self.eq_conv1.in_channels+self.eq_conv2.in_channels,
+                         out_channels=self.eq_conv1.out_channels+self.eq_conv2.out_channels,
+                         kernel_size=max(self.eq_conv1.kernel_size, self.eq_conv2.kernel_size),
+                         padding=max(self.eq_conv1.padding, self.eq_conv2.padding),
+                         padding_mode=self.eq_conv1.padding_mode,
+                         bias=True)
+
+        bias1 = self.eq_conv1.bias.data if self.eq_conv1.bias else torch.zeros((self.eq_conv1.out_channels,))
+        bias2 = self.eq_conv2.bias.data if self.eq_conv2.bias else torch.zeros((self.eq_conv2.out_channels,))
+        conv.bias.data = torch.cat([bias1, bias2], dim=0)
+
+        kernel = torch.zeros_like(conv.weight)
+        slice1 = slice((conv.kernel_size[0] - self.eq_conv1.kernel_size[0]) // 2, (conv.kernel_size[0] + self.eq_conv1.kernel_size[0]) // 2)
+        slice2 = slice((conv.kernel_size[0] - self.eq_conv2.kernel_size[0]) // 2, (conv.kernel_size[0] + self.eq_conv2.kernel_size[0]) // 2)
+
+        slice_in = slice(None, self.eq_conv1.in_channels) if self.share_input else slice(self.eq_conv1.in_channels, None)
+        slice_out = slice(None, self.eq_conv1.out_channels) if self.sum_output else slice(self.eq_conv1.out_channels, None)
+        kernel[:self.eq_conv1.out_channels, :self.eq_conv1.in_channels, slice1, slice1] += self.eq_conv1.weight.data
+        kernel[slice_out, slice_in, slice2, slice2] += self.eq_conv2.weight.data
+        conv.weight.data = kernel
+
+        return conv
+
+
+def resBlock(n_feats, kernel_size, act):
+    conv1 = ConvLayer(n_feats, n_feats, kernel_size, act=act)
+    conv2 = ConvLayer(n_feats, n_feats, kernel_size)
+    id1 = IdLayer(n_feats)
+    id2 = IdLayer(n_feats)
+    return ConcatLayer(conv1, id1, share_input=True), ConcatLayer(conv2, id2, sum_output=True)
+
+
+class EDSRTail(ConvertibleLayer):
+    def __init__(self, scale, n_feats, n_colors, kernel_size, rgb_range):
+        super().__init__()
+        m_tail = [
+            common.Upsampler(common.default_conv, scale, n_feats, act=False),
+            common.default_conv(n_feats, n_colors, kernel_size)
+        ]
+        self.tail = nn.Sequential(*m_tail)
+        self.add_mean = common.MeanShift(rgb_range, sign=1)
+
+        self.n_feats = n_feats
+        self.n_colors = n_colors
+        self.kernel_size = kernel_size
+        self.scale = scale
+        self.rgb_range = rgb_range
+
+    def forward(self, x):
+        return self.add_mean(self.tail(x))
+
+    def init_student(self, conv_s, M):
+        assert isinstance(conv_s, EDSRTail)
+        assert conv_s.scale == self.scale
+        assert conv_s.kernel_size == self.kernel_size
+        assert conv_s.n_feats == self.n_feats
+        assert conv_s.n_colors == self.n_colors
+        assert conv_s.rgb_range == self.rgb_range
+
+        import copy
+        from model import matmul_on_first_two_dim
+
+        conv_s.tail = copy.deepcopy(self.tail)
+        conv_s.tail[0].weight.data = matmul_on_first_two_dim(conv_s.tail[0].weight.data, M)
+        return torch.eye(self.n_colors)
+
+    def simplify_layer(self):
+        raise NotImplementedError()
+
+
 class EDSR_layerwise_Model(LayerWiseModel):
-    def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, res_scale=1,
-                 conv=common.default_conv, **kwargs):
+    def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, **kwargs):
         super(EDSR_layerwise_Model, self).__init__()
 
         n_resblocks = n_resblocks
         n_feats = n_feats if nf is None else nf
         kernel_size = 3
 
+        # define head module
         self.sequential_models.append(HeadLayer(rgb_range, n_colors, n_feats, kernel_size))
 
-        self.add_mean = common.MeanShift(rgb_range, sign=1)
-
-        # define head module
-        m_head = [conv(n_colors, n_feats, kernel_size)]
-
         # define body module
-        m_body = [
-            common.ResBlock(
-                conv, n_feats, kernel_size, act=nn.ReLU(True), res_scale=res_scale
-            ) for _ in range(n_resblocks)
-        ]
-        m_body.append(conv(n_feats, n_feats, kernel_size))
+        for _ in range(n_resblocks):
+            self.sequential_models += list(resBlock(n_feats, kernel_size, act=nn.ReLU(True)))
+        self.sequential_models.append(ConvLayer(n_feats, n_feats, kernel_size))
 
         # define tail module
-        m_tail = [
-            common.Upsampler(conv, scale, n_feats, act=False),
-            conv(n_feats, n_colors, kernel_size)
-        ]
-
-        self.head = nn.Sequential(*m_head)
-        self.body = nn.Sequential(*m_body)
-        self.tail = nn.Sequential(*m_tail)
-
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        feat = []
-
-        x = self.sub_mean(x)
-        x = self.head(x)
-        feat.append(x)
-
-        res = self.body(x)
-        feat.append(res)
-        res += x
-
-        x = self.tail(res)
-        x = self.add_mean(x)
-
-        if with_feature:
-            return feat, x
-        else:
-            return x
+        self.sequential_models.append(EDSRTail(scale, n_feats, n_colors, kernel_size, rgb_range))

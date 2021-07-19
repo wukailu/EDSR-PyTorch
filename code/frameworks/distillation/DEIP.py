@@ -7,6 +7,7 @@ from model import get_classifier, freeze, unfreeze_BN, ConvertibleLayer
 from frameworks.lightning_base_model import LightningModule
 from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
+from model.super_resolution_model.edsr_layerwise_model import EDSRTail
 
 
 class DEIP_LightModel(LightningModule):
@@ -50,9 +51,9 @@ class DEIP_LightModel(LightningModule):
             # Note 1: Pay attention to gradient vanishing after intialization.
 
             # Implement Method 1:
-            M = torch.diag(torch.ones((3,)))  # M is of shape C_t x C_s
+            M = torch.eye(3)  # M is of shape C_t x C_s
             for layer_s, layer_t in zip(self.plane_model, self.teacher_model.sequential_models):
-                if isinstance(layer_t, LastLinearLayer):
+                if isinstance(layer_t, (LastLinearLayer, EDSRTail)):
                     M = layer_t.init_student(layer_s, M)
                 else:
                     assert isinstance(layer_t, ConvertibleLayer)
@@ -133,6 +134,7 @@ class DEIP_LightModel(LightningModule):
         self.plane_model.append(new_layer)
 
     def append_fc(self, num_classes):
+        # TODO: discuss the case use EDSRTail
         self.plane_model.append(LastLinearLayer(self.last_channel, num_classes))
 
     def calc_width(self, input_batch):
