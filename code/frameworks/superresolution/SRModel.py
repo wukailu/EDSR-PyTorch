@@ -128,7 +128,7 @@ class SRDistillation(SR_LightModel):
         return model
 
     def get_distillation_module(self):
-        sample, _, _ = self.train_dataloader().dataset[0]  # TODO: get this message from data provider
+        sample, _, _ = self.train_dataloader().dataset[0]
         sample = sample.unsqueeze(dim=0)
         with torch.no_grad():
             feat_t, out_t = self.teacher(sample, with_feature=True)

@@ -4,44 +4,46 @@ import torch
 from torch import nn
 
 from model import get_classifier, freeze, unfreeze_BN, ConvertibleLayer
-from frameworks.lightning_base_model import LightningModule
+from frameworks.lightning_base_model import LightningModule, _Module
 from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
-from model.super_resolution_model.edsr_layerwise_model import EDSRTail
 
 
 class DEIP_LightModel(LightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
         self.M_maps = []
-        self.teacher_model: ResNet_CIFAR = get_classifier(hparams["backbone"], hparams["dataset"])
+        self.teacher_model = self.load_teacher()
         freeze(self.teacher_model.eval())
 
         self.plane_model = nn.ModuleList()
         self.teacher_start_layer = 0
-        self.last_channel = self.params['input_channel']
         self.init_student()
+
+    def load_teacher(self):
+        return _Module.load_from_checkpoint(checkpoint_path=self.params['teacher_pretrain_path']).model
 
     def init_student(self):
         import time
         start_time = time.process_time()
         # First version, no progressive learning
         for batch in self.dataProvider.train_dl:
-            widths = self.calc_width(input_batch=batch)
+            widths = [self.params['input_channel']] + self.calc_width(input_batch=batch)
 
             with torch.no_grad():
                 images, labels = batch
                 f_list, _ = self.teacher_model(images, with_feature=True)
                 f_shapes = [images.shape] + [f.shape for f in f_list]
-                for idx, w in enumerate(widths[:-1]):
-                    self.append_layer(w, f_shapes[idx][2:], f_shapes[idx + 1][2:])
-            self.append_fc(widths[-1])
+                print("len(width)=", len(widths), ' len(f_shapes)=', len(f_shapes))
+                for idx in range(len(widths) - 2):
+                    self.append_layer(widths[idx], widths[idx + 1], f_shapes[idx][2:], f_shapes[idx + 1][2:])
+            self.append_fc(widths[-2], widths[-1])
             print("initialization student width used ", time.process_time() - start_time)
             break
 
         if self.params['init_stu_with_teacher']:
             print("init student with teacher!")
-            # TODO: Implement initialize student with teacher
+            # TODO: Implement initialize student with teacher of Method 2
             # teacher and student has different #input_channel and #out_channel
             # Method 1: ignore the relu layer, then student can be initialized at start
             # Method 1, branch 2: merge bias into conv by adding a constant channel to feature map
@@ -50,50 +52,51 @@ class DEIP_LightModel(LightningModule):
             # Choice 1: Shall we restrict the feature map before relu or after relu?
             # Note 1: Pay attention to gradient vanishing after intialization.
 
+            assert len(self.plane_model) == len(self.teacher_model.sequential_models)
             # Implement Method 1:
             M = torch.eye(3)  # M is of shape C_t x C_s
-            for layer_s, layer_t in zip(self.plane_model, self.teacher_model.sequential_models):
-                if isinstance(layer_t, (LastLinearLayer, EDSRTail)):
-                    M = layer_t.init_student(layer_s, M)
+            for layer_s, layer_t in zip(self.plane_model[:-1], self.teacher_model.sequential_models[:-1]):
+                assert isinstance(layer_t, ConvertibleLayer)
+                if self.params['layer_type'] == 'normal':
+                    M = layer_t.init_student(layer_s[0], M)
+                elif self.params['layer_type'] == 'repvgg':
+                    from model.basic_cifar_models.repvgg import RepVGGBlock
+                    assert isinstance(layer_s, RepVGGBlock)
+                    conv_s: nn.Conv2d = layer_s.rbr_dense.conv
+                    conv = nn.Conv2d(in_channels=conv_s.in_channels, out_channels=conv_s.out_channels,
+                                     kernel_size=conv_s.kernel_size, stride=conv_s.stride, padding=conv_s.padding,
+                                     groups=conv_s.groups, bias=True)
+
+                    M = layer_t.init_student(conv, M)
+
+                    k = conv.kernel_size[0]
+                    if hasattr(layer_s, 'rbr_1x1'):
+                        for i in range(conv.out_channels):
+                            for j in range(conv.in_channels):
+                                conv.weight.data[i, j, k // 2, k // 2] -= layer_s.rbr_1x1.conv.weight.data[i, j, 0, 0]
+                    if hasattr(layer_s, 'rbr_identity'):
+                        for i in range(conv.out_channels):
+                            conv.weight.data[i, i, k // 2, k // 2] -= 1
+
+                    layer_s.rbr_dense.bn.bias.data = conv.bias  # maybe we should average this into three part of bn
+                    layer_s.rbr_dense.conv.weight.data = conv.weight
                 else:
-                    assert isinstance(layer_t, ConvertibleLayer)
-                    if self.params['layer_type'] == 'normal':
-                        M = layer_t.init_student(layer_s[0], M)
-                    elif self.params['layer_type'] == 'repvgg':
-                        from model.basic_cifar_models.repvgg import RepVGGBlock
-                        assert isinstance(layer_s, RepVGGBlock)
-                        conv_s: nn.Conv2d = layer_s.rbr_dense.conv
-                        conv = nn.Conv2d(in_channels=conv_s.in_channels, out_channels=conv_s.out_channels,
-                                         kernel_size=conv_s.kernel_size, stride=conv_s.stride, padding=conv_s.padding,
-                                         groups=conv_s.groups, bias=True)
+                    raise NotImplementedError()
+                self.M_maps.append(M.detach())
 
-                        M = layer_t.init_student(conv, M)
-
-                        k = conv.kernel_size[0]
-                        if hasattr(layer_s, 'rbr_1x1'):
-                            for i in range(conv.out_channels):
-                                for j in range(conv.in_channels):
-                                    conv.weight.data[i, j, k//2, k//2] -= layer_s.rbr_1x1.conv.weight.data[i, j, 0, 0]
-                        if hasattr(layer_s, 'rbr_identity'):
-                            for i in range(conv.out_channels):
-                                conv.weight.data[i, i, k // 2, k // 2] -= 1
-
-                        layer_s.rbr_dense.bn.bias.data = conv.bias  # maybe we should average this into three part of bn
-                        layer_s.rbr_dense.conv.weight.data = conv.weight
-                    else:
-                        raise NotImplementedError()
-
-                    self.M_maps.append(M.detach())
-            pass
+            # LastFCLayer
+            self.teacher_model.sequential_models[-1].init_student(self.plane_model[-1], M)
 
     def complete_hparams(self):
         default_sr_list = {
+            'task': 'classification',
             'input_channel': 3,
             'progressive_distillation': False,
             'rank_eps': 5e-2,
             'use_bn': True,
             'layer_type': 'normal',
             'init_stu_with_teacher': False,
+            'teacher_pretrain_path': None,
         }
         self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)
@@ -105,37 +108,45 @@ class DEIP_LightModel(LightningModule):
             f_list.append(x)
         return (f_list, x) if with_feature else x
 
-    def append_layer(self, channels, previous_f_size, current_f_size, kernel_size=3):
+    def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3):
         if self.params['layer_type'] == 'normal':
             new_layers = []
             if previous_f_size == current_f_size:
                 new_layers.append(
-                    nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2))
+                    nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2))
             else:
                 stride_w = previous_f_size[0] // current_f_size[0]
                 stride_h = previous_f_size[1] // current_f_size[1]
                 new_layers.append(
-                    nn.Conv2d(self.last_channel, channels, kernel_size=kernel_size, padding=kernel_size // 2,
+                    nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2,
                               stride=(stride_w, stride_h)))
             if self.params['use_bn']:
-                new_layers.append(nn.BatchNorm2d(channels))
+                new_layers.append(nn.BatchNorm2d(out_channels))
             new_layers.append(nn.ReLU())
             new_layer = nn.Sequential(*new_layers)
         elif self.params['layer_type'] == 'repvgg':
             from model.basic_cifar_models.repvgg import RepVGGBlock
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
-            new_layer = RepVGGBlock(self.last_channel, channels, kernel_size, stride=(stride_w, stride_h),
+            new_layer = RepVGGBlock(in_channels, out_channels, kernel_size, stride=(stride_w, stride_h),
                                     padding=kernel_size // 2)
         else:
             raise NotImplementedError()
 
-        self.last_channel = channels
         self.plane_model.append(new_layer)
 
-    def append_fc(self, num_classes):
-        # TODO: discuss the case use EDSRTail
-        self.plane_model.append(LastLinearLayer(self.last_channel, num_classes))
+    def append_fc(self, last_channel, output_channel):
+        if self.params['task'] == 'classification':
+            self.plane_model.append(LastLinearLayer(last_channel, output_channel))
+        elif self.params['task'] == 'super-resolution':
+            from model.super_resolution_model.edsr_layerwise_model import EDSRTail, EDSR_layerwise_Model
+            if isinstance(self.teacher_model, EDSR_layerwise_Model):
+                self.plane_model.append(
+                    EDSRTail(self.params['scale'], last_channel, output_channel, 3, self.params['rgb_range']))
+            else:
+                raise NotImplementedError()
+        else:
+            raise NotImplementedError()
 
     def calc_width(self, input_batch):
         if self.params['progressive_distillation']:  # progressive 更好会不会是训得更久所以效果更好
@@ -148,11 +159,12 @@ class DEIP_LightModel(LightningModule):
                 images, labels = input_batch
                 f_list, _ = self.teacher_model(images, with_feature=True)
                 teacher = [f.size(1) for f in f_list]
-                for f in f_list[:-1]:
+                for f in f_list[:-2]:
                     #  Here Simple SVD is used, which is the best approximation to min_{D'} ||D-D'||_F where rank(D') <= r
                     #  A question is, how to solve min_{D'} ||(D-D')*W||_F where rank(D') <= r, W is matrix with positive weights and * is element-wise production
                     #  refer to wiki, it's called `Weighted low-rank approximation problems`, which does not have an analytic solution
                     ret.append(rank_estimate(f, eps=self.params['rank_eps']))
+                ret.append(f_list[-2].size(1))
                 ret.append(f_list[-1].size(1))  # num classes
             print("calculated teacher width = ", teacher)
             print("calculated student width = ", ret)
@@ -231,6 +243,9 @@ class DEIP_Distillation(DEIP_LightModel):
         else:
             predictions = self.forward(images)
             loss = self.criterion(predictions, labels)
+            teacher_pred = self.teacher_model(images)
+            metric = self.metric(teacher_pred, labels)
+            self.log(phase + '/' + 'teacher_' + self.params['metric'], metric)
 
         metric = self.metric(predictions, labels)
         self.log(phase + '/' + self.params['metric'], metric)

@@ -3,21 +3,25 @@ import sys
 sys.path.append('/home/kailu/EDSR-PyTorch/code/')
 from utils.tools import submit_jobs, random_params
 
+pretrain_paths = {
+    'resnet': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_58603.ckpt",
+}
+
 
 def params_for_direct_train():
     params = {
-        'project_name': 'deip_init_with_teacher',
-        'description': 'direct_find_best_lr',
-        'init_stu_with_teacher': [1, 0],
-        'layer_type': ['repvgg', 'normal'],
+        'project_name': 'deip_initialization',
+        'description': 'direct_train',
+        'init_stu_with_teacher': [1],
+        'layer_type': ['normal', 'repvgg'],
         'gpus': 1,
         'num_epochs': 300,
-        'rank_eps': [5e-2],  # 5e-2
+        'rank_eps': [0.05],  # 5e-2
         'weight_decay': 5e-4,
-        'max_lr': [0.1],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
-        # 'lr_scheduler': 'OneCycLR',
+        'max_lr': [0.05, 0.2, 0.5],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
-        'backbone': 'resnet20_layerwise',
+        'teacher_pretrain_path': pretrain_paths['resnet'],
         "dataset": {'name': "cifar100", 'total_batch_size': 256},
         "seed": [233, 234, 235, 236],
     }
@@ -28,23 +32,21 @@ def params_for_direct_train():
 def params_for_deip_distillation():
     params = {
         'project_name': 'deip_distillation_repeat',
-        'description': 'distillation_test',
+        'description': 'common_distillation',
         'method': 'Distillation',
-        # 'dist_method': ['CKA_on_logits', 'KD', 'Progressive_FD', 'FD_Conv1x1_MSE'],
-        'dist_method': 'KA_on_channel',
+        'dist_method': ['CKA_on_logits', 'KD', 'Progressive_FD', 'FD_Conv1x1_MSE', 'KA_on_channel'],
         'layer_type': 'repvgg',
         'gpus': 1,
         'num_epochs': 300,
         'rank_eps': 5e-2,
-        'distill_coe': [1, 0.1, 0.01, 0.001],
-        # 'distill_coe': [0],
+        'distill_coe': [1, 0.1, 0.01],
         'weight_decay': 5e-4,
         'max_lr': 0.5,
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
-        'backbone': 'resnet20_layerwise',
+        'teacher_pretrain_path': pretrain_paths['resnet'],
         "dataset": {'name': "cifar100", 'total_batch_size': 256},
-        "seed": [233, 234, 235, 236],
+        "seed": [233, 234],
         'save_model': False,
     }
 
@@ -53,20 +55,18 @@ def params_for_deip_distillation():
 
 def params_for_deip_progressive_distillation():
     params = {
-        'project_name': 'deip_test',
-        'description': 'progressive_distillation_with_bug_fix',
+        'project_name': 'deip_distillation_repeat',
+        'description': 'progressive_distillation',
         'method': 'Progressive_Distillation',
         'gpus': 1,
-        'num_epochs': 4000,
+        'num_epochs': 300,
         'track_grad_norm': True,
-        # 'rank_eps': [5e-2, 0.2, 0.3, 0.5],  #  5e-2
         'rank_eps': 5e-2,
-        # 'distill_coe': [1, 0.1, 0.01],
-        'distill_coe': 0,
+        'distill_coe': [1, 0.1, 0.01],
         'weight_decay': 5e-4,
-        'max_lr': [1e-4, 1e-3, 1e-2],
+        'max_lr': [1e-3, 1e-2],
         'optimizer': 'SGD',
-        'backbone': 'resnet20_layerwise',
+        'teacher_pretrain_path': pretrain_paths['resnet'],
         "dataset": {'name': "cifar100", 'total_batch_size': 256},
         "seed": 0,
     }
@@ -76,6 +76,7 @@ def params_for_deip_progressive_distillation():
 
 def params_for_deip():
     params = params_for_direct_train()
+    # TODO: rerun params_for_deip_distillation params_for_deip_progressive_distillation
 
     return random_params(params)
 
