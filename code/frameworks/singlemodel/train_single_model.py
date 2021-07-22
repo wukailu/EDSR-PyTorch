@@ -40,7 +40,7 @@ def train_model(model, params, save_name='default', checkpoint_monitor='validati
     from utils.tools import get_trainer_params
 
     logger = TensorBoardLogger("logs", name=save_name, default_hp_metric=False)
-    backend.set_dtensorboard_logdir(f'logs/{save_name}')
+    backend.set_tensorboard_logdir(f'logs/{save_name}')
 
     checkpoint_callback = ModelCheckpoint(dirpath='saves', save_top_k=1, monitor=checkpoint_monitor, mode=mode)
     t_params = get_trainer_params(params)
