@@ -8,7 +8,7 @@ log_level: INFO
 num_gpus: 1
 
 worker:
-  image: wuvin:pylight138_torch181
+  image: wuvin:pylight138_torch181_kube
 
   volumes:
     /dev/shm:

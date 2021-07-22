@@ -8,6 +8,28 @@ pretrain_paths = {
 }
 
 
+def params_for_baseline():
+    params = {
+        'project_name': 'deip_baselines',
+        'description': 'direct_train',
+        'init_stu_with_teacher': [0],
+        'layer_type': ['normal', 'repvgg'],
+        'gpus': 1,
+        'num_epochs': 300,
+        'rank_eps': [0.3],  # 5e-2, 0.3
+        'weight_decay': 5e-4,
+        'max_lr': [0.05, 0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'SGD',
+        'teacher_pretrain_path': pretrain_paths['resnet'],
+        "dataset": {'name': "cifar100", 'total_batch_size': 256},
+        "seed": [233, 234, 235, 236],
+        'ignore_exist': True,
+    }
+
+    return params
+
+
 def params_for_direct_train():
     params = {
         'project_name': 'deip_initialization',
@@ -16,7 +38,7 @@ def params_for_direct_train():
         'layer_type': ['normal', 'repvgg'],
         'gpus': 1,
         'num_epochs': 300,
-        'rank_eps': [0.05],  # 5e-2, 0.3
+        'rank_eps': [0.05, 0.3],  # 5e-2, 0.3
         'weight_decay': 5e-4,
         'max_lr': [0.05, 0.2, 0.5],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         'lr_scheduler': 'OneCycLR',
@@ -77,7 +99,7 @@ def params_for_deip_progressive_distillation():
 
 
 def params_for_deip():
-    params = params_for_direct_train()
+    params = params_for_baseline()
     # params = params_for_deip_distillation()
     # params = params_for_deip_progressive_distillation()
 

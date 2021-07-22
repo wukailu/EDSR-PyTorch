@@ -209,7 +209,7 @@ def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None,
         backend.submit(scheduler_config='scheduler', job_directory=job_directory, command=command, params=hyper_params,
                        stream_job_logs=False, num_gpus=hyper_params["gpus"], project_name=name)
 
-        print(f"Task {idx}, {hyper_params}")
+        print(f"Submit to {backend.name}, task {idx}, {hyper_params}")
 
 
 def random_params(val):

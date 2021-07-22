@@ -6,6 +6,7 @@ def save_job_info():
     import pickle
     with open('/job/job_source/job_info.pkl', 'wb') as f:
         pickle.dump(job_info, f)
+    print('saving job info!')
 
 
 def log_metric(key, value):
@@ -18,7 +19,7 @@ def log_param(key, value):
 
 
 def log_params(parameters):
-    job_info['params'] = parameters
+    job_info['params'] = {**job_info['params'], **parameters}
     save_job_info()
 
 
@@ -47,12 +48,17 @@ def submit(job_directory, command, params, num_gpus, **kwargs):
         'num_gpus': num_gpus
     }
 
+    import os
+    os.system(f'cp ~/.kube/config {job_directory}/kube.config')
     from utils.atlas_backend import submit as atlas_submit
     atlas_submit(job_directory='.', command='utils/kubernetes_runner.py', params=runner_params, num_gpus=0, **kwargs)
 
 
 def load_parameters(log_parameters=True):
+    print('loading parameters from kube backend!')
     import yaml
     with open('kube_job_parameters.yaml', 'r') as f:
         param = yaml.safe_load(f)
+    if log_parameters:
+        log_params(param)
     return param

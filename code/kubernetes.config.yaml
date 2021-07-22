@@ -30,10 +30,12 @@ spec:
         args: ["while true; do sleep 30; done;"]
         resources:
           limits:
-            cpu: 20 # 最大CPU
+            cpu: 10 # 最大CPU
             memory: 128Gi # 最大内存数目
             virtaitech.com/gpu: 0  # 最大GPU数目
           requests:
+            cpu: 2 # 小CPU
+            memory: 16Gi # 最小内存数目
             virtaitech.com/gpu: 0  # 最小需要的GPU数目
         env:
           - name : ORION_GMEM
