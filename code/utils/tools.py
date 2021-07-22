@@ -189,9 +189,14 @@ def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None,
     numpy.random.seed(global_seed)
     submitted_jobs = [{}]
     for idx in range(number_jobs):
-        hyper_params = param_generator()
-        while hyper_params in submitted_jobs or (ignore_exist and len(get_targets(dict_filter(hyper_params))) > 0):
+        while True:
+            ignore = ignore_exist
             hyper_params = param_generator()
+            if 'ignore_exist' in hyper_params:
+                ignore = hyper_params['ignore_exist']
+                hyper_params.pop('ignore_exist')
+            if (hyper_params not in submitted_jobs) and ((not ignore) or len(get_targets(dict_filter(hyper_params))) == 0):
+                break
         submitted_jobs.append(hyper_params.copy())
 
         if 'seed' not in hyper_params:

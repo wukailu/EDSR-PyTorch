@@ -1,4 +1,4 @@
-job_info = {'params': {}, 'results': {}, 'tensorboard path': '', 'artifacts': {}}
+job_info = {'params': {}, 'results': {}, 'tensorboard_path': '', 'artifacts': {}}
 name = 'local_backend'
 
 
@@ -27,7 +27,7 @@ def log_params(parameters):
 
 
 def set_tensorboard_logdir(path):
-    job_info['tensorboard path'] = path
+    job_info['tensorboard_path'] = path
 
 
 def save_artifact(filepath: str, key=None):

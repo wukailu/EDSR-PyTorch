@@ -5,8 +5,8 @@ from foundations import save_artifact
 from foundations import submit
 
 
-def log(info):
-    print(info)
+def log(*args, **kwargs):
+    print(*args, **kwargs)
 
 
 log("using atlas framework")

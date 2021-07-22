@@ -256,9 +256,9 @@ def init_conv_with_conv(conv_t, conv_s, M):
 
     u, s, v = torch.svd(t_kernel.flatten(start_dim=1))  # u and v are real orthogonal matrices
     r = conv_s.out_channels
-    M = u[:, :r] @ torch.diag(s[:r])
+    M = u[:, :r]
 
-    s_kernel = v.T[:r].reshape(conv_s.weight.shape)
+    s_kernel = (torch.diag(s[:r]) @ v.T[:r]).reshape(conv_s.weight.shape)
     s_bias = M.pinverse() @ conv_t.bias.data
 
     conv_s.weight.data = s_kernel

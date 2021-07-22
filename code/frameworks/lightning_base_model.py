@@ -3,8 +3,8 @@ import torch
 import pytorch_lightning as pl
 import torchmetrics
 from datasets.dataProvider import DataProvider
-from meter.utils import Meter
 from model import get_classifier
+from copy import deepcopy
 
 __all__ = ["LightningModule", "_Module"]
 
@@ -13,10 +13,10 @@ class LightningModule(pl.LightningModule, ABC):
     def __init__(self, hparams):
         super().__init__()  # must name after hparams or there will be plenty of bugs in early version of lightning
         self.save_hyperparameters(hparams)
-        self.params = hparams
+        self.params = deepcopy(hparams)
         self.complete_hparams()
         self.criterion = self.choose_loss()
-        self.dataProvider = DataProvider(params=hparams['dataset'])
+        self.dataProvider = DataProvider(params=deepcopy(self.params['dataset']))
         self.steps_per_epoch = len(self.train_dataloader().dataset) // self.params['dataset']["total_batch_size"]
         self.metric = self.choose_metric()
         self.need_to_learn = True

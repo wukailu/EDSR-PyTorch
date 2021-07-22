@@ -37,5 +37,5 @@ def params_for_test():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_single_train, 'frameworks/singlemodel/train_single_model.py', number_jobs=100,
+    submit_jobs(params_for_single_train, 'frameworks/singlemodel/train_single_model.py', number_jobs=1,
                 job_directory='.')

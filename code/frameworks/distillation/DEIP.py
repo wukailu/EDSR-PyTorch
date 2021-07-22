@@ -17,7 +17,6 @@ class DEIP_LightModel(LightningModule):
         freeze(self.teacher_model.eval())
 
         self.plane_model = nn.ModuleList()
-        self.teacher_start_layer = 0
         self.init_student()
 
     def load_teacher(self):
