@@ -85,7 +85,7 @@ if __name__ == "__main__":
         # Calling exec and waiting for response
         from kubernetes.stream import stream
 
-        exec_command = ['/bin/sh', '-c', 'cp -r /data/cache ~/.cache']
+        exec_command = ['/bin/sh', '-c', 'cp -r /data/cache/* ~/.cache']
         resp = stream(v1.connect_get_namespaced_pod_exec,
                       pod_name,
                       namespace,
@@ -107,7 +107,7 @@ if __name__ == "__main__":
         os.system(f'kubectl -n {namespace} cp {job_directory} {namespace}/{pod_name}:/job')  # 会在job 下创建文件夹 job 然后把东西放进去，太离谱了
 
         # exec_command = ['/bin/sh', '-c', "echo \"This message goes to stderr\" >&2; sleep 5; echo This message is late."]
-        exec_command = ['/bin/sh', '-c', 'mv /job/job /job/job_source && cd /job/job_source/ && ls &&' + command]
+        exec_command = ['/bin/sh', '-c', 'mv /job/job /job/job_source && cd /job/job_source/ &&' + command]
         resp = stream(v1.connect_get_namespaced_pod_exec,
                       pod_name,
                       namespace,
@@ -115,37 +115,33 @@ if __name__ == "__main__":
                       stderr=True, stdin=True,
                       stdout=True, tty=False,
                       _preload_content=False)
-        has_error = False
+
         while resp.is_open():
             resp.update(timeout=100)
             if resp.peek_stdout():
                 atlas_backend.log("%s" % resp.read_stdout())
             if resp.peek_stderr():
-                has_error = True
-                atlas_backend.log("STDERR: %s" % resp.read_stderr())
+                atlas_backend.log("STDERR: %s" % resp.read_stderr())  # 总有一些奇怪的信息走这里出来，明明该走上面的
             time.sleep(1)
         resp.close()
 
-        if not has_error:
-            print('program running finished! copying back results...')
-            fetch('job_info.pkl')
-            import pickle
+        print('program running finished! copying back results...')
+        fetch('job_info.pkl')
+        import pickle
 
-            with open('job_info.pkl', 'rb') as f:
-                job_info = pickle.load(f)
-            # job_info = {'params': {}, 'results': {}, 'tensorboard_path': '', 'artifacts': {}}
-            if job_info['params'] != {}:
-                atlas_backend.log_params(job_info['params'])
-            if job_info['tensorboard_path'] != '':
-                atlas_backend.set_tensorboard_logdir(job_info['tensorboard_path'])
-                fetch(job_info["tensorboard_path"])
-            for key, path in job_info['artifacts'].items():
-                fetch(path)
-                atlas_backend.save_artifact(path, key=key)
-            for key, value in job_info['results']:
-                atlas_backend.log_metric(key, value)
-        else:
-            raise Exception("Error occurred in running!")
+        with open('job_info.pkl', 'rb') as f:
+            job_info = pickle.load(f)
+        # job_info = {'params': {}, 'results': {}, 'tensorboard_path': '', 'artifacts': {}}
+        if job_info['params'] != {}:
+            atlas_backend.log_params(job_info['params'])
+        if job_info['tensorboard_path'] != '':
+            atlas_backend.set_tensorboard_logdir(job_info['tensorboard_path'])
+            fetch(job_info["tensorboard_path"])
+        for key, path in job_info['artifacts'].items():
+            fetch(path)
+            atlas_backend.save_artifact(path, key=key)
+        for key, value in job_info['results'].items():
+            atlas_backend.log_metric(key, value)
     finally:
         # shutdown pod
         os.system(f'kubectl -n {namespace} delete deployment {deployment_name}')

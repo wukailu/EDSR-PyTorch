@@ -32,6 +32,8 @@ def save_artifact(filepath: str, key=None):
     import random
     if key is None:
         key = str(random.randint(0, 9999)) + "_" + filepath.split('/')[-1].split('.')[0]
+    if filepath.startswith("/job/job_source/"):
+        filepath = filepath[len("/job/job_source/"):]
     job_info['artifacts'][key] = filepath
     save_job_info()
 

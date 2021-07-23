@@ -14,6 +14,7 @@ class DEIP_LightModel(LightningModule):
         super().__init__(hparams)
         self.M_maps = []
         self.teacher_model = self.load_teacher()
+        # self.teacher_model = get_classifier('resnet20_layerwise', 'cifar100')
         freeze(self.teacher_model.eval())
 
         self.plane_model = nn.ModuleList()
@@ -33,7 +34,6 @@ class DEIP_LightModel(LightningModule):
                 images, labels = batch
                 f_list, _ = self.teacher_model(images, with_feature=True)
                 f_shapes = [images.shape] + [f.shape for f in f_list]
-                print("len(width)=", len(widths), ' len(f_shapes)=', len(f_shapes))
                 for idx in range(len(widths) - 2):
                     self.append_layer(widths[idx], widths[idx + 1], f_shapes[idx][2:], f_shapes[idx + 1][2:])
             self.append_fc(widths[-2], widths[-1])

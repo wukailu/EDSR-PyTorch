@@ -7,12 +7,18 @@ import json
 import pickle
 
 base_dir = "/home/kailu/.foundations/job_data/archive/"
-dirs = os.listdir(base_dir)
+if os.path.exists(base_dir):
+    dirs = os.listdir(base_dir)
+else:
+    dirs = []
 
 
 def update_dirs():
     global dirs
-    dirs = os.listdir(base_dir)
+    if os.path.exists(base_dir):
+        dirs = os.listdir(base_dir)
+    else:
+        dirs = []
 
 
 def show_img(results: np.ndarray, vmin=None, vmax=None):

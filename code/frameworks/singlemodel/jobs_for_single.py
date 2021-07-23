@@ -8,7 +8,7 @@ def params_for_single_train():
     params = {
         'project_name': 'deip_baselines',
         'gpus': 1,
-        'num_epochs': 10,  # TODO: change back to 300
+        'num_epochs': 300, 
         'weight_decay': 5e-4,
         'max_lr': [0.2],
         'lr_scheduler': 'OneCycLR',
