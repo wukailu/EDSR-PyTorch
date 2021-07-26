@@ -16,7 +16,7 @@ def params_for_baseline():
         'layer_type': ['repvgg'],
         'gpus': 1,
         'num_epochs': 300,
-        'rank_eps': [1],  # 5e-2, 0.6, 1
+        'rank_eps': [2],  # 0.05, 0.6, 1, 2
         'weight_decay': 5e-4,
         'max_lr': [0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         'lr_scheduler': 'OneCycLR',

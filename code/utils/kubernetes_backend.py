@@ -49,11 +49,17 @@ def submit(job_directory, command, params, num_gpus, **kwargs):
         'params': params,
         'num_gpus': num_gpus
     }
+    import yaml
+    with open('kube_runner_param.yaml', 'w') as f:
+        yaml.dump(runner_params, f)
+
+    if 'num_gpus' in kwargs:
+        kwargs.pop('num_gpus')
 
     import os
     os.system(f'cp ~/.kube/config {job_directory}/kube.config')
     from utils.atlas_backend import submit as atlas_submit
-    atlas_submit(job_directory='.', command='utils/kubernetes_runner.py', params=runner_params, num_gpus=0, **kwargs)
+    atlas_submit(job_directory='.', command='utils/kubernetes_runner.py', params=params, **kwargs)
 
 
 def load_parameters(log_parameters=True):

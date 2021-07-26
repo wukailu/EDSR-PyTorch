@@ -21,13 +21,14 @@ if __name__ == "__main__":
     atlas_backend.log('job_id = ', job_id)
 
     # load the params and info
-    params = atlas_backend.load_parameters()
+    import yaml
+    with open('kube_runner_param.yaml', 'r') as f:
+        params = yaml.safe_load(f)
     job_directory = params['job_directory']
     command = params['command']
     job_params = params['params']
     num_gpus = params['num_gpus']
     atlas_backend.log_params(job_params)
-    import yaml
 
     with open('kube_job_parameters.yaml', 'w') as f:
         yaml.dump(job_params, f)

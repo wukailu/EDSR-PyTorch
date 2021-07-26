@@ -4,9 +4,6 @@ log_level: INFO
 
 # Worker config #
 # Additional definition for the worker can be found here: https://docker-py.readthedocs.io/en/stable/containers.html
-
-num_gpus: 1
-
 worker:
   image: wuvin:pylight138_torch181_kube
 
