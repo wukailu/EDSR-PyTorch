@@ -11,6 +11,7 @@ if os.path.exists(base_dir):
     dirs = os.listdir(base_dir)
 else:
     dirs = []
+hparams_cache = {}
 
 
 def update_dirs():
@@ -19,6 +20,7 @@ def update_dirs():
         dirs = os.listdir(base_dir)
     else:
         dirs = []
+    hparams_cache = {}
 
 
 def show_img(results: np.ndarray, vmin=None, vmax=None):
@@ -31,6 +33,9 @@ def show_img(results: np.ndarray, vmin=None, vmax=None):
 
 
 def get_hparams(folder):
+    if folder in hparams_cache:
+        return hparams_cache[folder]
+
     jpath = os.path.join(folder, "artifacts", 'foundations_job_parameters.json')
     if os.path.exists(jpath):
         user = pwd.getpwuid(os.stat(jpath).st_uid).pw_name
@@ -38,7 +43,9 @@ def get_hparams(folder):
             with open(jpath, 'r') as f:
                 params = json.load(f)
             if 'project_name' in params:
+                hparams_cache[folder] = params
                 return params
+    hparams_cache[folder] = {'project_name': 'no_project'}
     return {'project_name': 'no_project'}
 
 
@@ -52,14 +59,12 @@ def get_artifacts(folder, name_or_idx):
         raise NotImplementedError()
 
 
-def load_results(folder):
-    with open(get_artifacts(folder, "test_result.pkl"), 'rb') as f:
-        return pickle.load(f)['test/result']
-
-
-def load_pkl(folder, name_or_idx="test_result.pkl"):
+def pkl_load_artifacts(folder, name_or_idx="test_result.pkl", sub_item='test/result'):
     with open(get_artifacts(folder, name_or_idx), 'rb') as f:
-        return pickle.load(f)
+        ret = pickle.load(f)
+        if sub_item is not None:
+            return ret[sub_item]
+        return ret
 
 
 def get_targets(param_filter, hole_range=None):
@@ -70,11 +75,11 @@ def get_targets(param_filter, hole_range=None):
 
 
 def merge_results(param_filter):
-    return {50000 // get_hparams(t)['dataset_params']['total']: load_results(t) for t in get_targets(param_filter)}
+    return {50000 // get_hparams(t)['dataset_params']['total']: pkl_load_artifacts(t) for t in get_targets(param_filter)}
 
 
 def mean_results(param_filter):
-    return np.mean([load_results(t) for t in get_targets(param_filter)], axis=0)
+    return np.mean([pkl_load_artifacts(t) for t in get_targets(param_filter)], axis=0)
 
 
 def view_img(results, with_orig=False):

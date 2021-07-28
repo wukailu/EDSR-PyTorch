@@ -17,6 +17,7 @@ def prepare_params(params):
         else:
             params['datasets'] = {'name': params['datasets'], 'input_large': True}
     default_keys = {
+        'metric': 'psnr255',
         'inference_statics': False,
         'skip_train': False,
         'save_model': False,

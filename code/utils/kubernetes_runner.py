@@ -148,8 +148,6 @@ if __name__ == "__main__":
         for key, value in job_info['results'].items():
             atlas_backend.log_metric(key, value)
 
-        if has_error:
-            raise Exception("Error shown in STDERR!")
     finally:
         # shutdown pod
         os.system(f'kubectl -n {namespace} delete deployment {deployment_name}')

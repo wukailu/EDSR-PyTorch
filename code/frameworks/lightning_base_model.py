@@ -53,8 +53,13 @@ class LightningModule(pl.LightningModule, ABC):
         self.params['dataset'] = {**default_dataset_values, **self.params['dataset']}
 
     def choose_loss(self):
-        if self.params['loss'] == 'CrossEntropy':
-            return torch.nn.CrossEntropyLoss()
+        loss_dict = {
+            'CrossEntropy': torch.nn.CrossEntropyLoss,
+            'L1': torch.nn.L1Loss,
+            'MSE': torch.nn.MSELoss,
+        }
+        if self.params['loss'] in loss_dict:
+            return loss_dict[self.params['loss']]()
         return None
 
     def choose_optimizer(self):

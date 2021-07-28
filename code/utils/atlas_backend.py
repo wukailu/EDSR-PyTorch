@@ -23,3 +23,52 @@ def log(*args, **kwargs):
 
 log("using atlas framework")
 name = 'atlas_backend'
+
+"""
+get hparams from atlas webpage
+-------
+all = ""
+$($(".input-metric-column-container")[3]).find(".job-table-row").each(
+    function(){
+        ret = "["
+        $(this).find(".job-cell").each(
+        function(){
+            ret += "'" + $($(this).find("p")[0]).text() + "'" + ", ";
+        });
+    all += ret + '],\n';
+});
+console.log(all)
+-------
+get results from atlas webpage
+-------
+all = ""
+$($(".input-metric-column-container")[5]).find(".job-table-row").each(
+    function(){
+        ret = "["
+        $(this).find(".job-cell").each(
+        function(){
+            ret += $($(this).find("p")[0]).text() + ", ";
+        });
+    all += ret + '],\n';
+});
+console.log(all)
+-------
+summarise the results
+-------
+seed_pos = 12
+assert len(params) == len(metrics)
+ret = {}
+for p, m in zip(params, metrics):
+  key = tuple([v for idx, v in enumerate(p) if idx != seed_pos])
+  if key not in ret:
+    ret[key] = [m]
+  else:
+    ret[key].append(m)
+
+import numpy as np
+for key in sorted(ret.keys()):
+  t = np.mean(ret[key], axis=0)
+  tt = ("|".join(key)) 
+  print(f'|{tt}|%.2f|%.2f|%.2f|%.2f|'% (t[0], t[1], t[3], t[4]))
+------- 
+"""

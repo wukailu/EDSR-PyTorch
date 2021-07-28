@@ -5,24 +5,28 @@ from utils.tools import submit_jobs, random_params
 
 pretrain_paths = {
     'resnet': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_58603.ckpt",
-    "EDSR": "",
+    "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_fc971.ckpt",
 }
 
 
 def params_for_SR_baseline():
     params = {
-        'project_name': 'deip_SR_baselines',
+        'project_name': 'deip_SRx4_baselines',
         'description': 'direct_train',
         'init_stu_with_teacher': [0],
-        'layer_type': ['repvgg'],
+        'layer_type': ['repvgg', 'normal', 'normal_no_bn', 'normal_no_bn_prelu'],
+        'task': 'super-resolution',
+        'loss': 'L1',
+        'metric': 'psnr255',
+        'rgb_range': 255,
         'gpus': 1,
         'num_epochs': 300,
         'rank_eps': [0.05],  # 0.05, 0.6, 1, 2
-        'weight_decay': 5e-4,
-        'max_lr': [2e-4, 2e-3, 2e-2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'weight_decay': 0,
+        'max_lr': 2e-4,
         'lr_scheduler': 'OneCycLR',
-        'optimizer': 'SGD',
-        'teacher_pretrain_path': pretrain_paths['resnet'],
+        'optimizer': 'Adam',
+        'teacher_pretrain_path': pretrain_paths['EDSRx4'],
         "dataset": {
             'name': "DIV2K",
             'total_batch_size': 16,
@@ -33,13 +37,11 @@ def params_for_SR_baseline():
             'scale': 4,
         },
         'scale': 4,
-        'save_model': False,
-        # "seed": [233, 234, 235, 236],
+        "seed": [233, 234, 235, 236],
         'ignore_exist': True,
     }
 
     return params
-
 
 
 def params_for_baseline():
@@ -142,11 +144,13 @@ def params_for_deip_progressive_distillation():
 def params_for_deip():
     # params = params_for_baseline()
     # params = params_for_direct_train()
-    params = params_for_deip_distillation()
+    # params = params_for_deip_distillation()
     # params = params_for_deip_progressive_distillation()
+
+    params = params_for_SR_baseline()
 
     return random_params(params)
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=1000, job_directory='.')
+    submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=100, job_directory='.')

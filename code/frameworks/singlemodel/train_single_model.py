@@ -28,16 +28,19 @@ def prepare_params(params):
         'inference_statics': True,
         'skip_train': False,
         'save_model': True,
+        'metric': 'acc',
     }
-    params = {**default_keys, **params}
-    return params
+    return {**default_keys, **params}
 
 
-def train_model(model, params, save_name='default', checkpoint_monitor='validation/acc', mode='max'):
+def train_model(model, params, save_name='default', checkpoint_monitor=None, mode='max'):
     from pytorch_lightning.loggers import TensorBoardLogger
     from pytorch_lightning.callbacks import ModelCheckpoint
     from pytorch_lightning import Trainer
     from utils.tools import get_trainer_params
+
+    if checkpoint_monitor is None:
+        checkpoint_monitor = 'validation/' + params['metric']
 
     logger = TensorBoardLogger("logs", name=save_name, default_hp_metric=False)
     backend.set_tensorboard_logdir(f'logs/{save_name}')

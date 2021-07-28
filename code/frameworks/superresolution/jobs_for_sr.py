@@ -447,7 +447,8 @@ def test_x2_x2_to_x4():
 def dense_model_train():
     params = {
         'project_name': 'DIV2Kx4_model',
-        'gpus': 2,
+        'gpus': [1, 2],
+        'save_model': True,
         'num_epochs': 300,
         'weight_decay': 0,
         'max_lr': [2e-4],
@@ -459,7 +460,7 @@ def dense_model_train():
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': [50],  # 50 128
         },
-        'scale': 2,
+        'scale': 4,
         "dataset": {
             'name': "DIV2K",
             'total_batch_size': 16,

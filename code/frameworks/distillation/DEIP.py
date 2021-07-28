@@ -28,10 +28,10 @@ class DEIP_LightModel(LightningModule):
         start_time = time.process_time()
         # First version, no progressive learning
         for batch in self.dataProvider.train_dl:
-            widths = [self.params['input_channel']] + self.calc_width(input_batch=batch)
+            widths = [self.params['input_channel']] + self.calc_width(batch=batch)
 
             with torch.no_grad():
-                images, labels = batch
+                images, _ = self.decompress_batch(batch)
                 f_list, _ = self.teacher_model(images, with_feature=True)
                 f_shapes = [images.shape] + [f.shape for f in f_list]
                 for idx in range(len(widths) - 2):
@@ -107,8 +107,25 @@ class DEIP_LightModel(LightningModule):
             f_list.append(x)
         return (f_list, x) if with_feature else x
 
+    def decompress_batch(self, batch):
+        if self.params['task'] == 'classification':
+            images, labels = batch
+        elif self.params['task'] == 'super-resolution':
+            images, labels, filenames = batch
+        else:
+            raise NotImplementedError()
+        return images, labels
+
+    def step(self, batch, phase: str):
+        images, labels = self.decompress_batch(batch)
+        predictions = self.forward(images)
+        loss = self.criterion(predictions, labels)
+        metric = self.metric(predictions, labels)
+        self.log(phase + '/' + self.params['metric'], metric)
+        return loss
+
     def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3):
-        if self.params['layer_type'] == 'normal':
+        if self.params['layer_type'].startswith('normal'):
             new_layers = []
             if previous_f_size == current_f_size:
                 new_layers.append(
@@ -119,9 +136,12 @@ class DEIP_LightModel(LightningModule):
                 new_layers.append(
                     nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2,
                               stride=(stride_w, stride_h)))
-            if self.params['use_bn']:
+            if 'no_bn' in self.params['layer_type']:
                 new_layers.append(nn.BatchNorm2d(out_channels))
-            new_layers.append(nn.ReLU())
+            if 'prelu' in self.params['layer_type']:
+                new_layers.append(nn.PReLU())
+            else:
+                new_layers.append(nn.ReLU())
             new_layer = nn.Sequential(*new_layers)
         elif self.params['layer_type'] == 'repvgg':
             from model.basic_cifar_models.repvgg import RepVGGBlock
@@ -147,15 +167,14 @@ class DEIP_LightModel(LightningModule):
         else:
             raise NotImplementedError()
 
-    def calc_width(self, input_batch):
+    def calc_width(self, batch):
         if self.params['progressive_distillation']:  # progressive 更好会不会是训得更久所以效果更好
             # TODO: calculate next layer width
             pass
         else:
             ret = []
-            teacher = []
             with torch.no_grad():
-                images, labels = input_batch
+                images, labels = self.decompress_batch(batch)
                 f_list, _ = self.teacher_model(images, with_feature=True)
                 teacher = [f.size(1) for f in f_list]
                 for f in f_list[:-2]:
@@ -225,7 +244,7 @@ class DEIP_Distillation(DEIP_LightModel):
         DEIP_LightModel.complete_hparams(self)
 
     def step(self, batch, phase: str):
-        images, labels = batch
+        images, labels = self.decompress_batch(batch)
 
         if self.training:
             feat_s, predictions = self(images, with_feature=True)
@@ -282,7 +301,7 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
             self.current_layer += 1
             self.milestone_epochs = self.milestone_epochs[1:]
 
-        images, labels = batch
+        images, labels = self.decompress_batch(batch)
 
         if self.training:
             feat_s, predictions = self(images, with_feature=True)
