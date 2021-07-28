@@ -54,7 +54,7 @@ if __name__ == "__main__":
     # start the pod
     from kubernetes import client, config, watch
 
-    config.kube_config.load_kube_config(config_file="kubeconfig.yaml")
+    config.kube_config.load_kube_config(config_file="kube.config")
     v1 = client.CoreV1Api()
     k8s_apps_v1 = client.AppsV1Api()
 
@@ -117,12 +117,16 @@ if __name__ == "__main__":
                       stdout=True, tty=False,
                       _preload_content=False)
 
+        has_error = False
         while resp.is_open():
             resp.update(timeout=100)
             if resp.peek_stdout():
                 atlas_backend.log("%s" % resp.read_stdout())
             if resp.peek_stderr():
-                atlas_backend.log("STDERR: %s" % resp.read_stderr())  # 总有一些奇怪的信息走这里出来，明明该走上面的
+                has_error = True
+                ret = resp.read_stderr()
+                if not ret.startswith("Global seed set to"):
+                    atlas_backend.log("STDERR: %s" % ret)  # 总有一些奇怪的信息走这里出来，明明该走上面的
             time.sleep(1)
         resp.close()
 
@@ -143,6 +147,9 @@ if __name__ == "__main__":
             atlas_backend.save_artifact(path, key=key)
         for key, value in job_info['results'].items():
             atlas_backend.log_metric(key, value)
+
+        if has_error:
+            raise Exception("Error shown in STDERR!")
     finally:
         # shutdown pod
         os.system(f'kubectl -n {namespace} delete deployment {deployment_name}')

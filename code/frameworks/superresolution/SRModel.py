@@ -8,9 +8,9 @@ from frameworks.lightning_base_model import LightningModule
 class SR_LightModel(LightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
-        self.scale = hparams['scale']
-        self.self_ensemble = hparams['self_ensemble']
-        self.model = get_classifier(hparams["backbone"], hparams["dataset"])
+        self.scale = self.params['scale']
+        self.self_ensemble = self.params['self_ensemble']
+        self.model = get_classifier(self.params["backbone"], self.params["dataset"])
 
     def complete_hparams(self):
         default_sr_list = {
@@ -97,12 +97,12 @@ class SR_LightModel(LightningModule):
 class TwoStageSR(SR_LightModel):
     def __init__(self, hparams):
         LightningModule.__init__(self, hparams)
-        self.scale = hparams['scale']
-        self.self_ensemble = hparams['self_ensemble']
+        self.scale = self.params['scale']
+        self.self_ensemble = self.params['self_ensemble']
 
-        self.model_pretrained = SR_LightModel.load_from_checkpoint(checkpoint_path=hparams['pretrained_from']).model
-        self.model = SR_LightModel.load_from_checkpoint(checkpoint_path=hparams['pretrained_from']).model
-        if 'two_stage_no_freeze' not in hparams or not hparams['two_stage_no_freeze']:
+        self.model_pretrained = SR_LightModel.load_from_checkpoint(checkpoint_path=self.params['pretrained_from']).model
+        self.model = SR_LightModel.load_from_checkpoint(checkpoint_path=self.params['pretrained_from']).model
+        if 'two_stage_no_freeze' not in self.params or not self.params['two_stage_no_freeze']:
             from model.utils import freeze
             freeze(self.model_pretrained)
 
@@ -114,9 +114,9 @@ class TwoStageSR(SR_LightModel):
 class SRDistillation(SR_LightModel):
     def __init__(self, hparams):
         LightningModule.__init__(self, hparams)
-        self.scale = hparams['scale']
-        self.self_ensemble = hparams['self_ensemble']
-        self.model = get_classifier(hparams["backbone"], hparams["dataset"])
+        self.scale = self.params['scale']
+        self.self_ensemble = self.params['self_ensemble']
+        self.model = get_classifier(self.params["backbone"], self.params["dataset"])
 
         self.teacher = self.load_teacher()
         self.dist_method = self.get_distillation_module()

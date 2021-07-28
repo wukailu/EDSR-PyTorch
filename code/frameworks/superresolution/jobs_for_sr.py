@@ -444,22 +444,22 @@ def test_x2_x2_to_x4():
     return random_params(params)
 
 
-def dense_model_test():
+def dense_model_train():
     params = {
-        'project_name': 'DIV2Kx4_model_test',
-        'gpus': 1,
-        'num_epochs': 30,
+        'project_name': 'DIV2Kx4_model',
+        'gpus': 2,
+        'num_epochs': 300,
         'weight_decay': 0,
-        'max_lr': 2e-4,
+        'max_lr': [2e-4],
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'Adam',
         'backbone': {
             # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
-            # 'arch': ['RDN_free_sr'],
-            'arch': ['IMDN_free_sr'],
-            'n_feats': 50,
+            # 'arch': ['RDN_free_sr', 'IMDN_free_sr'],
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': [50],  # 50 128
         },
-        'scale': 4,
+        'scale': 2,
         "dataset": {
             'name': "DIV2K",
             'total_batch_size': 16,
@@ -468,7 +468,7 @@ def dense_model_test():
             'repeat': 20,
         },
         'rgb_range': 255,
-        "seed": [235],
+        "seed": [233, 234, 235, 236],
     }
 
     return params
@@ -801,11 +801,7 @@ def naiveBaseline():
 
 
 def params_for_SR():
-    # params = naiveBaseline()
-    # params = edsrDistillBaseline()
-    params = edsrMeanTeacher()
-    # params = edsrDistill()
-    # params = purePlaneDistill()
+    params = dense_model_train()
 
     if params['dataset']['name'] == 'DIV2K':
         params['dataset']['test_bz'] = 1

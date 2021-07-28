@@ -19,7 +19,7 @@ def prepare_params(params):
     default_keys = {
         'inference_statics': False,
         'skip_train': False,
-        'save_model': True,
+        'save_model': False,
         'test_benchmark': False,
     }
     params = {**default_keys, **params}

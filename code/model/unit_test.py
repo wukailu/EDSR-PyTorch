@@ -1,28 +1,32 @@
-from model import get_classifier
+from model import get_classifier, ConvertibleLayer
 from torch import nn
 import torch
 
 if __name__ == '__main__':
     params = {
-        'arch': 'resnet20_layerwise',
+        'arch': 'EDSR_layerwise_sr',
     }
 
-    model = get_classifier(params, "cifar10")
+    model = get_classifier(params, "DIV2K")
 
-    from model.basic_cifar_models.resnet_layerwise_cifar import BasicBlock_1, BasicBlock_2, ConvBNReLULayer
+    x_test = torch.randint(0, 255, (2, 3, 24, 24)).float()
 
-    x_test = torch.randn((16, 3, 32, 32))
-
-    for layer in model.sequential_models:
-        if isinstance(layer, (BasicBlock_1, BasicBlock_2, ConvBNReLULayer)):
-            conv = layer.simplify_layer()[0]
+    ans = x_test
+    out = x_test
+    for layer in model.sequential_models[:-1]:
+        if isinstance(layer, ConvertibleLayer):
+            print(type(layer))
+            conv, act = layer.simplify_layer()
             assert isinstance(conv, nn.Conv2d)
             with torch.no_grad():
-                ans = layer(x_test)
-                out = nn.ReLU()(conv(x_test))
-                diff_max = (ans - out).abs().max()
-                print("diff_max = ", diff_max)  # this should be smaller than 1e-5
-        x_test = layer(x_test)
+                ans = layer(ans)
+                out = act(conv(out))
+                diff_max = (ans - out)[:, :, 1:-1, 1:-1].abs().max()
+                # diff_max = (ans - out).abs().max() # this should be smaller than 1e-5
+                print("ans shape", ans.shape, "diff_max = ", diff_max, "ans_max", ans.max())
+
+    with torch.no_grad():
+        out = model(x_test)
 
     # model.cuda().eval()
     # x_test = torch.randn((128, 3, 32, 32)).float().cuda()

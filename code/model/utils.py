@@ -219,11 +219,14 @@ def convbn_to_conv(conv: nn.Conv2d, bn: nn.BatchNorm2d):
     return ret
 
 
+# 在 1x1 有 Bias 的情况下，这个实际上在边缘是不对的
 def merge_1x1_and_3x3(conv1: nn.Conv2d, conv3: nn.Conv2d):
     assert conv1.out_channels == conv3.in_channels
+    assert conv1.stride == (1, 1)
+    assert conv1.kernel_size == (1, 1)
     kernel = matmul_on_first_two_dim(conv3.weight.data, conv1.weight.data.view(conv1.weight.shape[:2]))
-    bias = (conv3.bias.data if conv3.bias else torch.zeros((conv3.out_channels,))) + \
-        conv3.weight.data.sum(dim=-1).sum(dim=-1) @ (conv1.bias.data if conv1.bias else torch.zeros((conv1.out_channels, )))
+    bias = (conv3.bias.data if conv3.bias is not None else torch.zeros((conv3.out_channels,))) + \
+        conv3.weight.data.sum(dim=-1).sum(dim=-1) @ (conv1.bias.data if conv1.bias is not None else torch.zeros((conv1.out_channels, )))
     conv = nn.Conv2d(in_channels=conv1.in_channels, out_channels=conv3.out_channels, kernel_size=conv3.kernel_size,
                      stride=conv3.stride, padding=conv3.padding, bias=True)
     conv.weight.data = kernel
