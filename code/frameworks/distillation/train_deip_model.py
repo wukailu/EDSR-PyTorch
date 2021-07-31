@@ -17,4 +17,4 @@ if __name__ == "__main__":
         model = train_model(model, params, save_name="model_distillation")
 
     if params['inference_statics']:
-        inference_statics(model)
+        inference_statics(model, batch_size=1)

@@ -23,7 +23,7 @@ def params_for_SR_baseline():
         'num_epochs': 300,
         'rank_eps': [0.05],  # 0.05, 0.6, 1, 2
         'weight_decay': 0,
-        'max_lr': 2e-4,
+        'max_lr': [5e-4, 1e-3, 3e-3, 1e-2],
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'Adam',
         'teacher_pretrain_path': pretrain_paths['EDSRx4'],
