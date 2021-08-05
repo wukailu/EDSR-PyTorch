@@ -29,6 +29,9 @@ class DEIP_LightModel(LightningModule):
         # First version, no progressive learning
         for batch in self.dataProvider.train_dl:
             widths = [self.params['input_channel']] + self.calc_width(batch=batch)
+            if self.params['task'] == 'super-resolution':
+                for i in range(1, len(widths)):  # TODO: fix this bug in a better way
+                    widths[i] = min(widths[i - 1] * 9, widths[i])
 
             with torch.no_grad():
                 images, _ = self.decompress_batch(batch)
@@ -56,8 +59,14 @@ class DEIP_LightModel(LightningModule):
             M = torch.eye(3)  # M is of shape C_t x C_s
             for layer_s, layer_t in zip(self.plane_model[:-1], self.teacher_model.sequential_models[:-1]):
                 assert isinstance(layer_t, ConvertibleLayer)
-                if self.params['layer_type'] == 'normal':
+                if 'normal' in self.params['layer_type']:
                     M = layer_t.init_student(layer_s[0], M)
+                elif 'plain_sr' in self.params['layer_type']:
+                    M = layer_t.init_student(layer_s.conv, M)
+                    if layer_s.skip:
+                        k = layer_s.conv.kernel_size[0]
+                        for i in range(layer_s.conv.out_channels):
+                            layer_s.conv.weight.data[i, i, k // 2, k // 2] -= 1
                 elif self.params['layer_type'] == 'repvgg':
                     from model.basic_cifar_models.repvgg import RepVGGBlock
                     assert isinstance(layer_s, RepVGGBlock)
@@ -136,7 +145,7 @@ class DEIP_LightModel(LightningModule):
                 new_layers.append(
                     nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2,
                               stride=(stride_w, stride_h)))
-            if 'no_bn' in self.params['layer_type']:
+            if 'no_bn' not in self.params['layer_type']:
                 new_layers.append(nn.BatchNorm2d(out_channels))
             if 'prelu' in self.params['layer_type']:
                 new_layers.append(nn.PReLU())
@@ -149,6 +158,15 @@ class DEIP_LightModel(LightningModule):
             stride_h = previous_f_size[1] // current_f_size[1]
             new_layer = RepVGGBlock(in_channels, out_channels, kernel_size, stride=(stride_w, stride_h),
                                     padding=kernel_size // 2)
+        elif self.params['layer_type'].startswith('plain_sr'):
+            from frameworks.distillation.exp_network import Plain_SR_Block
+            stride_w = previous_f_size[0] // current_f_size[0]
+            stride_h = previous_f_size[1] // current_f_size[1]
+            config = ""
+            if '-' in self.params['layer_type']:
+                config = self.params['layer_type'].split('-')[1]
+            new_layer = Plain_SR_Block(in_channels, out_channels, kernel_size, stride=(stride_w, stride_h),
+                                       padding=kernel_size // 2, config=config)
         else:
             raise NotImplementedError()
 
