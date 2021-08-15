@@ -119,13 +119,16 @@ class LightningModule(pl.LightningModule, ABC):
             return [optimizer], [scheduler]
 
     def train_dataloader(self):
-        return self.dataProvider.train_dl
+        from copy import deepcopy
+        return deepcopy(self.dataProvider.train_dl)
 
     def val_dataloader(self):
-        return self.dataProvider.val_dl
+        from copy import deepcopy
+        return deepcopy(self.dataProvider.val_dl)
 
     def test_dataloader(self):
-        return self.dataProvider.test_dl
+        from copy import deepcopy
+        return deepcopy(self.dataProvider.test_dl)
 
     @abstractmethod
     def forward(self, x):

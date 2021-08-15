@@ -205,6 +205,8 @@ class EDSRTail(ConvertibleLayer):
         from model import matmul_on_first_two_dim
 
         conv_s.tail = copy.deepcopy(self.tail)
+        # print(f"conv_s.tail[0][0].weight.data shape, {conv_s.tail[0][0].weight.data.shape}")
+        # print(f"M shape, {M.shape}")
         conv_s.tail[0][0].weight.data = matmul_on_first_two_dim(conv_s.tail[0][0].weight.data, M)
         # TODO: fix bias
         return torch.eye(self.n_colors)

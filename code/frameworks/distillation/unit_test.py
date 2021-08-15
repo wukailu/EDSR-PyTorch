@@ -27,7 +27,7 @@ if __name__ == '__main__':
     # xt = x_test.detach()
     #
     # with torch.no_grad():
-    #     # for layer_s, layer_t, M in zip(model.plane_model, model.teacher_model.sequential_models, model.M_maps):
+    #     # for layer_s, layer_t, M in zip(model.plain_model, model.teacher_model.sequential_models, model.M_maps):
     #     #     conv_s = layer_s[0]
     #     #     conv_t = layer_t.simplify_layer()[0]
     #     #
@@ -44,9 +44,9 @@ if __name__ == '__main__':
     #     #     # xs = nn.ReLU()(xs)
     #     #     # xt = nn.ReLU()(xt)
     #     #
-    #     # print(type(model.plane_model[-1]), type(model.teacher_model.sequential_models[-1]))
+    #     # print(type(model.plain_model[-1]), type(model.teacher_model.sequential_models[-1]))
     #     #
-    #     # xs = model.plane_model[-1](xs)
+    #     # xs = model.plain_model[-1](xs)
     #     # xt = model.teacher_model.sequential_models[-1](xt)
     #     # print(torch.max(torch.abs(xs - xt)), torch.max(torch.abs(xt)))
     #

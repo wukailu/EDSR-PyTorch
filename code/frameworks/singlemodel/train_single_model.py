@@ -5,6 +5,7 @@ sys.path.append(os.getcwd())
 
 from frameworks.lightning_base_model import _Module
 import utils.backend as backend
+from pytorch_lightning.utilities import rank_zero_only
 
 
 ###
@@ -50,8 +51,11 @@ def train_model(model, params, save_name='default', checkpoint_monitor=None, mod
     trainer = Trainer(logger=logger, callbacks=[checkpoint_callback], **t_params)
     trainer.fit(model)
     # trainer.test(model)
+    model.eval()
+    from utils.tools import get_model_weight_hash
+    print(f'model weight hash {get_model_weight_hash(model)}')
 
-    if checkpoint_callback.best_model_path != "":
+    if checkpoint_callback.best_model_path != "" and trainer.is_global_zero:
         import numpy as np
         if params['save_model']:
             backend.save_artifact(checkpoint_callback.best_model_path, key='best_model_checkpoint')
@@ -64,6 +68,7 @@ def train_model(model, params, save_name='default', checkpoint_monitor=None, mod
     return model
 
 
+@rank_zero_only
 def inference_statics(model, x_test=None, batch_size=16):
     import time
     import torch

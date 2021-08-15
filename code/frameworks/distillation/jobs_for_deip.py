@@ -36,7 +36,7 @@ templates = {
         'teacher_pretrain_path': pretrain_paths['EDSRx4'],
         "dataset": {
             'name': "DIV2K",
-            'total_batch_size': 16,
+            'batch_size': 32,
             'patch_size': 96,
             'ext': 'sep',
             'repeat': 20,
@@ -47,30 +47,61 @@ templates = {
         "seed": [233, 234, 235, 236],
         'ignore_exist': True,
         'save_model': False,
-    }
+    },
 }
+
+
+def params_for_SR_real_progressive():
+    params = {
+        'project_name': 'deip_SRx4_progressive',
+        'method': 'DEIP_Full_Progressive',
+        'description': 'DEIP_Full_Progressive',
+        'init_stu_with_teacher': [1],
+        'layer_type': ['normal_no_bn'],
+        'lr_scheduler': ['OneCycLR', 'none'],
+        'rank_eps': [0.05],
+        'max_lr': [1e-4, 2e-4, 5e-4],
+    }
+
+    return {**templates['DIV2K-SRx4'], **params}
+
+
+def params_for_SR_real_progressive_small():
+    params = {
+        'project_name': 'deip_SRx4_progressive_small',
+        'lr_scheduler': 'OneCycLR',
+        'num_epochs': 100,
+        'max_lr': [1e-4, 2e-4, 5e-4],
+        'gpus': 1,
+    }
+
+    return {**params_for_SR_real_progressive(), **params}
 
 
 def params_for_SR_progressive():
     params = {
         'project_name': 'deip_SRx4_progressive',
-        'description': 'progressive_distillation',
+        'method': 'Progressive_Distillation',
         'init_stu_with_teacher': [1],
-        'layer_type': ['normal_no_bn', 'plain_sr'],
+        'layer_type': ['normal_no_bn'],
         'rank_eps': [0.05],
-        'max_lr': [1e-4, 2e-4, 5e-4, 1e-3],
-        'distill_coe': [1e-3, 1e-4, 0],
+        'max_lr': [5e-4],
+        'distill_coe': [0, 1, 3, 10],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
 
+
 def params_for_SR_progressive_small():
     params = {
         'project_name': 'deip_SRx4_progressive_small',
+        'method': 'Progressive_Distillation',  # TODO: this used to be a bug, analyze the effect to results history
+        'layer_type': 'normal_no_bn',
         'init_stu_with_teacher': [1],
         'num_epochs': 100,
-        'max_lr': [1e-4, 2e-4, 5e-4, 1e-3],
-        'distill_coe': [1e-3, 1e-4, 0],
+        'max_lr': [5e-4],
+        'distill_coe': [0, 0.01, 1e-4, 1],
+        'gpus': 1,
     }
 
     return {**params_for_SR_progressive(), **params}
@@ -102,14 +133,27 @@ def params_for_SR_init():
     return {**templates['DIV2K-SRx4'], **params}
 
 
+def params_for_SR_baseline_with_add_ori():
+    params = {
+        'project_name': 'deip_SRx4_baseline',
+        'add_ori': [0],
+        'init_stu_with_teacher': [1, 0],
+        'layer_type': ['normal_no_bn'],
+        'rank_eps': [0.05],  # 0.05, 0.6, 1, 2
+        'max_lr': [2e-4, 5e-4, 1e-3],
+    }
+
+    return {**templates['DIV2K-SRx4'], **params}
+
+
 def params_for_SR_baseline():
     params = {
         'project_name': 'deip_SRx4_baseline',
         'description': 'direct_train',
         'init_stu_with_teacher': [0],
-        'layer_type': ['normal', 'normal_no_bn', 'normal_no_bn_prelu'],
+        'layer_type': ['normal_no_bn'],
         'rank_eps': [0.05],  # 0.05, 0.6, 1, 2
-        'max_lr': [5e-4, 1e-3, 3e-3],
+        'max_lr': [2e-4, 5e-4, 1e-3],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -186,8 +230,11 @@ def params_for_deip():
     # params = params_for_SR_baseline_small()
     # params = params_for_SR_init()
     # params = params_for_SR_structure()
-    params = params_for_SR_progressive()
-
+    # params = params_for_SR_progressive()
+    # params = params_for_SR_real_progressive()
+    # params = params_for_SR_progressive_small()
+    # params = params_for_SR_real_progressive_small()
+    params = params_for_SR_baseline_with_add_ori()
     return random_params(params)
 
 

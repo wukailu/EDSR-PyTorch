@@ -92,6 +92,12 @@ def view_img(results, with_orig=False):
         show_img(ret)
 
 
+def get_model_weight_hash(model):
+    import hashlib
+    d = frozenset({k: v.cpu().numpy() for k, v in model.state_dict().items()})
+    return hashlib.sha256(str(d).encode()).hexdigest()
+
+
 def all_list_to_tuple(my_dict):
     if isinstance(my_dict, dict):
         return {key: all_list_to_tuple(my_dict[key]) for key in my_dict}
