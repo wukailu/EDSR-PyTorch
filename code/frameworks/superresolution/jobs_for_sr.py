@@ -3,17 +3,107 @@ import sys
 sys.path.append('/home/kailu/EDSR-PyTorch/code/')
 from utils.tools import submit_jobs, random_params
 
+templates = {
+    'DIV2K-b16-SRx4': {
+        'weight_decay': 0,
+        'max_lr': 2e-4,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 300,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 4,
+            'total_batch_size': 16,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+    },
+    'DIV2K-b16-SRx2': {
+        'weight_decay': 0,
+        'max_lr': 2e-4,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 300,
+        'scale': 2,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 2,
+            'total_batch_size': 16,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+    },
+    'DIV2K-b512-SRx4': {
+        'weight_decay': 0,
+        'max_lr': 1e-3,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 300,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 4,
+            'total_batch_size': 512,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+    },
+    'DIV2K-b512-SRx2': {
+        'weight_decay': 0,
+        'max_lr': 1e-3,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 300,
+        'scale': 2,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 2,
+            'total_batch_size': 512,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+    },
+}
+
 
 def search_for_plane():
     scale = 4
     params = {
         'project_name': f'search_for_plane_x{scale}',
-        'gpus': 1,
         'num_epochs': 20,
-        'weight_decay': 0,
-        'max_lr': 2e-4,
-        'lr_scheduler': 'OneCycLR',
-        'optimizer': 'Adam',
         'backbone': {
             'arch': 'Plane_sr',
             # 'n_feats': [50, 128],
@@ -27,32 +117,16 @@ def search_for_plane():
             'use_spade': [True, False],
             'large_ori': True,
         },
-        'scale': scale,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": 233,
-        'save_model': False
     }
 
-    return params
+    return {**templates[f'DIV2K-b16-SRx{scale}'], **params}
 
 
 def get_search_params():
     params = {
         'project_name': 'DIV2Kx2_search_no_large_skip_no_preactivation',
-        'gpus': 1,
-        'num_epochs': 20,
-        'weight_decay': 0,
         # 'max_lr': [1e-3, 5e-4, 2e-4, 1e-4],
         'max_lr': 5e-4,
-        'lr_scheduler': 'OneCycLR',
-        'optimizer': 'Adam',
         'backbone': {
             'arch': 'inn_sr',
             'version': 'new_spade_act',
@@ -66,20 +140,10 @@ def get_search_params():
             'num_modules': [1, 2, 3, 4, 5, 6],
             'n_feats': [32, 50, 64, 128]
         },
-        'scale': 2,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
         "seed": [233, 234],
-        'save_model': False
     }
 
-    return params
+    return {**templates[f'DIV2K-b16-SRx{2}'], **params}
 
 
 def get_selected_params():
@@ -123,37 +187,18 @@ def get_selected_params():
 
     params = {
         'project_name': 'Final_Test',
-        'gpus': 1,
-        'num_epochs': 300,
-        'weight_decay': 0,
         'max_lr': 5e-4,
-        'lr_scheduler': 'OneCycLR',
-        'optimizer': 'Adam',
         'backbone': backbones,
-        'scale': 2,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
         "seed": [233, 234],
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx2'], **params}
 
 
 def search_for_with_feat():
     params = {
         'project_name': 'DIV2Kx2_search_vgg_feat',
-        'gpus': 1,
         'num_epochs': 20,
-        'weight_decay': 0,
-        'max_lr': 2e-4,
-        'lr_scheduler': 'OneCycLR',
-        'optimizer': 'Adam',
         'backbone': {
             'arch': 'inn_sr',
             'version': 'new_spade_act',
@@ -168,19 +213,10 @@ def search_for_with_feat():
             'num_modules': [1, 2],
             'n_feats': [50, 128]
         },
-        'scale': 2,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
         "seed": [235],
     }
 
-    return params
+    return {**templates['DIV2K-b16-SRx2'], **params}
 
 
 def get_final_few():
@@ -206,28 +242,11 @@ def get_final_few():
 
     params = {
         'project_name': 'Final_Test_on_Benchmark_x4',
-        'gpus': 1,
-        'num_epochs': 300,
-        'weight_decay': 0,
-        'max_lr': 2e-4,
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'backbone': backbones,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
         "seed": 235,
-        'inference_statics': True,
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def final_test_for_plane():
@@ -276,28 +295,11 @@ def final_test_for_plane():
 
     params = {
         'project_name': 'Plane_on_Benchmark_x2',
-        'gpus': 1,
-        'num_epochs': 300,
-        'weight_decay': 0,
-        'max_lr': 2e-4,
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'backbone': backbones,
-        'scale': 2,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
         "seed": 235,
-        'inference_statics': True,
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx2'], **params}
 
 
 def final_test_for_plane_x2():
@@ -342,28 +344,11 @@ def final_test_for_plane_x2():
 
     params = {
         'project_name': 'Plane_on_Benchmark_x2',
-        'gpus': 1,
-        'num_epochs': 300,
-        'weight_decay': 0,
-        'max_lr': 2e-4,
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'backbone': backbones,
-        'scale': 2,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
         "seed": 235,
-        'inference_statics': True,
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx2'], **params}
 
 
 def full_test_plane_x4():
@@ -378,29 +363,12 @@ def full_test_plane_x4():
 
     params = {
         'project_name': 'Plane_on_Benchmark_x4',
-        'gpus': 1,
-        'num_epochs': 300,
-        'weight_decay': 0,
-        'max_lr': 2e-4,
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'backbone': backbones,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
         "seed": 233,
-        'inference_statics': True,
-        'test_benchmark': True,
         'save_model': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def test_x2_x2_to_x4():
@@ -419,60 +387,28 @@ def test_x2_x2_to_x4():
         'project_name': 'x2_x2_to_x4',
         'method': 'TwoStageSR',
         'two_stage_no_freeze': True,
-        'gpus': 1,
         'num_epochs': 100,
-        'weight_decay': 0,
-        'max_lr': 2e-5,
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'pretrained_from': pretrained_paths,
         'backbone': {},
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
         "seed": 235,
-        'inference_statics': True,
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def dense_model_train():
     params = {
         'project_name': 'DIV2Kx4_model',
-        'gpus': [1, 2],
         'save_model': True,
-        'num_epochs': 300,
-        'weight_decay': 0,
-        'max_lr': [2e-4],
-        'lr_scheduler': 'OneCycLR',
-        'optimizer': 'Adam',
         'backbone': {
             # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
             # 'arch': ['RDN_free_sr', 'IMDN_free_sr'],
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': [50],  # 50 128
         },
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": [233, 234, 235, 236],
     }
 
-    return params
+    return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def planeDistill():
@@ -500,31 +436,13 @@ def planeDistill():
         'pretrain_distill': True,
         'start_distill': [0, 1, 2, 3],
         # 'start_distill': [1, 2, 5],  # 10 is usually a good choice
-        'gpus': 1,
         # 'num_epochs': 100,
         'num_epochs': 30,
-        'weight_decay': 0,
-        'max_lr': 1e-3,  # 2e-5
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'teacher': path,
         'backbone': config,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 512,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        # "seed": [233],
-        "seed": [233, 234, 235, 236],
-        'test_benchmark': True,
-        'save_model': False,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b512-SRx4'], **params}
 
 
 def planeDistillBaseline():
@@ -547,29 +465,12 @@ def planeDistillBaseline():
 
     params = {
         'project_name': 'planeModel_distill_baseline',
-        'gpus': 1,
         # 'num_epochs': 100,
         'num_epochs': 30,
-        'weight_decay': 0,
-        # 'max_lr': [1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5],  # 2e-5
-        'max_lr': [1e-3],  # 2e-5
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'backbone': config,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 512,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": [335, 336],
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b512-SRx4'], **params}
 
 
 def edsrDistill():
@@ -588,29 +489,12 @@ def edsrDistill():
         'dist_method': ['FD_Conv1x1_MSE'],  # 'FD_Conv1x1', 'CKA', 'FD_CloseForm', 'FD_BN1x1'
         'distill_coe': [0.01, 0.003, 0.001, 3e-4, 1e-4],  # 0.01 for FD_Conv1x1
         'start_distill': [0, 1],  # 10 is usually better than 50
-        'gpus': 1,
         'num_epochs': 30,
-        'weight_decay': 0,
-        'max_lr': 2e-4,
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'teacher': path,
         'backbone': config,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": [233, 234],
-        'test_benchmark': True,
-        'save_model': False,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def edsrDistillBaseline():
@@ -625,29 +509,12 @@ def edsrDistillBaseline():
 
     params = {
         'project_name': 'edsr_distill_baseline',
-        'gpus': 1,
         'num_epochs': 30,
         # 'num_epochs': 300,
-        'weight_decay': 0,
-        'max_lr': [2e-4],  # 2e-4
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'backbone': config,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": [235, 236],
-        # "seed": 233,
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def edsrMeanTeacher():
@@ -663,32 +530,15 @@ def edsrMeanTeacher():
     params = {
         'project_name': 'edsrMeanTeacher',
         'method': 'MeanTeacherSRDistillation',
-        'gpus': 1,
         'num_epochs': 30,
-        'weight_decay': 0,
         # 'distill_coe': [0.01, 0.03, 0.003, 0.001, 0.0003, 0.0001],  # 1e-2 for FD_Conv1x1
         'distill_coe': [0.1, 0.3, 1, 3, 10, 30],  # 1e-2 for FD_Conv1x1
         'pretrain_distill': True,
         'start_distill': [1],
-        'max_lr': [2e-4],  # 2e-4
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'backbone': config,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 16,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": [233],
-        'test_benchmark': True,
-        'save_model': False,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def purePlaneDistill():
@@ -713,29 +563,12 @@ def purePlaneDistill():
         'distill_coe': [0.01, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5],  # 1e-2 for FD_Conv1x1
         'pretrain_distill': True,
         'start_distill': [0, 1],
-        'gpus': 1,
         'num_epochs': 30,
-        'weight_decay': 0,
-        'max_lr': 1e-3,  # 2e-5
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'teacher': path,
         'backbone': config,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 512,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": [233, 234],
-        'test_benchmark': True,
-        'save_model': False,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b512-SRx4'], **params}
 
 
 def purePlaneDistillBaseline():
@@ -752,59 +585,28 @@ def purePlaneDistillBaseline():
 
     params = {
         'project_name': 'planeModel_distill_baseline',
-        'gpus': 1,
         # 'num_epochs': 100,
         'num_epochs': 30,
-        'weight_decay': 0,
-        # 'max_lr': [1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5],  # 2e-5
-        'max_lr': [1e-3],  # 2e-5
-        'optimizer': 'Adam',
-        'lr_scheduler': 'OneCycLR',
         'backbone': config,
-        'scale': 4,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 512,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": [335, 336],
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b512-SRx4'], **params}
 
 
 def naiveBaseline():
     params = {
         'project_name': 'distill_baseline',
-        'gpus': 1,
         'num_epochs': 1,
         'backbone': {'arch': 'DirectScale_sr'},
         'skip_train': True,
-        'scale': 4,
-        'save_model': False,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 512,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-        },
-        'rgb_range': 255,
-        "seed": [233, 234, 335, 336],
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b512-SRx4'], **params}
 
 
 def directTrainPlain():
     params = {
         'project_name': 'plain_SR_direct_train',
-        'gpus': 1,
         'num_epochs': 100,
         'backbone': {
             'arch': 'Plain_layerwise_sr',
@@ -814,30 +616,14 @@ def directTrainPlain():
             'stack_output': [1, 0],
         },
         'max_lr': [5e-4],
-        'scale': 4,
-        'save_model': False,
-        "dataset": {
-            'name': "DIV2K",
-            'total_batch_size': 512,
-            'patch_size': 96,
-            'ext': 'sep',
-            'repeat': 20,
-            'scale': 4,
-        },
-        'rgb_range': 255,
-        "seed": [233, 234, 335, 336],
-        'test_benchmark': True,
     }
 
-    return random_params(params)
+    return {**templates['DIV2K-b512-SRx4'], **params}
+
 
 def params_for_SR():
     params = directTrainPlain()
 
-    if params['dataset']['name'] == 'DIV2K':
-        params['dataset']['test_bz'] = 1
-    if 'scale' not in params['dataset']:
-        params['dataset']['scale'] = params['scale']
     if 'scale' not in params['backbone']:
         params['backbone']['scale'] = params['scale']
     return random_params(params)
