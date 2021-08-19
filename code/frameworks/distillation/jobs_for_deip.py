@@ -53,14 +53,16 @@ templates = {
 
 def params_for_SR_real_progressive():
     params = {
-        'project_name': 'deip_SRx4_progressive',
+        'project_name': 'deip_SRx4_freeze_progressive',
         'method': 'DEIP_Full_Progressive',
         'description': 'DEIP_Full_Progressive',
         'init_stu_with_teacher': [1],
         'layer_type': ['normal_no_bn'],
         'lr_scheduler': ['OneCycLR', 'none'],
-        'rank_eps': [0.05],
-        'max_lr': [1e-4, 2e-4, 5e-4],
+        'rank_eps': [0.3],
+        'freeze_trained': [0, 1],
+        'freeze_teacher_bn': [0, 1],
+        'max_lr': [2e-4],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -69,9 +71,9 @@ def params_for_SR_real_progressive():
 def params_for_SR_real_progressive_small():
     params = {
         'project_name': 'deip_SRx4_progressive_small',
-        'lr_scheduler': 'OneCycLR',
         'num_epochs': 100,
-        'max_lr': [1e-4, 2e-4, 5e-4],
+        'max_lr': [2e-4],
+        'seed': [233, 234],
         'gpus': 1,
     }
 
@@ -136,11 +138,11 @@ def params_for_SR_init():
 def params_for_SR_baseline_with_add_ori():
     params = {
         'project_name': 'deip_SRx4_baseline',
-        'add_ori': [0],
-        'init_stu_with_teacher': [1, 0],
+        'add_ori': [1],
+        'init_stu_with_teacher': [0],
         'layer_type': ['normal_no_bn'],
-        'rank_eps': [0.05],  # 0.05, 0.6, 1, 2
-        'max_lr': [2e-4, 5e-4, 1e-3],
+        'rank_eps': [0.2, 0.3],  # 0.05, 0.6, 1, 2
+        'max_lr': [2e-4, 5e-4],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -231,10 +233,10 @@ def params_for_deip():
     # params = params_for_SR_init()
     # params = params_for_SR_structure()
     # params = params_for_SR_progressive()
-    # params = params_for_SR_real_progressive()
     # params = params_for_SR_progressive_small()
+    params = params_for_SR_real_progressive()
     # params = params_for_SR_real_progressive_small()
-    params = params_for_SR_baseline_with_add_ori()
+    # params = params_for_SR_baseline_with_add_ori()
     return random_params(params)
 
 

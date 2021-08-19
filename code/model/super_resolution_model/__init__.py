@@ -13,3 +13,4 @@ from .han_model import *
 from .imdn_model import *
 from .baseline_model import *
 from .edsr_layerwise_model import *
+from .plain_layerwise_model import *

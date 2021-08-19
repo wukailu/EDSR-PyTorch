@@ -3,12 +3,14 @@
 import torch
 from torch import nn
 
-from model import freeze, unfreeze_BN, ConvertibleLayer
+from model import freeze, unfreeze_BN, ConvertibleLayer, freeze_BN
 from frameworks.lightning_base_model import LightningModule, _Module
 from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
 from pytorch_lightning.utilities import rank_zero_only
 
+
+# TODO: fix conflicts between add_ori and init_stu_with_teacher
 
 class DEIP_LightModel(LightningModule):
     def __init__(self, hparams):
@@ -19,6 +21,12 @@ class DEIP_LightModel(LightningModule):
 
         self.plain_model = nn.ModuleList()
         self.init_student()
+
+        if self.params['add_ori'] and self.params['task'] == 'super-resolution':
+            import copy
+            self.sub_mean = copy.deepcopy(self.teacher_model.sequential_models[0].sub_mean)
+        else:
+            self.sub_mean = None
 
     def on_train_start(self):
         self.sync_plain_model()
@@ -133,18 +141,21 @@ class DEIP_LightModel(LightningModule):
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         f_list = []
-        if self.hparams['task'] == 'classification':
+        if self.params['add_ori'] and self.hparams['task'] == 'classification':
             ori = x
-        elif self.hparams['task'] == 'super-resolution':
-            ori = self.teacher_model.sequential_models[0].sub_mean(x)
-        else:
+        elif self.params['add_ori'] and self.hparams['task'] == 'super-resolution':
+            ori = self.sub_mean(x)
+        elif self.params['add_ori']:
             raise NotImplementedError()
+        else:
+            ori = None
 
         for m in self.plain_model[start_forward_from: until]:
             if self.params['add_ori']:
                 x = torch.cat([x, ori], dim=1)
             x = m(x)
-            f_list.append(x)
+            if with_feature:
+                f_list.append(x)
         return (f_list, x) if with_feature else x
 
     def unpack_batch(self, batch):
@@ -206,8 +217,6 @@ class DEIP_LightModel(LightningModule):
         self.plain_model.append(new_layer)
 
     def append_fc(self, last_channel, output_channel):
-        if self.params['add_ori']:
-            last_channel += 3
         if self.params['task'] == 'classification':
             self.plain_model.append(LastLinearLayer(last_channel, output_channel))
         elif self.params['task'] == 'super-resolution':
@@ -264,7 +273,8 @@ def rank_estimate(feature, weight=None, eps=5e-2):
         # print('now at ', r, 'error = ', error)
         approx = torch.mm(torch.mm(u[:, :r], torch.diag(s[:r])), v[:, :r].t())
         error = torch.max(torch.abs(f - approx))  # take absolute error, you can use weight to balance it.
-        if error < eps:
+        # add relative eps
+        if error < eps * torch.max(torch.abs(f)) or error < eps:
             return r
     print("rank estimation failed! feature shape is ", feature.shape)
     print("max value and min value in feature is ", feature.max(), feature.min())
@@ -329,7 +339,10 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
         self.milestone_epochs = [int(i) for i in np.linspace(0, self.params['num_epochs'], len(self.plain_model) + 1)[1:-1]]
         print(f'there are totally {len(self.plain_model)} layers in student, milestones are {self.milestone_epochs}')
         self.bridges = self.init_bridges()
-        # unfreeze_BN(self.teacher_model)
+        if not self.params['freeze_teacher_bn']:
+            freeze_BN(self.teacher_model)
+        else:
+            unfreeze_BN(self.teacher_model)
 
     def init_bridges(self):
         sample, _ = self.unpack_batch(self.train_dataloader().dataset[0])
@@ -342,10 +355,19 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
                 ret.append(nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1, bias=False))
         return ret
 
+    def complete_hparams(self):
+        default_sr_list = {
+            'freeze_trained': False,
+            'freeze_teacher_bn': False,
+        }
+        self.params = {**default_sr_list, **self.params}
+        DEIP_Distillation.complete_hparams(self)
+
     def on_train_epoch_start(self):
         if self.current_epoch in self.milestone_epochs:
-            print(f'freezing layer {self.current_layer}')
-            # freeze(self.plain_model[self.current_layer])  # use freeze will lead to large performance drop
+            if self.params['freeze_trained']:
+                print(f'freezing layer {self.current_layer}')
+                freeze(self.plain_model[self.current_layer])  # use freeze will lead to large performance drop
             self.current_layer += 1
             self.milestone_epochs = self.milestone_epochs[1:]
 
@@ -394,7 +416,9 @@ class DEIP_Full_Progressive(DEIP_Progressive_Distillation):
         if self.current_epoch in self.milestone_epochs:
             with torch.no_grad():
                 print(f'initializing layer {self.current_layer+1}')
-                # freeze(self.plain_model[self.current_layer])
+                if self.params['freeze_trained']:
+                    print(f'freezing layer {self.current_layer}')
+                    freeze(self.plain_model[self.current_layer])  # use freeze will lead to large performance drop
                 self.milestone_epochs = self.milestone_epochs[1:]
                 device = self.device
                 self.cpu()

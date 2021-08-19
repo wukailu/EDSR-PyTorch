@@ -801,8 +801,38 @@ def naiveBaseline():
     return random_params(params)
 
 
+def directTrainPlain():
+    params = {
+        'project_name': 'plain_SR_direct_train',
+        'gpus': 1,
+        'num_epochs': 100,
+        'backbone': {
+            'arch': 'Plain_layerwise_sr',
+            'num_modules': [4, 8, 16],
+            'n_feats': [64, 128],
+            'add_ori': [1, 0],
+            'stack_output': [1, 0],
+        },
+        'max_lr': [5e-4],
+        'scale': 4,
+        'save_model': False,
+        "dataset": {
+            'name': "DIV2K",
+            'total_batch_size': 512,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+            'scale': 4,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 335, 336],
+        'test_benchmark': True,
+    }
+
+    return random_params(params)
+
 def params_for_SR():
-    params = dense_model_train()
+    params = directTrainPlain()
 
     if params['dataset']['name'] == 'DIV2K':
         params['dataset']['test_bz'] = 1

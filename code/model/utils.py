@@ -40,10 +40,19 @@ def freeze(model: torch.nn.Module):
 
 
 def unfreeze_BN(model: torch.nn.Module):
+    model.train()
     for m in model.modules():
         if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
             for p in m.parameters():
                 p.requires_grad = True
+
+
+def freeze_BN(model: torch.nn.Module):
+    model.eval()
+    for m in model.modules():
+        if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
+            for p in m.parameters():
+                p.requires_grad = False
 
 
 def get_trainable_params(model):
@@ -176,7 +185,8 @@ class LayerWiseModel(nn.Module):
         f_list = []
         for m in self.sequential_models[start_forward_from: until]:
             x = m(x)
-            f_list.append(x)
+            if with_feature:
+                f_list.append(x)
         return (f_list, x) if with_feature else x
 
     def __len__(self):
@@ -226,7 +236,8 @@ def merge_1x1_and_3x3(conv1: nn.Conv2d, conv3: nn.Conv2d):
     assert conv1.kernel_size == (1, 1)
     kernel = matmul_on_first_two_dim(conv3.weight.data, conv1.weight.data.view(conv1.weight.shape[:2]))
     bias = (conv3.bias.data if conv3.bias is not None else torch.zeros((conv3.out_channels,))) + \
-        conv3.weight.data.sum(dim=-1).sum(dim=-1) @ (conv1.bias.data if conv1.bias is not None else torch.zeros((conv1.out_channels, )))
+           conv3.weight.data.sum(dim=-1).sum(dim=-1) @ (
+               conv1.bias.data if conv1.bias is not None else torch.zeros((conv1.out_channels,)))
     conv = nn.Conv2d(in_channels=conv1.in_channels, out_channels=conv3.out_channels, kernel_size=conv3.kernel_size,
                      stride=conv3.stride, padding=conv3.padding, bias=True)
     conv.weight.data = kernel

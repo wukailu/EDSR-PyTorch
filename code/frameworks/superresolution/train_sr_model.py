@@ -39,13 +39,10 @@ if __name__ == "__main__":
                             mode='max')
 
     if params['test_benchmark']:
-        from meter.super_resolution_meter import SuperResolutionMeter
         import torch
         from datasets import DataProvider
-        import numpy as np
 
         benchmarks = ['Set5', 'Set14', 'B100', 'Urban100']
-        meter = SuperResolutionMeter(phase='test', workers=1, scale=2)
         for d in benchmarks:
             dataset_params = {
                 'name': d,
@@ -60,10 +57,7 @@ if __name__ == "__main__":
             with torch.no_grad():
                 for batch in provider.test_dl:
                     x, y, _ = batch
-                    model.step(meter, (x.cuda(), y.cuda(), _))
-                metrics = meter.log_metric()
-                meter.reset()
-                backend.log_metric(d + "_" + "PSNR_GRAY", float(np.clip(metrics['test/PSNR_GRAY'].item(), -1e10, 1e10)))
+                    model.step((x.cuda(), y.cuda(), _), d)
                 # for k, v in metrics.items():
                 #     log_metric(d + "_" + k, float(np.clip(v.item(), -1e10, 1e10)))
 
