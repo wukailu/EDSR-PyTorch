@@ -27,6 +27,29 @@ templates = {
         'test_benchmark': True,
         'ignore_exist': True,
     },
+    'DIV2K-b32-SRx4': {
+        'weight_decay': 0,
+        'max_lr': 2e-4,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 300,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 4,
+            'batch_size': 32,
+            'patch_size': 96,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+    },
     'DIV2K-b16-SRx2': {
         'weight_decay': 0,
         'max_lr': 2e-4,
@@ -401,9 +424,9 @@ def dense_model_train():
         'project_name': 'DIV2Kx4_model',
         'save_model': True,
         'backbone': {
-            # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
+            'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
             # 'arch': ['RDN_free_sr', 'IMDN_free_sr'],
-            'arch': ['EDSR_layerwise_sr'],
+            # 'arch': ['EDSR_layerwise_sr'],
             'n_feats': [50],  # 50 128
         },
     }
@@ -605,28 +628,56 @@ def naiveBaseline():
 
 
 def directTrainPlain():
+    resource = 16384
+    depth = random_params([8, 16, 32])
+    width = int((resource / depth) ** 0.5)
     params = {
-        'project_name': 'plain_SR_direct_train',
-        'num_epochs': 100,
+        'project_name': 'plain_SR_direct_train_300',
+        'num_epochs': 300,
         'backbone': {
             'arch': 'Plain_layerwise_sr',
-            'num_modules': [4, 8, 16],
-            'n_feats': [64, 128],
-            'add_ori': [1, 0],
-            'stack_output': [1, 0],
+            'num_modules': depth,
+            'n_feats': width,
+            'add_ori': 1,
+            'stack_output': 0,  # 1 will be better and can use larger LR
+            'mean_shift': [0, 1],
+            'tail': ['edsr'],
         },
-        'max_lr': [5e-4],
+        'seed': [233, 234],
     }
 
-    return {**templates['DIV2K-b512-SRx4'], **params}
+    return {**templates['DIV2K-b32-SRx4'], **params}
+
+
+def stack_out_test():
+    resource = 16384
+    depth = random_params([8, 16, 32])
+    width = int((resource / depth) ** 0.5)
+    params = {
+        'project_name': 'plain_SR_direct_train_300',
+        'backbone': {
+            'arch': 'Plain_layerwise_sr',
+            'num_modules': depth,
+            'n_feats': width,
+            'add_ori': 1,
+            'stack_output': 1,
+        },
+        'max_lr': [2e-4, 1e-3, 1e-2, 1e-1],
+        'seed': [233, 234],
+    }
+
+    return {**templates['DIV2K-b32-SRx4'], **params}
 
 
 def params_for_SR():
-    params = directTrainPlain()
+    # params = directTrainPlain()
+    # params = dense_model_train()
+    params = stack_out_test()
 
+    params = random_params(params)
     if 'scale' not in params['backbone']:
         params['backbone']['scale'] = params['scale']
-    return random_params(params)
+    return params
 
 
 if __name__ == "__main__":

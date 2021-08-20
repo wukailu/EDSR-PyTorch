@@ -1,16 +1,31 @@
 import torch
 import torch.nn as nn
 
+from . import common
 from .utils import register_model
 from .. import LayerWiseModel
 
 
 @register_model
-def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale=4, **kwargs):
+def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale=4, tail='easy', mean_shift=False,
+                    rgb_range=255, n_colors=3, **kwargs):
     nf = n_feats if nf is None else nf
-    widths = [in_nc] + [nf] * num_modules + [(scale ** 2) * out_nc]
-    model = Plain_layerwise_Model(widths=widths, **kwargs)
-    model.append_tail(EasyScale(scale))
+    input_transform = common.MeanShift(rgb_range, sign=-1) if mean_shift else None
+    output_transform = common.MeanShift(rgb_range, sign=1) if mean_shift else None
+
+    widths = [in_nc] + [nf] * num_modules
+    if tail == 'easy':
+        tailModule = EasyScale(scale, output_transform=output_transform)
+        widths += [(scale ** 2) * out_nc]
+    elif tail == 'edsr':
+        from model.super_resolution_model.edsr_layerwise_model import EDSRTail
+        tailModule = EDSRTail(scale, n_feats, n_colors, kernel_size=3, rgb_range=rgb_range)
+        widths += [n_feats]
+    else:
+        raise NotImplementedError()
+
+    model = Plain_layerwise_Model(widths=widths, input_transform=input_transform, **kwargs)
+    model.append_tail(tailModule)
     return model
 
 
@@ -114,9 +129,10 @@ class Plain_layerwise_Model(LayerWiseModel):
 
 
 class EasyScale(nn.Module):
-    def __init__(self, scale):
+    def __init__(self, scale, output_transform=None):
         super().__init__()
         self.up = nn.PixelShuffle(scale)
+        self.out_transform = output_transform if output_transform is not None else nn.Identity()
 
     def forward(self, x):
-        return self.up(x)
+        return self.out_transform(self.up(x))

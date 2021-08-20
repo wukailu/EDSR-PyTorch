@@ -62,4 +62,4 @@ if __name__ == "__main__":
                 #     log_metric(d + "_" + k, float(np.clip(v.item(), -1e10, 1e10)))
 
     if params['inference_statics']:
-        inference_statics(model, x_test=torch.randint(0, 256, (3, 96, 96)).float())
+        inference_statics(model, batch_size=1)
