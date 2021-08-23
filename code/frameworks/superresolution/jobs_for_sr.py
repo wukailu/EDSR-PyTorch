@@ -693,11 +693,37 @@ def stack_out_test():
     return {**templates['DIV2K-b32-SRx4'], **params}
 
 
+def square_test():
+    resource = 16384 * 3
+    depth = random_params([16, 32])
+    width = int((resource / depth) ** 0.5)
+    params = {
+        'project_name': 'plain_SR_square_test_100',
+        'backbone': {
+            'arch': 'Plain_layerwise_sr',
+            'num_modules': depth,
+            'n_feats': width,
+            'add_ori': 1,
+            'stack_output': 0,
+            'square_ratio': [0.1, 0.25, 0.5],
+            'square_num': [2, 4, 8],
+            'square_layer_strategy': [0, 1, 2],
+            'square_before_relu': [0, 1],
+        },
+        'max_lr': [1e-4, 5e-4],
+        'seed': [233],
+        'num_epochs': 100,
+    }
+
+    return {**templates['DIV2K-b32-SRx4'], **params}
+
+
 def params_for_SR():
     # params = directTrainPlain()
-    params = dense_model_train()
+    # params = dense_model_train()
     # params = stack_out_test()
     # params = PlainFlopsPSNRCurve()
+    params = square_test()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:
@@ -706,4 +732,4 @@ def params_for_SR():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_SR, 'frameworks/superresolution/train_sr_model.py', number_jobs=100, job_directory='.')
+    submit_jobs(params_for_SR, 'frameworks/superresolution/train_sr_model.py', number_jobs=1000, job_directory='.')

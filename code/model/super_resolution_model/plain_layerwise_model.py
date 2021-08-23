@@ -31,7 +31,7 @@ def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale
 
 class Plain_layerwise_Model(LayerWiseModel):
     def __init__(self, widths, layerType='normal_no_bn', input_transform=None, f_lists=None, add_ori=False,
-                 stack_output=False, **kwargs):
+                 stack_output=False, square_ratio=0, square_num=4, square_layer_strategy=0, square_before_relu=False, **kwargs):
         """
         :arg add_ori if this is true, there will be 3 more channel on input, which is original input data
         :arg stack_output if this is true, all feature maps will be stacked and pass by a 1x1 conv to generate output,
@@ -44,15 +44,30 @@ class Plain_layerwise_Model(LayerWiseModel):
         self.add_ori = add_ori
         self.stack_output = stack_output
         self.input_transform = input_transform
+
+        square_layers = []
+        if square_num != 0:
+            if square_layer_strategy == 0:
+                square_layers = [len(widths) / (square_num + 1) * (i+1) for i in range(square_num)]
+            elif square_layer_strategy == 1:
+                square_layers = [(len(widths)-1) / square_num * (i + 1) for i in range(square_num)]
+            elif square_layer_strategy == 2:
+                square_layers = [len(widths) - (len(widths)-1)/square_num * (i+1) for i in range(square_num)]
+            square_layers = [int(i) for i in square_layers]
+            print('square layers: ', square_layers)
+
         if f_lists is None:
             f_lists = [(8, 8)] * len(widths)
         assert len(f_lists) == len(widths)
         for i in range(len(widths) - (2 if self.stack_output else 1)):
-            self.append_layer(widths[i], widths[i + 1], f_lists[i], f_lists[i + 1])
+            ratio = square_ratio if i in square_layers else 0
+            self.append_layer(widths[i], widths[i + 1], f_lists[i], f_lists[i + 1], square_before_relu=square_before_relu,
+                              square_ratio=ratio)
         if self.stack_output:
             self.sequential_models.append(nn.Conv2d(sum(widths[1:-1]) + (3 if self.add_ori else 0), widths[-1], 1))
 
-    def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3):
+    def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3, square_ratio=0,
+                     square_before_relu=False):
         if self.add_ori:
             in_channels += 3
         if self.layerType.startswith('normal'):
@@ -68,12 +83,20 @@ class Plain_layerwise_Model(LayerWiseModel):
                               stride=(stride_w, stride_h)))
             if 'no_bn' not in self.layerType:
                 new_layers.append(nn.BatchNorm2d(out_channels))
+
+            if square_ratio != 0 and square_before_relu:
+                new_layers.append(SquareLayer(square_ratio))
+
             if 'prelu' in self.layerType:
                 new_layers.append(nn.PReLU())
             elif 'lrelu' in self.layerType:
                 new_layers.append(nn.LeakyReLU())
             else:
                 new_layers.append(nn.ReLU())
+
+            if square_ratio !=0 and not square_before_relu:
+                new_layers.append(SquareLayer(square_ratio))
+
             new_layer = nn.Sequential(*new_layers)
         elif self.layerType == 'repvgg':
             from model.basic_cifar_models.repvgg import RepVGGBlock
@@ -126,6 +149,21 @@ class Plain_layerwise_Model(LayerWiseModel):
                 f_list.append(x)
 
         return (f_list, x) if with_feature else x
+
+
+class SquareLayer(nn.Module):
+    def __init__(self, square_ratio):
+        super().__init__()
+        assert 0 < square_ratio < 1
+        self.square_ratio = square_ratio
+
+    def forward(self, x):
+        c = int(x.size(1) * self.square_ratio)
+        if c == 0:
+            return x
+        L = x[:, :c]**2
+        R = x[:, c:]
+        return torch.cat([L, R], dim=1)
 
 
 class EasyScale(nn.Module):

@@ -11,6 +11,8 @@ def EDSR_layerwise(**hparams):
     return model
 
 
+# TODO: why this is difference from EDSR_sr
+
 # TODO: remove this class by mean-shift
 # How to use mean-shift correctly when convs are used on edges.
 class PartialAct(nn.Module):

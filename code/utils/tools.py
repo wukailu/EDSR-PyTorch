@@ -202,6 +202,8 @@ def get_trainer_params(params) -> dict:
 
 def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None, job_directory='.',
                 global_seed=23336666, ignore_exist=False):
+    import time
+    time.sleep(0.5)
     update_dirs()
     numpy.random.seed(global_seed)
     submitted_jobs = [{}]
