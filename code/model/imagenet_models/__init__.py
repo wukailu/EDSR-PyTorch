@@ -1,4 +1,4 @@
-## TODO: Replace this with timm
+## TODO: Replace these with timm
 
 from .utils import *
 from .vgg import *

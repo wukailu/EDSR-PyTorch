@@ -151,6 +151,10 @@ class LightningModule(pl.LightningModule, ABC):
     def test_step(self, batch, batch_nb):
         return self.step(batch, 'test')
 
+    def on_test_end(self):
+        import copy
+        return copy.deepcopy(self.trainer.logger_connector.callback_metrics)
+
 
 class _Module(LightningModule):
     def __init__(self, hparams):

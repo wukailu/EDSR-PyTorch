@@ -11,6 +11,8 @@ def EDSR_layerwise(**hparams):
     return model
 
 
+# TODO: remove this class by mean-shift
+# How to use mean-shift correctly when convs are used on edges.
 class PartialAct(nn.Module):
     def __init__(self, act_range, act=nn.ReLU()):
         super().__init__()
@@ -44,6 +46,7 @@ class HeadLayer(ConvertibleLayer):
         self.sub_mean = common.MeanShift(rgb_range)
         self.conv = common.default_conv(n_colors, n_feats, kernel_size)
 
+    # TODO: special case for bias-free conv
     def forward(self, x):
         x = self.sub_mean(x)
         return self.conv(x)
@@ -58,6 +61,7 @@ class ConvLayer(ConvertibleLayer):
         self.conv = common.default_conv(in_channel, out_channel, kernel_size, bias=bias)
         self.act = act
 
+    # TODO: special case for bias-free conv
     def simplify_layer(self):
         return self.conv, self.act
 
@@ -108,6 +112,7 @@ class ConcatLayer(ConvertibleLayer):
             ret = torch.cat([x1, x2], dim=1)
         return self.act(ret)
 
+    # TODO: special case for bias-free conv
     def simplify_layer(self):
         assert self.eq_conv1.kernel_size[0] == self.eq_conv1.kernel_size[1]
         assert self.eq_conv2.kernel_size[0] == self.eq_conv2.kernel_size[1]

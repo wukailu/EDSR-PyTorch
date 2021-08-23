@@ -142,7 +142,6 @@ class RepBlock(nn.Module):
         for m in self.convs:
             if isinstance(m, nn.Conv2d) and self.add_input:
                 out = torch.cat([ori_input, out], dim=1)
-            # TODO 如何解决 ori_input 只占3 channel 但 conv parameters 分布均匀的问题
             out = m(out)
 
         return out

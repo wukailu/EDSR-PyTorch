@@ -39,9 +39,8 @@ if __name__ == "__main__":
                             mode='max')
 
     if params['test_benchmark']:
-        import torch
+        # TODO: test this part
         from datasets import DataProvider
-
         benchmarks = ['Set5', 'Set14', 'B100', 'Urban100']
         for d in benchmarks:
             dataset_params = {
@@ -53,13 +52,8 @@ if __name__ == "__main__":
                 "batch_size": 1,
             }
             provider = DataProvider(dataset_params)
-            model.eval().cuda()
-            with torch.no_grad():
-                for batch in provider.test_dl:
-                    x, y, _ = batch
-                    model.step((x.cuda(), y.cuda(), _), d)
-                # for k, v in metrics.items():
-                #     log_metric(d + "_" + k, float(np.clip(v.item(), -1e10, 1e10)))
+            ret = model.trainer.test(test_dataloaders=provider.test_dl)
+            backend.log_metric(d + '_' + model.params['metric'], ret[0]['test/' + model.params['metric']])
 
     if params['inference_statics']:
         inference_statics(model, batch_size=1)

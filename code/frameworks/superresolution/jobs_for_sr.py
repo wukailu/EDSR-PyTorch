@@ -424,10 +424,10 @@ def dense_model_train():
         'project_name': 'DIV2Kx4_model',
         'save_model': True,
         'backbone': {
-            'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
-            # 'arch': ['RDN_free_sr', 'IMDN_free_sr'],
+            # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
+            'arch': ['RFDN_sr'],
             # 'arch': ['EDSR_layerwise_sr'],
-            'n_feats': [50],  # 50 128
+            'n_feats': [50],
         },
     }
 
@@ -649,9 +649,33 @@ def directTrainPlain():
     return {**templates['DIV2K-b32-SRx4'], **params}
 
 
+def PlainFlopsPSNRCurve():
+    resource_per_flops = (16384 / 25)
+    flops = random_params([25, 75, 200, 1350, 3540])
+    resource = resource_per_flops * flops
+    depth = random_params([16, 32, 48])
+    width = int((resource / depth) ** 0.5)
+    params = {
+        'project_name': 'plain_SR_curve',
+        'num_epochs': 300,
+        'max_lr': 5e-4,
+        'backbone': {
+            'arch': 'Plain_layerwise_sr',
+            'num_modules': depth,
+            'n_feats': width,
+            'add_ori': 1,
+            'stack_output': 0,
+            'mean_shift': 0,
+            'tail': ['edsr'],
+        },
+    }
+
+    return {**templates['DIV2K-b16-SRx4'], **params}
+
+
 def stack_out_test():
-    resource = 16384
-    depth = random_params([8, 16, 32])
+    resource = 16384 * 3
+    depth = random_params([16, 32, 48])
     width = int((resource / depth) ** 0.5)
     params = {
         'project_name': 'plain_SR_direct_train_300',
@@ -660,9 +684,9 @@ def stack_out_test():
             'num_modules': depth,
             'n_feats': width,
             'add_ori': 1,
-            'stack_output': 1,
+            'stack_output': [1, 0],
         },
-        'max_lr': [2e-4, 1e-3, 1e-2, 1e-1],
+        'max_lr': [2e-4, 5e-4, 1e-3, 3e-2],
         'seed': [233, 234],
     }
 
@@ -671,8 +695,9 @@ def stack_out_test():
 
 def params_for_SR():
     # params = directTrainPlain()
-    # params = dense_model_train()
-    params = stack_out_test()
+    params = dense_model_train()
+    # params = stack_out_test()
+    # params = PlainFlopsPSNRCurve()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

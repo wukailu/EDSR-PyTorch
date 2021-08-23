@@ -10,7 +10,6 @@ from .utils import register_model, unpack_feature, pack_feature
 from torchvision.models import vgg16_bn
 
 
-# TODO: fix memory bugs
 from .. import freeze
 
 

@@ -97,7 +97,7 @@ def params_for_SR_progressive():
 def params_for_SR_progressive_small():
     params = {
         'project_name': 'deip_SRx4_progressive_small',
-        'method': 'Progressive_Distillation',  # TODO: this used to be a bug, analyze the effect to results history
+        'method': 'Progressive_Distillation',
         'layer_type': 'normal_no_bn',
         'init_stu_with_teacher': [1],
         'num_epochs': 100,

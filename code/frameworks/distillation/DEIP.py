@@ -67,7 +67,6 @@ class DEIP_LightModel(LightningModule):
 
         if self.params['init_stu_with_teacher']:
             print("init student with teacher!")
-            # TODO: Implement initialize student with teacher of Method 2
             # teacher and student has different #input_channel and #out_channel
             # Method 1: ignore the relu layer, then student can be initialized at start
             # Method 1, branch 2: merge bias into conv by adding a constant channel to feature map
@@ -400,7 +399,6 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
         return loss
 
 
-# TODO: 完成完整的 Progressive Distillation
 # 1. 逐层初始化学生，并且矩阵 M 来自于上一层的蒸馏结果
 # 2. 统一矩阵 M 和蒸馏之间 Bridge, 增加一个常数层
 # 3. 如何稳定训练，降低已训练层的学习率
