@@ -26,6 +26,7 @@ def run_job(kube_job_id, yaml_data):
     resp = k8s_apps_v1.create_namespaced_deployment(body=yaml_data, namespace=namespace)
     deployment_name = resp.metadata.name
     cuda_mem_error = False
+    cudnn_error = False
 
     try:
         import time
@@ -92,12 +93,14 @@ def run_job(kube_job_id, yaml_data):
                 ret = resp.read_stderr()
                 if "out of memory" in ret:
                     cuda_mem_error = True
+                if "CUDNN_STATUS_INTERNAL_ERROR" in ret:
+                    cudnn_error = True
                 if not ret.startswith("Global seed set to"):
                     atlas_backend.log("STDERR: %s" % ret)  # 总有一些奇怪的信息走这里出来，明明该走上面的
             time.sleep(1)
         resp.close()
 
-        if not cuda_mem_error:
+        if not (cuda_mem_error or cudnn_error):
             print('program running finished! copying back results...')
             fetch('job_info.pkl', pod_name)
             import pickle
@@ -119,7 +122,7 @@ def run_job(kube_job_id, yaml_data):
     finally:
         # shutdown pod
         os.system(f'kubectl -n {namespace} delete deployment {deployment_name}')
-        return cuda_mem_error
+        return cuda_mem_error or cudnn_error
 
 
 if __name__ == "__main__":

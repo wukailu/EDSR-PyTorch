@@ -47,24 +47,25 @@ class Plain_layerwise_Model(LayerWiseModel):
 
         square_layers = []
         if square_num != 0:
+            import numpy as np
             if square_layer_strategy == 0:
-                square_layers = [len(widths) / (square_num + 1) * (i+1) for i in range(square_num)]
+                square_layers = np.linspace(0, len(widths)-2, square_num+2)[1:-1]
             elif square_layer_strategy == 1:
-                square_layers = [(len(widths)-1) / square_num * (i + 1) for i in range(square_num)]
+                square_layers = np.linspace(0, len(widths)-2, square_num+1)[:-1]
             elif square_layer_strategy == 2:
-                square_layers = [len(widths) - (len(widths)-1)/square_num * (i+1) for i in range(square_num)]
+                square_layers = np.linspace(0, len(widths)-2, square_num+1)[1:]
             square_layers = [int(i) for i in square_layers]
             print('square layers: ', square_layers)
 
         if f_lists is None:
             f_lists = [(8, 8)] * len(widths)
         assert len(f_lists) == len(widths)
-        for i in range(len(widths) - (2 if self.stack_output else 1)):
+        for i in range(len(widths) - 1):
             ratio = square_ratio if i in square_layers else 0
             self.append_layer(widths[i], widths[i + 1], f_lists[i], f_lists[i + 1], square_before_relu=square_before_relu,
                               square_ratio=ratio)
         if self.stack_output:
-            self.sequential_models.append(nn.Conv2d(sum(widths[1:-1]) + (3 if self.add_ori else 0), widths[-1], 1))
+            self.stack_1x1 = nn.ModuleList([nn.Conv2d(fs, widths[-1], 1) for fs in widths[1:-1]])
 
     def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3, square_ratio=0,
                      square_before_relu=False):
@@ -131,6 +132,11 @@ class Plain_layerwise_Model(LayerWiseModel):
         else:
             ori = None
 
+        if self.stack_output:
+            stack_out = 0
+        else:
+            stack_out = None
+
         ids = list(range(len(self.sequential_models)))
         for idx in ids[start_forward_from: until]:
             m = self.sequential_models[idx]
@@ -140,12 +146,15 @@ class Plain_layerwise_Model(LayerWiseModel):
             else:
                 if self.add_ori:
                     x = torch.cat([x, ori], dim=1)
-                if idx == len(self.sequential_models) - 2 and self.stack_output:
-                    x = m(torch.cat(f_list[:-1] + [x], dim=1))
+                if idx == len(self.sequential_models) - 1 and self.stack_output:
+                    x = m(stack_out)
                 else:
                     x = m(x)
 
-            if with_feature or self.stack_output:
+                if idx != len(self.sequential_models) - 1 and self.stack_output:
+                    stack_out = self.stack_1x1[idx](x) + stack_out
+
+            if with_feature:
                 f_list.append(x)
 
         return (f_list, x) if with_feature else x

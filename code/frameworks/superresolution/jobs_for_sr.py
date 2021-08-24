@@ -419,21 +419,6 @@ def test_x2_x2_to_x4():
     return {**templates['DIV2K-b16-SRx4'], **params}
 
 
-def dense_model_train():
-    params = {
-        'project_name': 'DIV2Kx4_model',
-        'save_model': True,
-        'backbone': {
-            # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
-            'arch': ['RFDN_sr'],
-            # 'arch': ['EDSR_layerwise_sr'],
-            'n_feats': [50],
-        },
-    }
-
-    return {**templates['DIV2K-b16-SRx4'], **params}
-
-
 def planeDistill():
     pretrained_paths = [
         # ('/data/kailu/.foundations/job_data/archive/439a9a75-982d-4ebd-a747-3006c4993ed6/user_artifacts/233epoch=298.ckpt',
@@ -616,6 +601,21 @@ def purePlaneDistillBaseline():
     return {**templates['DIV2K-b512-SRx4'], **params}
 
 
+def dense_model_train():
+    params = {
+        'project_name': 'DIV2Kx4_model',
+        'save_model': True,
+        'backbone': {
+            # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
+            'arch': ['RFDN_sr'],
+            # 'arch': ['EDSR_layerwise_sr'],
+            'n_feats': [50],
+        },
+    }
+
+    return {**templates['DIV2K-b16-SRx4'], **params}
+
+
 def naiveBaseline():
     params = {
         'project_name': 'distill_baseline',
@@ -628,20 +628,18 @@ def naiveBaseline():
 
 
 def directTrainPlain():
-    resource = 16384
-    depth = random_params([8, 16, 32])
+    resource = 16384 * 3
+    depth = random_params([16, 32])
     width = int((resource / depth) ** 0.5)
     params = {
-        'project_name': 'plain_SR_direct_train_300',
+        'project_name': 'plain_SR_tail_test',
         'num_epochs': 300,
         'backbone': {
             'arch': 'Plain_layerwise_sr',
             'num_modules': depth,
             'n_feats': width,
             'add_ori': 1,
-            'stack_output': 0,  # 1 will be better and can use larger LR
-            'mean_shift': [0, 1],
-            'tail': ['edsr'],
+            'tail': ['edsr', 'easy'],
         },
         'seed': [233, 234],
     }
@@ -651,22 +649,17 @@ def directTrainPlain():
 
 def PlainFlopsPSNRCurve():
     resource_per_flops = (16384 / 25)
-    flops = random_params([25, 75, 200, 1350, 3540])
+    flops = random_params([75, 200, 1350, 3540])
     resource = resource_per_flops * flops
-    depth = random_params([16, 32, 48])
-    width = int((resource / depth) ** 0.5)
+    width = random_params([48, 96, 144])
+    depth = int(resource / width / width)
     params = {
         'project_name': 'plain_SR_curve',
-        'num_epochs': 300,
-        'max_lr': 5e-4,
         'backbone': {
             'arch': 'Plain_layerwise_sr',
             'num_modules': depth,
             'n_feats': width,
             'add_ori': 1,
-            'stack_output': 0,
-            'mean_shift': 0,
-            'tail': ['edsr'],
         },
     }
 
@@ -695,24 +688,22 @@ def stack_out_test():
 
 def square_test():
     resource = 16384 * 3
-    depth = random_params([16, 32])
-    width = int((resource / depth) ** 0.5)
+    width = random_params([55])
+    depth = int(resource / width / width)
     params = {
-        'project_name': 'plain_SR_square_test_100',
+        'project_name': 'plain_SR_square_test_300',
         'backbone': {
             'arch': 'Plain_layerwise_sr',
             'num_modules': depth,
             'n_feats': width,
             'add_ori': 1,
             'stack_output': 0,
-            'square_ratio': [0.1, 0.25, 0.5],
-            'square_num': [2, 4, 8],
+            'square_ratio': [0.1, 0.5],
+            'square_num': [1, 2, 4],
             'square_layer_strategy': [0, 1, 2],
-            'square_before_relu': [0, 1],
+            'square_before_relu': [1],
         },
-        'max_lr': [1e-4, 5e-4],
-        'seed': [233],
-        'num_epochs': 100,
+        'num_epochs': 300,
     }
 
     return {**templates['DIV2K-b32-SRx4'], **params}
@@ -722,8 +713,8 @@ def params_for_SR():
     # params = directTrainPlain()
     # params = dense_model_train()
     # params = stack_out_test()
-    # params = PlainFlopsPSNRCurve()
-    params = square_test()
+    params = PlainFlopsPSNRCurve()
+    # params = square_test()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

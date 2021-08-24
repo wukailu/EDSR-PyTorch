@@ -7,6 +7,20 @@ metrics = {}
 
 
 def log_metric(key, value):
+    if isinstance(value, float):
+        import numpy as np
+        value = np.clip(value, 1e-10, 1e10)
+        if np.isnan(value):
+            value = "nan"
+        else:
+            value = float(value)
+    elif isinstance(value, bool):
+        value = 1 if value else 0
+    elif isinstance(value, (str, int)):
+        value = value
+    else:
+        raise TypeError("value must be float, int, bool, or str")
+
     metrics[key] = value
     import pickle
     with open('metric.pkl', 'wb') as f:

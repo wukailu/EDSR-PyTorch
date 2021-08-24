@@ -196,7 +196,7 @@ class LayerWiseModel(nn.Module):
 class ConvertibleLayer(nn.Module):
 
     def init_student(self, conv_s, M):
-        conv = self.simplify_layer()[0]
+        conv = conv_to_no_bias_conv(self.simplify_layer()[0])
         return init_conv_with_conv(conv, conv_s, M)
 
     @abstractmethod
@@ -229,23 +229,49 @@ def convbn_to_conv(conv: nn.Conv2d, bn: nn.BatchNorm2d):
     return ret
 
 
-# 在 1x1 有 Bias 的情况下，这个实际上在边缘是不对的
+def conv_to_no_bias_conv(conv: nn.Conv2d):
+    """
+    convert a conv with bias to bias-free conv with a constant channel added to front of input data
+    :param conv: a conv2d with input channel inc
+    :return: a conv2d with input channel inc+1
+    """
+    if conv.bias is None:
+        conv.bias = torch.zeros(conv.out_channels)
+    ret = nn.Conv2d(conv.in_channels + 1, conv.out_channels, conv.kernel_size, conv.stride, conv.padding, bias=False,
+                    padding_mode=conv.padding_mode)
+    k_r, k_c = conv.kernel_size
+    k_r, k_c = k_r // 2, k_c // 2
+    ret.weight.data[:, 1:] = conv.weight.data[:, :]
+    ret.weight.data[:, 0] = 0
+    ret.weight.data[:, 0, k_r, k_c] = conv.bias.data
+    return ret
+
+
 def merge_1x1_and_3x3(conv1: nn.Conv2d, conv3: nn.Conv2d):
+    """
+    :param conv1 one conv2d of shape (out_1, in_1, 1, 1) with bias or not
+    :param conv3 one conv2d of shape (out_2, out_1, k, k) with bias or not
+    :return a conv2d of shape (out_2, in_1+1, k, k), where the input data should concat a channel full of 1 at data[:,0]
+    """
     assert conv1.out_channels == conv3.in_channels
     assert conv1.stride == (1, 1)
     assert conv1.kernel_size == (1, 1)
+    conv1 = conv_to_no_bias_conv(conv1)
     kernel = matmul_on_first_two_dim(conv3.weight.data, conv1.weight.data.view(conv1.weight.shape[:2]))
-    bias = (conv3.bias.data if conv3.bias is not None else torch.zeros((conv3.out_channels,))) + \
-           conv3.weight.data.sum(dim=-1).sum(dim=-1) @ (
-               conv1.bias.data if conv1.bias is not None else torch.zeros((conv1.out_channels,)))
-    conv = nn.Conv2d(in_channels=conv1.in_channels, out_channels=conv3.out_channels, kernel_size=conv3.kernel_size,
-                     stride=conv3.stride, padding=conv3.padding, bias=True)
+    if conv3.bias is not None:
+        kernel[0, :, conv3.kernel_size[0] // 2, conv3.kernel_size[1] // 2] += conv3.bias
+    conv = nn.Conv2d(in_channels=conv1.in_channels + 1, out_channels=conv3.out_channels, kernel_size=conv3.kernel_size,
+                     stride=conv3.stride, padding=conv3.padding, bias=False)
     conv.weight.data = kernel
-    conv.bias.data = bias
     return conv
 
 
 def matmul_on_first_two_dim(m1: torch.Tensor, m2: torch.Tensor):
+    """
+    take matmul on first two dim only, and regard other dim as a scalar
+    :param m1: tensor with at least 2 dim
+    :param m2: tensor with at least 2 dim
+    """
     if len(m1.shape) == 2:
         assert len(m2.shape) >= 2
         shape = m2.shape
@@ -273,8 +299,13 @@ def init_conv_with_conv(conv_t, conv_s, M):
     M = u[:, :r]
 
     s_kernel = (torch.diag(s[:r]) @ v.T[:r]).reshape(conv_s.weight.shape)
-    s_bias = M.pinverse() @ conv_t.bias.data
-
     conv_s.weight.data = s_kernel
-    conv_s.weight.bias = s_bias
+
+    if conv_t.bias is None:
+        conv_s.bias.data = 0
+    elif conv_s.bias is not None:
+        s_bias = M.pinverse() @ conv_t.bias.data
+        conv_s.weight.bias = s_bias
+    else:
+        raise AttributeError("conv_s do not have bias while conv_t has bias, which is not possible to init s with t")
     return M

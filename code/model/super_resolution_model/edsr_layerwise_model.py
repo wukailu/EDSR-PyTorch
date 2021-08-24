@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch
 from model.super_resolution_model import common
 from .utils import register_model
-from .. import LayerWiseModel, ConvertibleLayer, merge_1x1_and_3x3
+from .. import LayerWiseModel, ConvertibleLayer
 
 
 @register_model
@@ -54,6 +54,7 @@ class HeadLayer(ConvertibleLayer):
         return self.conv(x)
 
     def simplify_layer(self):
+        from .. import merge_1x1_and_3x3
         return merge_1x1_and_3x3(self.sub_mean, self.conv), nn.Identity()
 
 
