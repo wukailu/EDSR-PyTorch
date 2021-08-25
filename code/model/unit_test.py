@@ -1,4 +1,5 @@
-from model import get_classifier, ConvertibleLayer
+from model import get_classifier
+from model.layerwise_model import ConvertibleLayer
 from torch import nn
 import torch
 

@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from . import common
 from .utils import register_model
-from .. import LayerWiseModel
+from ..layerwise_model import LayerWiseModel
 
 
 @register_model
@@ -31,7 +31,7 @@ def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale
 
 class Plain_layerwise_Model(LayerWiseModel):
     def __init__(self, widths, layerType='normal_no_bn', input_transform=None, f_lists=None, add_ori=False,
-                 stack_output=False, square_ratio=0, square_num=4, square_layer_strategy=0, square_before_relu=False, **kwargs):
+                 stack_output=False, square_ratio=0, square_num=0, square_layer_strategy=0, square_before_relu=False, **kwargs):
         """
         :arg add_ori if this is true, there will be 3 more channel on input, which is original input data
         :arg stack_output if this is true, all feature maps will be stacked and pass by a 1x1 conv to generate output,
@@ -46,7 +46,7 @@ class Plain_layerwise_Model(LayerWiseModel):
         self.input_transform = input_transform
 
         square_layers = []
-        if square_num != 0:
+        if square_num != 0 and square_ratio != 0:
             import numpy as np
             if square_layer_strategy == 0:
                 square_layers = np.linspace(0, len(widths)-2, square_num+2)[1:-1]

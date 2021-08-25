@@ -1,10 +1,9 @@
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.utilities import rank_zero_only
-from torch import nn, nn as nn
+from torch import nn as nn, nn
 from torch.utils.tensorboard.summary import hparams
 from datasets import query_dataset
-from abc import ABC, abstractmethod
 
 
 class Partial_Detach(nn.Module):
@@ -176,37 +175,16 @@ def print_model_params(model):
     return pytorch_total_params
 
 
-class LayerWiseModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.sequential_models = nn.ModuleList()
-
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        f_list = []
-        for m in self.sequential_models[start_forward_from: until]:
-            x = m(x)
-            if with_feature:
-                f_list.append(x)
-        return (f_list, x) if with_feature else x
-
-    def __len__(self):
-        return len(self.sequential_models)
-
-
-class ConvertibleLayer(nn.Module):
-
-    def init_student(self, conv_s, M):
-        conv = conv_to_no_bias_conv(self.simplify_layer()[0])
-        return init_conv_with_conv(conv, conv_s, M)
-
-    @abstractmethod
-    def forward(self, x):
-        pass
-
-    @abstractmethod
-    def simplify_layer(self):
-        pass
-        # return conv, ...
+def default_conv(in_channels, out_channels, kernel_size, bias=True):
+    if isinstance(kernel_size, int):
+        pad_x , pad_y = kernel_size // 2, kernel_size // 2
+    elif isinstance(kernel_size, tuple):
+        pad_x, pad_y = kernel_size[0] // 2, kernel_size[1] // 2
+    else:
+        raise NotImplementedError()
+    return nn.Conv2d(
+        in_channels, out_channels, kernel_size,
+        padding=(pad_x, pad_y), bias=bias)
 
 
 def convbn_to_conv(conv: nn.Conv2d, bn: nn.BatchNorm2d):
@@ -227,43 +205,6 @@ def convbn_to_conv(conv: nn.Conv2d, bn: nn.BatchNorm2d):
     ret.weight.data = conv_data
     ret.bias.data = bias
     return ret
-
-
-def conv_to_no_bias_conv(conv: nn.Conv2d):
-    """
-    convert a conv with bias to bias-free conv with a constant channel added to front of input data
-    :param conv: a conv2d with input channel inc
-    :return: a conv2d with input channel inc+1
-    """
-    if conv.bias is None:
-        conv.bias = torch.zeros(conv.out_channels)
-    ret = nn.Conv2d(conv.in_channels + 1, conv.out_channels, conv.kernel_size, conv.stride, conv.padding, bias=False,
-                    padding_mode=conv.padding_mode)
-    k_r, k_c = conv.kernel_size
-    k_r, k_c = k_r // 2, k_c // 2
-    ret.weight.data[:, 1:] = conv.weight.data[:, :]
-    ret.weight.data[:, 0] = 0
-    ret.weight.data[:, 0, k_r, k_c] = conv.bias.data
-    return ret
-
-
-def merge_1x1_and_3x3(conv1: nn.Conv2d, conv3: nn.Conv2d):
-    """
-    :param conv1 one conv2d of shape (out_1, in_1, 1, 1) with bias or not
-    :param conv3 one conv2d of shape (out_2, out_1, k, k) with bias or not
-    :return a conv2d of shape (out_2, in_1+1, k, k), where the input data should concat a channel full of 1 at data[:,0]
-    """
-    assert conv1.out_channels == conv3.in_channels
-    assert conv1.stride == (1, 1)
-    assert conv1.kernel_size == (1, 1)
-    conv1 = conv_to_no_bias_conv(conv1)
-    kernel = matmul_on_first_two_dim(conv3.weight.data, conv1.weight.data.view(conv1.weight.shape[:2]))
-    if conv3.bias is not None:
-        kernel[0, :, conv3.kernel_size[0] // 2, conv3.kernel_size[1] // 2] += conv3.bias
-    conv = nn.Conv2d(in_channels=conv1.in_channels + 1, out_channels=conv3.out_channels, kernel_size=conv3.kernel_size,
-                     stride=conv3.stride, padding=conv3.padding, bias=False)
-    conv.weight.data = kernel
-    return conv
 
 
 def matmul_on_first_two_dim(m1: torch.Tensor, m2: torch.Tensor):
@@ -294,13 +235,16 @@ def init_conv_with_conv(conv_t, conv_s, M):
 
     t_kernel = matmul_on_first_two_dim(conv_t.weight.data, M)
 
-    u, s, v = torch.svd(t_kernel.flatten(start_dim=1))  # u and v are real orthogonal matrices
     r = conv_s.out_channels
-    M = u[:, :r]
+    if conv_t.out_channels != r:
+        u, s, v = torch.svd(t_kernel.flatten(start_dim=1))  # u and v are real orthogonal matrices
+        M = u[:, :r]
+        s_kernel = (torch.diag(s[:r]) @ v.T[:r]).reshape(conv_s.weight.shape)
+    else:  # try to return ID when teacher and student has the same output channel
+        s_kernel = t_kernel
+        M = torch.eye(r)
 
-    s_kernel = (torch.diag(s[:r]) @ v.T[:r]).reshape(conv_s.weight.shape)
     conv_s.weight.data = s_kernel
-
     if conv_t.bias is None:
         conv_s.bias.data = 0
     elif conv_s.bias is not None:

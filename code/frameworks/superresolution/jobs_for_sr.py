@@ -709,12 +709,34 @@ def square_test():
     return {**templates['DIV2K-b32-SRx4'], **params}
 
 
+def bn_test():
+    resource = 16384 * 3
+    width = random_params([55])
+    depth = int(resource / width / width)
+    params = {
+        'project_name': 'plain_SR_bn_test_300',
+        'backbone': {
+            'arch': 'Plain_layerwise_sr',
+            'num_modules': depth,
+            'n_feats': width,
+            'add_ori': 1,
+            'stack_output': 0,
+            'layerType': 'normal',
+        },
+        'num_epochs': 300,
+        'max_lr': [2e-3, 5e-3, 1e-2, 2e-2],
+    }
+
+    return {**templates['DIV2K-b32-SRx4'], **params}
+
+
 def params_for_SR():
     # params = directTrainPlain()
     # params = dense_model_train()
     # params = stack_out_test()
-    params = PlainFlopsPSNRCurve()
+    # params = PlainFlopsPSNRCurve()
     # params = square_test()
+    params = bn_test()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

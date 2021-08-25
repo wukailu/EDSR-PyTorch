@@ -1,5 +1,6 @@
 ## ECCV-2018-Image Super-Resolution Using Very Deep Residual Channel Attention Networks
 ## https://arxiv.org/abs/1807.02758
+import model.utils
 from model.super_resolution_model import common
 import torch.nn as nn
 from .utils import register_model, unpack_feature, pack_feature
@@ -76,7 +77,7 @@ class ResidualGroup(nn.Module):
 ## Residual Channel Attention Network (RCAN)
 class RCAN_Model(nn.Module):
     def __init__(self, n_resgroups=10, reduction=16, res_scale=1, n_resblocks=16, n_feats=64, rgb_range=255, n_colors=3,
-                 scale=4, conv=common.default_conv, **kwargs):
+                 scale=4, conv=model.utils.default_conv, **kwargs):
         super(RCAN_Model, self).__init__()
         kernel_size = 3
         act = nn.ReLU(True)

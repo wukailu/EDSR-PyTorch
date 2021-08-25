@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model import LayerWiseModel, ConvertibleLayer, convbn_to_conv
+from model.layerwise_model import ConvertibleLayer, LayerWiseModel
+from model import convbn_to_conv
 from model.basic_cifar_models.utils import register_model
 
 relu_offset = 0  # It's lucky that all feature in resnet is positive

@@ -3,7 +3,8 @@
 import torch
 from torch import nn
 
-from model import freeze, unfreeze_BN, ConvertibleLayer, freeze_BN
+from model import freeze, unfreeze_BN, freeze_BN
+from model.layerwise_model import ConvertibleLayer
 from frameworks.lightning_base_model import LightningModule, _Module
 from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module

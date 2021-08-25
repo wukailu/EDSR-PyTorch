@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+
+import model.utils
 from model.super_resolution_model import common
 from .utils import register_model, unpack_feature, pack_feature
 
@@ -146,7 +148,7 @@ class ResidualGroup(nn.Module):
 
 ## Holistic Attention Network (HAN)
 class HAN_Modle(nn.Module):
-    def __init__(self, n_resgroups=10, n_resblocks=16, n_feats=50, reduction=16, res_scale=1, scale=4, rgb_range=255, n_colors=3, conv=common.default_conv, **kwargs):
+    def __init__(self, n_resgroups=10, n_resblocks=16, n_feats=50, reduction=16, res_scale=1, scale=4, rgb_range=255, n_colors=3, conv=model.utils.default_conv, **kwargs):
         super(HAN_Modle, self).__init__()
 
         n_resgroups = n_resgroups

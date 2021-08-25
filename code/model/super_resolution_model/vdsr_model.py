@@ -1,3 +1,4 @@
+import model.utils
 from model.super_resolution_model import common
 from .utils import register_model, unpack_feature, pack_feature
 import torch.nn as nn
@@ -9,7 +10,7 @@ def VDSR(**hparams):
 
 
 class VDSR_Model(nn.Module):
-    def __init__(self, n_resblocks=16, n_feats=64, rgb_range=255, n_colors=3, conv=common.default_conv, **kwargs):
+    def __init__(self, n_resblocks=16, n_feats=64, rgb_range=255, n_colors=3, conv=model.utils.default_conv, **kwargs):
         super(VDSR_Model, self).__init__()
 
         n_resblocks = n_resblocks

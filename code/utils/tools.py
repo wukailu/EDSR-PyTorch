@@ -133,6 +133,7 @@ def parse_params(params: dict):
         'gpus': 1,
         'num_epochs': 1,
         "progress_bar_refresh_rate": 100,
+        'auto_select_gpus': True,
     }
     params = {**defaults, **params}
     if "backend" not in params:
@@ -151,7 +152,7 @@ def parse_params(params: dict):
     if isinstance(params['dataset'], str):
         params['dataset'] = {'name': params['dataset']}
     default_dataset_params = {
-        'workers': 8,
+        'workers': 4,
     }
     params['dataset'] = {**default_dataset_params, **params['dataset']}
     if 'total_batch_size' in params['dataset'] and 'batch_size' not in params['dataset']:

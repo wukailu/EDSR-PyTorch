@@ -1,6 +1,6 @@
 from frameworks.singlemodel.train_single_model import prepare_params, inference_statics
 from frameworks.distillation.DEIP import load_model
-from model import matmul_on_first_two_dim, get_classifier
+from model import get_classifier, matmul_on_first_two_dim
 import torch
 
 if __name__ == '__main__':
