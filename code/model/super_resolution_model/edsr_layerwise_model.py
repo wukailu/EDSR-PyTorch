@@ -1,12 +1,11 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
 
 import model.utils
 from model.super_resolution_model import common
 from .utils import register_model
-from ..layerwise_model import ConvertibleLayer, merge_1x1_and_3x3, LayerWiseModel, ConvLayer, \
-    IdLayer, ConcatLayer, append_const_channel, add_skip_connection
-from .. import matmul_on_first_two_dim
+from ..layerwise_model import ConvertibleLayer, merge_1x1_and_3x3, ConvLayer, \
+    SkipConnectionSubModel, InitializableLayer, ConvertibleModel
 
 
 @register_model
@@ -41,10 +40,10 @@ def resBlock(n_feats, kernel_size, act):
     """
     conv1 = ConvLayer(n_feats, n_feats, kernel_size, act=act)
     conv2 = ConvLayer(n_feats, n_feats, kernel_size)
-    return add_skip_connection([conv1, conv2], n_feats, skip_connection_bias=1000)
+    return SkipConnectionSubModel([conv1, conv2], n_feats, skip_connection_bias=1000)
 
 
-class EDSRTail(ConvertibleLayer):
+class EDSRTail(InitializableLayer):
     def __init__(self, scale, n_feats, n_colors, kernel_size, rgb_range):
         super().__init__()
         m_tail = [
@@ -80,11 +79,8 @@ class EDSRTail(ConvertibleLayer):
         conv_s.tail[0][0] = student_conv.conv
         return torch.eye(self.n_colors)
 
-    def simplify_layer(self):
-        raise NotImplementedError()
 
-
-class EDSR_layerwise_Model(LayerWiseModel):
+class EDSR_layerwise_Model(ConvertibleModel):
     def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, **kwargs):
         super(EDSR_layerwise_Model, self).__init__()
 
@@ -97,7 +93,7 @@ class EDSR_layerwise_Model(LayerWiseModel):
 
         # define body module
         for _ in range(n_resblocks):
-            self.sequential_models += list(resBlock(n_feats, kernel_size, act=nn.ReLU(True)))
+            self.sequential_models += [resBlock(n_feats, kernel_size, act=nn.ReLU())]
         self.sequential_models.append(ConvLayer(n_feats, n_feats, kernel_size))
 
         # define tail module

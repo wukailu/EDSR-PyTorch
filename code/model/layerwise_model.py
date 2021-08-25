@@ -1,4 +1,6 @@
 from abc import abstractmethod
+from typing import Tuple
+
 import torch
 from torch import nn
 from model import default_conv, matmul_on_first_two_dim, init_conv_with_conv
@@ -9,17 +11,126 @@ from model import default_conv, matmul_on_first_two_dim, init_conv_with_conv
 """
 
 
-def append_const_channel(x):
+def pad_const_channel(x):
     ones = torch.ones_like(x[:, :1])
     return torch.cat([ones, x], dim=1)
 
 
-class ConvertibleLayer(nn.Module):
+class LayerWiseModel(nn.Module):
+    def __init__(self, sequential_models=nn.ModuleList()):
+        super().__init__()
+        self.sequential_models = nn.ModuleList(sequential_models)
+
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+        f_list = []
+        for m in self.sequential_models[start_forward_from: until]:
+            x = m(x)
+            if with_feature:
+                f_list.append(x)
+        return (f_list, x) if with_feature else x
+
+    def __len__(self):
+        return len(self.sequential_models)
+
+
+class ConvertibleModel(LayerWiseModel):
     """
-    forward 时 x 输入为 原本x concat 上全1的一层在 channel 0
-    simplify_layer 应该返回一个no bias卷积和act，卷积然后过 act，得到的结果应该和 forward 完全一致
+    forward is normal forward
+    sequential_models is list of Convertible layers
+    remember to append const 1 to channel 0 for x, when calling forward for convertible layers
+    usually the tail of this module is only initializable, not convertible
     """
 
+    def get_convertible_layers(self):
+        ret = []
+        for m in self.sequential_models:
+            if isinstance(m, InitializableLayer):
+                ret.append(m)
+            elif isinstance(m, ConvertibleModel):
+                ret += m.get_convertible_layers()
+            else:
+                raise TypeError("Model can not be converted to plain model!")
+        return simplify_sequential_model(ret)
+
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+        f_list = []
+        for m in self.sequential_models[start_forward_from: until]:
+            x = m(pad_const_channel(x))
+            if with_feature:
+                f_list.append(x)
+        return (f_list, x) if with_feature else x
+
+    def __len__(self):
+        ret = 0
+        for m in self.sequential_models:
+            if isinstance(m, InitializableLayer):
+                ret += 1
+            elif isinstance(m, ConvertibleModel):
+                ret += len(m)
+            else:
+                raise TypeError("Model can not be converted to plain model!")
+        return ret
+
+    @staticmethod
+    def from_convertible_models(model_list):
+        return ConvertibleModel(nn.ModuleList(model_list))
+
+
+class ConvertibleSubModel(ConvertibleModel):
+    """
+    和上面唯一的区别是，输入默认 x 已经还有常数层
+    """
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+        x = x[:, 1:]
+        return ConvertibleModel.forward(self, x, with_feature, start_forward_from, until)
+
+
+class SequentialConvertibleSubModel(ConvertibleSubModel):
+    def __init__(self, *args):
+        super().__init__()
+        for m in args:
+            assert isinstance(m, (ConvertibleLayer, ConvertibleSubModel))
+            self.sequential_models.append(m)
+
+
+class SkipConnectionSubModel(ConvertibleSubModel):
+    def __init__(self, model_list, n_feats, skip_connection_bias=0):
+        super().__init__()
+        self.model = SequentialConvertibleSubModel(*model_list)
+        self.n_feats = n_feats
+        self.bias = skip_connection_bias
+
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+        if with_feature:
+            f_list, _ = self.model(x, with_feature, start_forward_from, until)
+            f_list = [torch.cat([x[:, 1:], f], dim=1) for f in f_list]
+            return f_list, f_list[-1]
+        elif until is not None and until < len(self):
+            ans = self.model(x, with_feature, start_forward_from, until)
+            return torch.cat([x[:, 1:], ans], dim=1)
+        else:
+            ans = self.model(x, with_feature, start_forward_from, until)
+            return x[:, 1:] + ans
+
+    def __len__(self):
+        return len(self.model)
+
+    def get_convertible_layers(self):
+        model_list = self.model.get_convertible_layers()
+        assert len(model_list) >= 1
+        if not isinstance(model_list[-1].simplify_layer()[1], nn.Identity):
+            model_list.append(IdLayer(self.n_feats))
+
+        ret = []
+        id1 = IdLayer(self.n_feats, bias=self.bias, act=model_list[0].simplify_layer()[1])
+        ret += [ConcatLayer(id1, model_list[0], share_input=True)]
+        for m in model_list[1:-1]:
+            ret += [ConcatLayer(IdLayer(self.n_feats, act=m.simplify_layer()[1]), m)]
+        ret += [ConcatLayer(IdLayer(self.n_feats, bias=-self.bias), model_list[-1], sum_output=True)]
+        return nn.ModuleList(ret)
+
+
+class InitializableLayer(nn.Module):
     def init_student(self, conv_s, M):
         """
         init student ConvLayer with teacher ConvertibleLayer
@@ -35,6 +146,13 @@ class ConvertibleLayer(nn.Module):
         M1[1:, 1:] = M
         return init_conv_with_conv(conv, conv_s.conv, M1)
 
+
+class ConvertibleLayer(InitializableLayer):
+    """
+    forward 时 x 输入为 原本x concat 上全1的一层在 channel 0
+    simplify_layer 应该返回一个no bias卷积和act，卷积然后过 act，得到的结果应该和 forward 完全一致
+    """
+
     @abstractmethod
     def forward(self, x):
         """
@@ -45,7 +163,7 @@ class ConvertibleLayer(nn.Module):
         pass
 
     @abstractmethod
-    def simplify_layer(self):
+    def simplify_layer(self) -> Tuple[nn.Conv2d, nn.Module]:
         """
         give a equivalent bias-less conv, act form of this layer
         act need to satisfy act(x)=x when x >= 0
@@ -112,29 +230,6 @@ def merge_1x1_and_3x3(layer1: ConvertibleLayer, layer3: ConvertibleLayer):
     return ConvLayer.fromConv2D(conv, const_channel_0=True, act=act3)
 
 
-class LayerWiseModel(nn.Module):
-    """
-    forward is normal forward
-    sequential_models is list of Convertible layers
-    remember to append const 1 to channel 0 for x, when calling forward for convertible layers
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.sequential_models = nn.ModuleList()
-
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        f_list = []
-        for m in self.sequential_models[start_forward_from: until]:
-            x = m(append_const_channel(x))
-            if with_feature:
-                f_list.append(x)
-        return (f_list, x) if with_feature else x
-
-    def __len__(self):
-        return len(self.sequential_models)
-
-
 class IdLayer(ConvertibleLayer):
     def __init__(self, channel, bias=0, act=nn.Identity()):
         super().__init__()
@@ -146,7 +241,7 @@ class IdLayer(ConvertibleLayer):
         conv = ConvLayer(self.channel, self.channel, 1)
         conv.conv.weight.data[:, 0] = self.bias
         conv.conv.weight.data[:, 1:] = torch.eye(self.channel).view((self.channel, self.channel, 1, 1))
-        return conv, self.act
+        return conv.conv, self.act
 
     def forward(self, x):
         return self.act(x[:, 1:] + self.bias)
@@ -196,7 +291,7 @@ class ConcatLayer(ConvertibleLayer):
             x1, x2 = x, x
         else:
             assert x.size(1) + 1 == self.eq_conv1.in_channels + self.eq_conv2.in_channels
-            x1, x2 = x[:, :self.eq_conv1.in_channels], append_const_channel(x[:, self.eq_conv1.in_channels:])
+            x1, x2 = x[:, :self.eq_conv1.in_channels], pad_const_channel(x[:, self.eq_conv1.in_channels:])
 
         x1, x2 = self.eq_conv1(x1), self.eq_conv2(x2)
 
@@ -228,43 +323,28 @@ class ConcatLayer(ConvertibleLayer):
                          bias=False)
         conv.weight.data[:] = 0
 
-        bias1 = zero_pad(self.eq_conv1.weight[:, 0], conv.kernel_size)
-        bias2 = zero_pad(self.eq_conv2.weight[:, 0], conv.kernel_size)
+        bias1 = zero_pad(self.eq_conv1.weight.data[:, 0], conv.kernel_size)
+        bias2 = zero_pad(self.eq_conv2.weight.data[:, 0], conv.kernel_size)
         if self.sum_output:
-            conv.weight[:, 0] = bias1 + bias2
+            conv.weight.data[:, 0] = bias1 + bias2
         else:
-            conv.weight[:, 0] = torch.cat([bias1, bias2], dim=0)
+            conv.weight.data[:, 0] = torch.cat([bias1, bias2], dim=0)
 
-        kernel = torch.zeros_like(conv.weight[:, 1:])
-        kernel1 = zero_pad(self.eq_conv1.weight[:, 1:], conv.kernel_size)
-        kernel2 = zero_pad(self.eq_conv2.weight[:, 1:], conv.kernel_size)
+        kernel = torch.zeros_like(conv.weight.data[:, 1:])
+        kernel1 = zero_pad(self.eq_conv1.weight.data[:, 1:], conv.kernel_size)
+        kernel2 = zero_pad(self.eq_conv2.weight.data[:, 1:], conv.kernel_size)
 
-        slice_in = slice(1, kernel1.size(1)) if self.share_input else slice(kernel1.size(1) + 1, None)
+        slice_in = slice(None, kernel1.size(1)) if self.share_input else slice(kernel1.size(1), None)
         slice_out = slice(None, kernel1.size(0)) if self.sum_output else slice(kernel1.size(0), None)
-        kernel[:kernel1.size(0), 1:kernel1.size(1) + 1] += kernel1
+        kernel[:kernel1.size(0), :kernel1.size(1)] += kernel1
         kernel[slice_out, slice_in] += kernel2
         conv.weight.data[:, 1:] = kernel
         return conv, self.act
 
 
-def add_skip_connection(model_list, n_feats, skip_connection_bias=0):
-    for m in model_list:
-        assert isinstance(m, ConvertibleLayer)
-    assert len(model_list) >= 1
-    if not isinstance(model_list[-1].simplify_layer()[1], nn.Identity):
-        model_list.append(IdLayer(n_feats))
-
-    ret = []
-    id1 = IdLayer(n_feats, bias=skip_connection_bias, act=model_list[0].simplify_layer()[1])
-    ret += [ConcatLayer(id1, model_list[0], share_input=True)]
-    for m in model_list[1:-1]:
-        ret += [ConcatLayer(IdLayer(n_feats, act=m.simplify_layer()[1]), m)]
-    ret += [ConcatLayer(IdLayer(n_feats, bias=-skip_connection_bias), model_list[-1], sum_output=True)]
-    return nn.ModuleList(ret)
-
-
 def is_mergeable_1x1(conv):
-    assert isinstance(conv, ConvertibleLayer)
+    if conv is None or not isinstance(conv, ConvertibleLayer):
+        return False
     conv, act = conv.simplify_layer()
     if conv.kernel_size == (1, 1) and isinstance(act, nn.Identity):
         return True

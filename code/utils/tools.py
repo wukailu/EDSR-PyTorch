@@ -13,6 +13,7 @@ else:
     dirs = []
 hparams_cache = {}
 
+# TODO: add support for torch_stat
 
 def update_dirs():
     global dirs
