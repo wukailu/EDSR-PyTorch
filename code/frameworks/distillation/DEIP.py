@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from model import freeze, unfreeze_BN, freeze_BN
-from model.layerwise_model import ConvertibleLayer
+from model.layerwise_model import ConvertibleLayer, ConvertibleModel
 from frameworks.lightning_base_model import LightningModule, _Module
 from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
@@ -45,7 +45,9 @@ class DEIP_LightModel(LightningModule):
             self.plain_model.to(device)
 
     def load_teacher(self):
-        return _Module.load_from_checkpoint(checkpoint_path=self.params['teacher_pretrain_path']).model
+        teacher = _Module.load_from_checkpoint(checkpoint_path=self.params['teacher_pretrain_path']).model
+        assert isinstance(teacher, ConvertibleModel)
+        return ConvertibleModel(teacher.to_convertible_layers())
 
     def init_student(self):
         import time

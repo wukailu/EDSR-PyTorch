@@ -607,8 +607,8 @@ def dense_model_train():
         'save_model': True,
         'backbone': {
             # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RDN_sr'],
-            'arch': ['RFDN_sr'],
-            # 'arch': ['EDSR_layerwise_sr'],
+            # 'arch': ['RFDN_sr'],
+            'arch': ['EDSR_layerwise_sr'],
             'n_feats': [50],
         },
     }
@@ -648,11 +648,16 @@ def directTrainPlain():
 
 
 def PlainFlopsPSNRCurve():
-    resource_per_flops = (16384 / 25)
-    flops = random_params([75, 200, 1350, 3540])
-    resource = resource_per_flops * flops
-    width = random_params([48, 96, 144])
-    depth = int(resource / width / width)
+    # resource_per_flops = (16384 / 25)
+    # flops = random_params([75, 200, 1350, 3540])
+    # resource = resource_per_flops * flops
+    # width = random_params([48, 96, 144])
+    # depth = int(resource / width / width)
+
+    depth, width = random_params([(12, 64), (16, 55), (22, 47),
+                                  (10, 114), (18, 85), (24, 73),
+                                  (50, 133), (34, 161), (28, 177),
+                                  (80, 170), (60, 196), (40, 240), ])
     params = {
         'project_name': 'plain_SR_curve',
         'backbone': {
@@ -660,7 +665,9 @@ def PlainFlopsPSNRCurve():
             'num_modules': depth,
             'n_feats': width,
             'add_ori': 1,
+            'stack_output': 1,
         },
+        'seed': [233, 234],
     }
 
     return {**templates['DIV2K-b16-SRx4'], **params}
@@ -734,9 +741,9 @@ def params_for_SR():
     # params = directTrainPlain()
     # params = dense_model_train()
     # params = stack_out_test()
-    # params = PlainFlopsPSNRCurve()
+    params = PlainFlopsPSNRCurve()
     # params = square_test()
-    params = bn_test()
+    # params = bn_test()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

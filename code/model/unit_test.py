@@ -15,7 +15,7 @@ if __name__ == '__main__':
     ans = x_test
     out = x_test
     assert isinstance(model, ConvertibleModel)
-    for layer in model.get_convertible_layers()[:-1]:
+    for layer in model.to_convertible_layers()[:-1]:
         if isinstance(layer, ConvertibleLayer):
             print(type(layer))
             conv, act = layer.simplify_layer()
@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         out = model(x_test)
-        out2 = ConvertibleModel.from_convertible_models(model.get_convertible_layers())(x_test)
+        out2 = ConvertibleModel.from_convertible_models(model.to_convertible_layers())(x_test)
         print('diff out out2 = ', (out-out2).abs().max(), 'out_max = ', out.abs().max(), 'out2 max = ', out2.abs().max())
 
     # model.cuda().eval()

@@ -41,13 +41,13 @@ class ConvertibleModel(LayerWiseModel):
     usually the tail of this module is only initializable, not convertible
     """
 
-    def get_convertible_layers(self):
+    def to_convertible_layers(self):
         ret = []
         for m in self.sequential_models:
             if isinstance(m, InitializableLayer):
                 ret.append(m)
             elif isinstance(m, ConvertibleModel):
-                ret += m.get_convertible_layers()
+                ret += m.to_convertible_layers()
             else:
                 raise TypeError("Model can not be converted to plain model!")
         return simplify_sequential_model(ret)
@@ -115,8 +115,8 @@ class SkipConnectionSubModel(ConvertibleSubModel):
     def __len__(self):
         return len(self.model)
 
-    def get_convertible_layers(self):
-        model_list = self.model.get_convertible_layers()
+    def to_convertible_layers(self):
+        model_list = self.model.to_convertible_layers()
         assert len(model_list) >= 1
         if not isinstance(model_list[-1].simplify_layer()[1], nn.Identity):
             model_list.append(IdLayer(self.n_feats))

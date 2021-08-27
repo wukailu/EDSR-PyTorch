@@ -92,9 +92,11 @@ class EDSR_layerwise_Model(ConvertibleModel):
         self.sequential_models.append(HeadLayer(rgb_range, n_colors, n_feats, kernel_size))
 
         # define body module
+        body = []
         for _ in range(n_resblocks):
-            self.sequential_models += [resBlock(n_feats, kernel_size, act=nn.ReLU())]
-        self.sequential_models.append(ConvLayer(n_feats, n_feats, kernel_size))
+            body += [resBlock(n_feats, kernel_size, act=nn.ReLU())]
+        body.append(ConvLayer(n_feats, n_feats, kernel_size))
+        self.sequential_models.append(SkipConnectionSubModel(body, n_feats, skip_connection_bias=1000))
 
         # define tail module
         self.sequential_models.append(EDSRTail(scale, n_feats, n_colors, kernel_size, rgb_range))

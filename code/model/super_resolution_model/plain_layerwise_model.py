@@ -33,8 +33,9 @@ class Plain_layerwise_Model(LayerWiseModel):
     def __init__(self, widths, layerType='normal_no_bn', input_transform=None, f_lists=None, add_ori=False,
                  stack_output=False, square_ratio=0, square_num=0, square_layer_strategy=0, square_before_relu=False, **kwargs):
         """
+        :arg widths width of each feature map, start from data, end at the one before tail. e.x. [3, 64, 64, 128, 200]
         :arg add_ori if this is true, there will be 3 more channel on input, which is original input data
-        :arg stack_output if this is true, all feature maps will be stacked and pass by a 1x1 conv to generate output,
+        :arg stack_output if this is true, all feature maps will be stacked and pass by a 1x1 conv to generate output before tail,
         otherwise output is just the result from last conv
         :type stack_output: bool
         :type add_ori: bool
@@ -65,7 +66,7 @@ class Plain_layerwise_Model(LayerWiseModel):
             self.append_layer(widths[i], widths[i + 1], f_lists[i], f_lists[i + 1], square_before_relu=square_before_relu,
                               square_ratio=ratio)
         if self.stack_output:
-            self.stack_1x1 = nn.ModuleList([nn.Conv2d(fs, widths[-1], 1) for fs in widths[1:-1]])
+            self.stack_1x1 = nn.ModuleList([nn.Conv2d(fs, widths[-1], 1) for fs in widths[1:]])
 
     def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3, square_ratio=0,
                      square_before_relu=False):
@@ -141,17 +142,17 @@ class Plain_layerwise_Model(LayerWiseModel):
         for idx in ids[start_forward_from: until]:
             m = self.sequential_models[idx]
 
+            # 尾部的 TailModule 直接接到输出
             if idx == len(self.sequential_models) - 1:
-                x = m(x)
-            else:
-                if self.add_ori:
-                    x = torch.cat([x, ori], dim=1)
-                if idx == len(self.sequential_models) - 1 and self.stack_output:
+                if self.stack_output:
                     x = m(stack_out)
                 else:
                     x = m(x)
-
-                if idx != len(self.sequential_models) - 1 and self.stack_output:
+            else:
+                if self.add_ori:
+                    x = torch.cat([x, ori], dim=1)
+                x = m(x)
+                if self.stack_output:
                     stack_out = self.stack_1x1[idx](x) + stack_out
 
             if with_feature:

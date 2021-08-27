@@ -5,7 +5,7 @@ from utils.tools import submit_jobs, random_params
 
 pretrain_paths = {
     'resnet': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_58603.ckpt",
-    "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_fc971.ckpt",
+    "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_a0131.ckpt",
 }
 
 templates = {
@@ -237,6 +237,8 @@ def params_for_deip():
     params = params_for_SR_real_progressive()
     # params = params_for_SR_real_progressive_small()
     # params = params_for_SR_baseline_with_add_ori()
+
+    # now with new EDSR_layerwise model
     return random_params(params)
 
 
