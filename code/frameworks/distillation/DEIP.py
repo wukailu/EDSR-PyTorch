@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from model import freeze, unfreeze_BN, freeze_BN
-from model.layerwise_model import ConvertibleLayer, ConvertibleModel
+from model.layerwise_model import ConvertibleLayer, ConvertibleModel, pad_const_channel, ConvLayer
 from frameworks.lightning_base_model import LightningModule, _Module
 from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
@@ -65,7 +65,7 @@ class DEIP_LightModel(LightningModule):
             f_shapes = [images.shape] + [f.shape for f in f_list]
             for idx in range(len(widths) - 2):
                 self.append_layer(widths[idx], widths[idx + 1], f_shapes[idx][2:], f_shapes[idx + 1][2:])
-        self.append_fc(widths[-2], widths[-1])
+        self.append_tail(widths[-2], widths[-1])
         print("initialization student width used ", time.process_time() - start_time)
 
         if self.params['init_stu_with_teacher']:
@@ -92,7 +92,7 @@ class DEIP_LightModel(LightningModule):
         assert isinstance(layer_t, ConvertibleLayer)
 
         if 'normal' in self.params['layer_type']:
-            M = layer_t.init_student(layer_s[0], M)
+            M = layer_t.init_student(layer_s, M)
             return M
         elif 'plain_sr' in self.params['layer_type']:
             M = layer_t.init_student(layer_s.conv, M)
@@ -155,7 +155,7 @@ class DEIP_LightModel(LightningModule):
         for m in self.plain_model[start_forward_from: until]:
             if self.params['add_ori']:
                 x = torch.cat([x, ori], dim=1)
-            x = m(x)
+            x = m(pad_const_channel(x))
             if with_feature:
                 f_list.append(x)
         return (f_list, x) if with_feature else x
@@ -181,30 +181,28 @@ class DEIP_LightModel(LightningModule):
         if self.params['add_ori']:
             in_channels += 3
         if self.params['layer_type'].startswith('normal'):
-            new_layers = []
+            if 'prelu' in self.params['layer_type']:
+                act = nn.PReLU()
+            else:
+                act = nn.ReLU()
+            bn = 'no_bn' not in self.params['layer_type']
             if previous_f_size == current_f_size:
-                new_layers.append(
-                    nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2))
+                stride = 1
             else:
                 stride_w = previous_f_size[0] // current_f_size[0]
                 stride_h = previous_f_size[1] // current_f_size[1]
-                new_layers.append(
-                    nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2,
-                              stride=(stride_w, stride_h)))
-            if 'no_bn' not in self.params['layer_type']:
-                new_layers.append(nn.BatchNorm2d(out_channels))
-            if 'prelu' in self.params['layer_type']:
-                new_layers.append(nn.PReLU())
-            else:
-                new_layers.append(nn.ReLU())
-            new_layer = nn.Sequential(*new_layers)
+                stride = (stride_w, stride_h)
+
+            new_layer = ConvLayer(in_channels, out_channels, kernel_size, bn=bn, act=act, stride=stride)
         elif self.params['layer_type'] == 'repvgg':
+            # TODO: convert this to convertible layers
             from model.basic_cifar_models.repvgg import RepVGGBlock
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
             new_layer = RepVGGBlock(in_channels, out_channels, kernel_size, stride=(stride_w, stride_h),
                                     padding=kernel_size // 2)
         elif self.params['layer_type'].startswith('plain_sr'):
+            # TODO: convert this to convertible layers
             from frameworks.distillation.exp_network import Plain_SR_Block
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
@@ -218,12 +216,12 @@ class DEIP_LightModel(LightningModule):
 
         self.plain_model.append(new_layer)
 
-    def append_fc(self, last_channel, output_channel):
+    def append_tail(self, last_channel, output_channel):
         if self.params['task'] == 'classification':
             self.plain_model.append(LastLinearLayer(last_channel, output_channel))
         elif self.params['task'] == 'super-resolution':
-            from model.super_resolution_model.edsr_layerwise_model import EDSRTail, EDSR_layerwise_Model
-            if isinstance(self.teacher_model, EDSR_layerwise_Model):
+            from model.super_resolution_model.edsr_layerwise_model import EDSRTail
+            if isinstance(self.teacher_model.sequential_models[-1], EDSRTail):
                 self.plain_model.append(
                     EDSRTail(self.params['scale'], last_channel, output_channel, 3, self.params['rgb_range']))
             else:

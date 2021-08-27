@@ -3,12 +3,26 @@ from typing import Tuple
 
 import torch
 from torch import nn
-from model import default_conv, matmul_on_first_two_dim, init_conv_with_conv
+from model import default_conv, matmul_on_first_two_dim, init_conv_with_conv, convbn_to_conv
 
 """
 只有当所有 skip connection 分支上的值都是非负数时，才能转化为等宽的全卷积网络
 否则需要增加一个常数层在输入上， 这里我们默认增加在 0 号 channel
 """
+
+
+def conv_to_const_conv(conv: nn.Conv2d, add_input_channel=True):
+    ret = nn.Conv2d(conv.in_channels if not add_input_channel else conv.in_channels + 1,
+                    conv.out_channels, conv.kernel_size, padding=conv.padding, padding_mode=conv.padding_mode,
+                    stride=conv.stride, bias=False)
+    ret.weight.data[:] = 0
+    if add_input_channel:
+        ret.weight.data[:, 1:] = conv.weight.data
+    else:
+        ret.weight.data[:] = conv.weight.data
+    if conv.bias is not None:
+        ret.weight.data[:, 0, conv.kernel_size[0] // 2, conv.kernel_size[1] // 2] += conv.bias
+    return ret
 
 
 def pad_const_channel(x):
@@ -80,6 +94,7 @@ class ConvertibleSubModel(ConvertibleModel):
     """
     和上面唯一的区别是，输入默认 x 已经还有常数层
     """
+
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         x = x[:, 1:]
         return ConvertibleModel.forward(self, x, with_feature, start_forward_from, until)
@@ -177,17 +192,33 @@ class ConvLayer(ConvertibleLayer):
     stride is not supported so far
     """
 
-    def __init__(self, in_channel, out_channel, kernel_size, act: nn.Module = nn.Identity()):
+    def __init__(self, in_channel, out_channel, kernel_size, stride=1, bn=False, act: nn.Module = nn.Identity()):
+        """
+        create a Convertible Layer with a conv-bn-act structure, where the input has a const channel at 0.
+        :param in_channel: original in_channels
+        :param out_channel: original out_channels
+        :param kernel_size: original kernel size
+        :param stride: stride of conv
+        :param bn: whether add bn
+        :param act: what activation you want to use
+        """
         super().__init__()
-        self.conv = default_conv(in_channel + 1, out_channel, kernel_size, bias=False)
+        self.conv = default_conv(in_channel + 1, out_channel, kernel_size, bias=False, stride=stride)
         self.conv.weight.data[:, 0] = 0
+        if bn:
+            self.bn = nn.BatchNorm2d(out_channel)
+        else:
+            self.bn = nn.Identity()
         self.act = act
 
     def simplify_layer(self):
-        return self.conv, self.act
+        if isinstance(self.bn, nn.BatchNorm2d):
+            return conv_to_const_conv(convbn_to_conv(self.conv, self.bn), add_input_channel=False), self.act
+        else:
+            return self.conv, self.act
 
     def forward(self, x):
-        return self.act(self.conv(x))
+        return self.act(self.bn(self.conv(x)))
 
     @staticmethod
     def fromConv2D(conv: nn.Conv2d, act: nn.Module = nn.Identity(), const_channel_0=False):
@@ -198,14 +229,9 @@ class ConvLayer(ConvertibleLayer):
         :param const_channel_0: is this conv already take input channel 0 as a const channel with 1, default false
         :return:
         """
-        assert isinstance(conv, nn.Conv2d)
-        if not const_channel_0:
-            ret = ConvLayer(conv.in_channels, conv.out_channels, conv.kernel_size, act=act)
-            ret.conv.weight.data[:, 0, conv.kernel_size[0] // 2, conv.kernel_size[1] // 2] = conv.bias
-            ret.conv.weight.data[:, 1:] = conv.weight.data
-        else:
-            ret = ConvLayer(conv.in_channels - 1, conv.out_channels, conv.kernel_size, act=act)
-            ret.conv = conv
+        conv = conv_to_const_conv(conv, add_input_channel=not const_channel_0)
+        ret = ConvLayer(conv.in_channels, conv.out_channels, conv.kernel_size, act=act)
+        ret.conv = conv
         return ret
 
 

@@ -14,7 +14,7 @@ templates = {
         'gpus': 1,
         'num_epochs': 300,
         'weight_decay': 5e-4,
-        'max_lr': [0.2],
+        'max_lr': 0.2,
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
         'teacher_pretrain_path': pretrain_paths['resnet'],

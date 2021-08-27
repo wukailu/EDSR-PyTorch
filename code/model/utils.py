@@ -175,7 +175,7 @@ def print_model_params(model):
     return pytorch_total_params
 
 
-def default_conv(in_channels, out_channels, kernel_size, bias=True):
+def default_conv(in_channels, out_channels, kernel_size, bias=True, stride=1):
     if isinstance(kernel_size, int):
         pad_x , pad_y = kernel_size // 2, kernel_size // 2
     elif isinstance(kernel_size, tuple):
@@ -184,7 +184,7 @@ def default_conv(in_channels, out_channels, kernel_size, bias=True):
         raise NotImplementedError()
     return nn.Conv2d(
         in_channels, out_channels, kernel_size,
-        padding=(pad_x, pad_y), bias=bias)
+        padding=(pad_x, pad_y), bias=bias, stride=stride)
 
 
 def convbn_to_conv(conv: nn.Conv2d, bn: nn.BatchNorm2d):
@@ -246,10 +246,11 @@ def init_conv_with_conv(conv_t, conv_s, M):
 
     conv_s.weight.data = s_kernel
     if conv_t.bias is None:
-        conv_s.bias.data = 0
-    elif conv_s.bias is not None:
+        if conv_s.bias is not None:
+            conv_s.bias.data = 0
+    elif conv_s.bias is not None and conv_s.bias is not None:  # 如果老师有 bias, 学生也有 bias
         s_bias = M.pinverse() @ conv_t.bias.data
-        conv_s.weight.bias = s_bias
+        conv_s.bias.data = s_bias
     else:
         raise AttributeError("conv_s do not have bias while conv_t has bias, which is not possible to init s with t")
     return M

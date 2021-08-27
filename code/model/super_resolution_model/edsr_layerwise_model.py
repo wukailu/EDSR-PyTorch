@@ -44,8 +44,9 @@ def resBlock(n_feats, kernel_size, act):
 
 
 class EDSRTail(InitializableLayer):
-    def __init__(self, scale, n_feats, n_colors, kernel_size, rgb_range):
+    def __init__(self, scale, n_feats, n_colors, kernel_size, rgb_range, remove_const_channel=True):
         super().__init__()
+        self.remove_const_channel = remove_const_channel
         m_tail = [
             common.Upsampler(model.utils.default_conv, scale, n_feats, act=False),
             model.utils.default_conv(n_feats, n_colors, kernel_size)
@@ -60,7 +61,9 @@ class EDSRTail(InitializableLayer):
         self.rgb_range = rgb_range
 
     def forward(self, x):
-        return self.add_mean(self.tail(x[:, 1:]))
+        if self.remove_const_channel:
+            x = x[:, 1:]
+        return self.add_mean(self.tail(x))
 
     def init_student(self, conv_s, M):
         assert isinstance(conv_s, EDSRTail)
@@ -77,6 +80,7 @@ class EDSRTail(InitializableLayer):
         student_conv = copy.deepcopy(teacher_conv)
         teacher_conv.init_student(student_conv, M)
         conv_s.tail[0][0] = student_conv.conv
+        conv_s.remove_const_channel = False
         return torch.eye(self.n_colors)
 
 
