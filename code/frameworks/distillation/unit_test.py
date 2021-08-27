@@ -1,7 +1,7 @@
 import torch
 
 from frameworks.distillation.DEIP import load_model
-from frameworks.singlemodel.train_single_model import prepare_params
+from frameworks.classification.train_single_model import prepare_params
 from model import matmul_on_first_two_dim
 from model.layerwise_model import pad_const_channel
 

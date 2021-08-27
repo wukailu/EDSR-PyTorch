@@ -654,23 +654,23 @@ def PlainFlopsPSNRCurve():
     # width = random_params([48, 96, 144])
     # depth = int(resource / width / width)
 
-    depth, width = random_params([(12, 64), (16, 55), (22, 47),
-                                  (10, 114), (18, 85), (24, 73),
-                                  (50, 133), (34, 161), (28, 177),
-                                  (80, 170), (60, 196), (40, 240), ])
+    depth, width = random_params([(12, 64), (14, 59), (16, 55),
+                                  (10, 123), (16, 100), (20, 87),
+                                  (40, 150), (34, 161), (30, 175),
+                                  (45, 226), (36, 256), (30, 280)])
     params = {
-        'project_name': 'plain_SR_curve',
+        'project_name': 'plain_SR_curve_b32',
         'backbone': {
             'arch': 'Plain_layerwise_sr',
             'num_modules': depth,
             'n_feats': width,
             'add_ori': 1,
-            'stack_output': 1,
         },
         'seed': [233, 234],
     }
 
-    return {**templates['DIV2K-b16-SRx4'], **params}
+    # return {**templates['DIV2K-b16-SRx4'], **params}
+    return {**templates['DIV2K-b32-SRx4'], **params}
 
 
 def stack_out_test():
@@ -739,9 +739,9 @@ def bn_test():
 
 def params_for_SR():
     # params = directTrainPlain()
-    params = dense_model_train()
+    # params = dense_model_train()
     # params = stack_out_test()
-    # params = PlainFlopsPSNRCurve()
+    params = PlainFlopsPSNRCurve()
     # params = square_test()
     # params = bn_test()
 

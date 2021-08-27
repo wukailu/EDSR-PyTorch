@@ -146,6 +146,9 @@ class SkipConnectionSubModel(ConvertibleSubModel):
 
 
 class InitializableLayer(nn.Module):
+    """
+    forward 时 x 输入为 原本x concat 上全1的一层在 channel 0
+    """
     def init_student(self, conv_s, M):
         """
         init student ConvLayer with teacher ConvertibleLayer

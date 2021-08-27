@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.layerwise_model import ConvertibleLayer, LayerWiseModel
+from model.layerwise_model import ConvertibleLayer, LayerWiseModel, conv_to_const_conv, InitializableLayer, ConvLayer, \
+    ConvertibleModel
 from model import convbn_to_conv
 from model.basic_cifar_models.utils import register_model
 
@@ -41,6 +42,7 @@ class BasicBlock_1(ConvertibleLayer):
                 )
 
     def forward(self, x):
+        x = x[:, 1:]
         shortcut = self.shortcut(x)
         x = F.relu(self.bn1(self.conv1(x)))
         return torch.cat([x, shortcut], dim=1)
@@ -71,7 +73,7 @@ class BasicBlock_1(ConvertibleLayer):
 
         conv.weight.data = kernel
         conv.bias.data = bias
-        return conv, nn.ReLU()
+        return conv_to_const_conv(conv), nn.ReLU()
 
 
 class BasicBlock_2(ConvertibleLayer):
@@ -83,6 +85,7 @@ class BasicBlock_2(ConvertibleLayer):
         self.bn2 = nn.BatchNorm2d(planes)
 
     def forward(self, x):
+        x = x[:, 1:]
         planes = x.size(1) // 2
         x, shortcut = x[:, :planes], x[:, planes:]
 
@@ -102,16 +105,17 @@ class BasicBlock_2(ConvertibleLayer):
         conv = nn.Conv2d(in_channel * 2, out_channel, kernel_size=kernel_size, padding=eq_conv.padding)
         conv.weight.data = kernel
         conv.bias.data = eq_conv.bias.data
-        return conv, nn.ReLU()
+        return conv_to_const_conv(conv), nn.ReLU()
 
 
-class LastLinearLayer(ConvertibleLayer):
+class LastLinearLayer(InitializableLayer):
     def __init__(self, linear_in, num_classes):
         super().__init__()
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
         self.linear = nn.Linear(linear_in, num_classes)
 
     def forward(self, x):
+        x = x[:, 1:]
         x = self.pool(x)
         x = x.view(x.size(0), -1)
         return self.linear(x)
@@ -122,31 +126,13 @@ class LastLinearLayer(ConvertibleLayer):
         layer_s.linear.bias.data = self.linear.bias
         return torch.eye(self.linear.out_features)
 
-    def simplify_layer(self):
-        raise NotImplementedError
 
-
-class ConvBNReLULayer(ConvertibleLayer):
-    def __init__(self, in_planes, planes, kernel_size=3, stride=1, padding=1):
-        super().__init__()
-        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=kernel_size, stride=stride, padding=padding, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        return self.relu(self.bn1(self.conv1(x)))
-
-    def simplify_layer(self):
-        conv = convbn_to_conv(self.conv1, self.bn1)
-        return conv, self.relu
-
-
-class ResNet_CIFAR(LayerWiseModel):
+class ResNet_CIFAR(ConvertibleModel):
     def __init__(self, num_blocks, num_classes=10, num_filters=(16, 16, 32, 64), option='A'):
         super().__init__()
         self.in_planes = num_filters[0]
 
-        self.sequential_models.append(ConvBNReLULayer(3, num_filters[0]))
+        self.sequential_models.append(ConvLayer(3, num_filters[0], kernel_size=3))
         self.sequential_models += self._make_layer(num_filters[1], num_blocks[0], stride=1, option=option)
         self.sequential_models += self._make_layer(num_filters[2], num_blocks[1], stride=2, option=option)
         self.sequential_models += self._make_layer(num_filters[3], num_blocks[2], stride=2, option=option)
