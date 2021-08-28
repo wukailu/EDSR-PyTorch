@@ -350,8 +350,9 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
         with torch.no_grad():
             feat_t, out_t = self.teacher_model(sample, with_feature=True)
             feat_s, out_s = self(sample, with_feature=True)
-            for fs, ft in zip(feat_s, feat_t):
+            for fs, ft in zip(feat_s[:-1], feat_t[:-1]):
                 ret.append(nn.Conv2d(fs.size(1), ft.size(1), kernel_size=1, bias=False))
+            ret.append(nn.Identity())
         return ret
 
     def complete_hparams(self):
