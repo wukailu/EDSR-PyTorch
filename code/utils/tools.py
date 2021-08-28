@@ -134,7 +134,7 @@ def parse_params(params: dict):
         'gpus': 1,
         'num_epochs': 1,
         "progress_bar_refresh_rate": 100,
-        'auto_select_gpus': True,
+        'auto_select_gpus': False,
     }
     params = {**defaults, **params}
     if "backend" not in params:

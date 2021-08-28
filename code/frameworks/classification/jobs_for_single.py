@@ -6,7 +6,7 @@ from utils.tools import submit_jobs, random_params
 
 def params_for_single_train():
     params = {
-        'project_name': 'deip_baselines',
+        'project_name': 'layerwise_model_train',
         'gpus': 1,
         'num_epochs': 300, 
         'weight_decay': 5e-4,
@@ -37,5 +37,5 @@ def params_for_test():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_single_train, 'frameworks/singlemodel/train_single_model.py', number_jobs=1,
+    submit_jobs(params_for_single_train, 'frameworks/singlemodel/train_single_model.py', number_jobs=100,
                 job_directory='.')

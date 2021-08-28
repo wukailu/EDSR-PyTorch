@@ -3,12 +3,11 @@
 import torch
 from torch import nn
 
-from model import freeze, unfreeze_BN, freeze_BN
-from model.layerwise_model import ConvertibleLayer, ConvertibleModel, pad_const_channel, ConvLayer
-from frameworks.lightning_base_model import LightningModule, _Module
-from model.basic_cifar_models.resnet_layerwise_cifar import ResNet_CIFAR, LastLinearLayer
 from frameworks.distillation.feature_distillation import get_distill_module
-from pytorch_lightning.utilities import rank_zero_only
+from frameworks.lightning_base_model import LightningModule, _Module
+from model import freeze, unfreeze_BN, freeze_BN
+from model.basic_cifar_models.resnet_layerwise_cifar import LastLinearLayer
+from model.layerwise_model import ConvertibleLayer, ConvertibleModel, pad_const_channel, ConvLayer
 
 
 # TODO: fix conflicts between add_ori and init_stu_with_teacher

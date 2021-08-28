@@ -4,13 +4,17 @@ from torch import nn
 import torch
 
 if __name__ == '__main__':
+    # params = {
+    #     'arch': 'EDSR_layerwise_sr',
+    # }
+    # model = get_classifier(params, "DIV2K")
+    # x_test = torch.randint(0, 255, (2, 3, 24, 24)).float()
+
     params = {
-        'arch': 'EDSR_layerwise_sr',
+        'arch': 'resnet20_layerwise',
     }
-
-    model = get_classifier(params, "DIV2K")
-
-    x_test = torch.randint(0, 255, (2, 3, 24, 24)).float()
+    model = get_classifier(params, "cifar100")
+    x_test = torch.randn((2, 3, 32, 32))
 
     ans = x_test
     out = x_test
@@ -25,8 +29,11 @@ if __name__ == '__main__':
                 out = pad_const_channel(out)
                 ans = layer(ans)
                 out = act(conv(out))
-                diff_max = (ans - out).abs().max() # this should be smaller than 1e-5
+                diff_max = (ans - out).abs().max()  # this should be smaller than 1e-5
                 print("ans shape", ans.shape, "diff_max = ", diff_max, "ans_max", ans.max())
+                if diff_max > 1e-4:
+                    print((out-ans).argmax(dim=0)[1], out - ans)
+                    assert diff_max < 1e-4
 
     with torch.no_grad():
         out = model(x_test)

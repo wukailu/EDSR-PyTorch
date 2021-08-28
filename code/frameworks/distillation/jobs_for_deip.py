@@ -4,7 +4,7 @@ sys.path.append('/home/kailu/EDSR-PyTorch/code/')
 from utils.tools import submit_jobs, random_params
 
 pretrain_paths = {
-    'resnet': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_58603.ckpt",
+    'resnet': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_a0131.ckpt",
 }
 
@@ -173,21 +173,10 @@ def params_for_baseline():
     params = {
         'project_name': 'deip_baselines',
         'description': 'direct_train',
+        'layer_type': 'normal',
         'init_stu_with_teacher': [0],
-        'rank_eps': [3],  # 0.05, 0.6, 1, 2
-        'max_lr': [0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
-    }
-
-    return {**templates['cifar100-classification'], **params}
-
-
-def params_for_direct_train():
-    params = {
-        'project_name': 'deip_initialization',
-        'description': 'direct_train',
-        'init_stu_with_teacher': [1],
-        'rank_eps': [1, 2],  # 0.05, 0.6, 1, 2
-        'max_lr': [0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'rank_eps': [0.01, 0.05, 0.1, 0.2],  # 0.05, 0.6, 1, 2
+        'max_lr': [0.05, 0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
     }
 
     return {**templates['cifar100-classification'], **params}
@@ -213,10 +202,12 @@ def params_for_deip_progressive_distillation():
         'project_name': 'deip_distillation_progressive',
         'description': 'progressive_distillation',
         'method': 'Progressive_Distillation',
+        'layer_type': 'normal',
         'init_stu_with_teacher': [1],
-        'rank_eps': [2],
+        'rank_eps': [0.01, 0.05, 0.1, 0.2],
         'distill_coe': [1e-3, 1e-4, 0],
-        'max_lr': [0.2],
+        'max_lr': [0.05, 0.2],
+        'seed': 233,
     }
 
     return {**templates['cifar100-classification'], **params}
@@ -224,9 +215,8 @@ def params_for_deip_progressive_distillation():
 
 def params_for_deip():
     # params = params_for_baseline()
-    # params = params_for_direct_train()
     # params = params_for_deip_distillation()
-    # params = params_for_deip_progressive_distillation()
+    params = params_for_deip_progressive_distillation()
 
     # params = params_for_SR_baseline()
     # params = params_for_SR_baseline_small()
@@ -234,7 +224,7 @@ def params_for_deip():
     # params = params_for_SR_structure()
     # params = params_for_SR_progressive()
     # params = params_for_SR_progressive_small()
-    params = params_for_SR_real_progressive()
+    # params = params_for_SR_real_progressive()
     # params = params_for_SR_real_progressive_small()
     # params = params_for_SR_baseline_with_add_ori()
 

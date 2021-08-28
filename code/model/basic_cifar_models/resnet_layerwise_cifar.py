@@ -55,7 +55,7 @@ class BasicBlock_1(ConvertibleLayer):
         kernel = torch.zeros_like(conv.weight)
         bias = torch.zeros_like(conv.bias)
 
-        kernel[:channel, ...] = eq_conv.weight.data
+        kernel[:channel] = eq_conv.weight.data
         bias[:channel] = eq_conv.bias.data
 
         if isinstance(self.shortcut, LambdaLayer):
@@ -67,9 +67,6 @@ class BasicBlock_1(ConvertibleLayer):
             assert eq_conv.out_channels == eq_conv.in_channels
             for i in range(eq_conv.in_channels):
                 kernel[channel + i, i, eq_conv.kernel_size[0] // 2, eq_conv.kernel_size[1] // 2] = 1
-
-        # make sure the identity can pass relu
-        bias[channel:] = relu_offset  # TODO: How will the offset change distillation results?
 
         conv.weight.data = kernel
         conv.bias.data = bias
@@ -132,7 +129,7 @@ class ResNet_CIFAR(ConvertibleModel):
         super().__init__()
         self.in_planes = num_filters[0]
 
-        self.sequential_models.append(ConvLayer(3, num_filters[0], kernel_size=3))
+        self.sequential_models.append(ConvLayer(3, num_filters[0], kernel_size=3, act=nn.ReLU()))
         self.sequential_models += self._make_layer(num_filters[1], num_blocks[0], stride=1, option=option)
         self.sequential_models += self._make_layer(num_filters[2], num_blocks[1], stride=2, option=option)
         self.sequential_models += self._make_layer(num_filters[3], num_blocks[2], stride=2, option=option)
