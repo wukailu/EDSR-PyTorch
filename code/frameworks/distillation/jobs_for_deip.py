@@ -4,7 +4,8 @@ sys.path.append('/home/kailu/EDSR-PyTorch/code/')
 from utils.tools import submit_jobs, random_params
 
 pretrain_paths = {
-    'resnet': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
+    'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
+    'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_a0131.ckpt",
 }
 
@@ -17,7 +18,7 @@ templates = {
         'max_lr': 0.2,
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
-        'teacher_pretrain_path': pretrain_paths['resnet'],
+        'teacher_pretrain_path': pretrain_paths['resnet20x4'],
         "dataset": {'name': "cifar100", 'total_batch_size': 256},
         "seed": [233, 234, 235, 236],
         'ignore_exist': True,
@@ -141,7 +142,7 @@ def params_for_SR_baseline_with_add_ori():
         'add_ori': [1],
         'init_stu_with_teacher': [0],
         'layer_type': ['normal_no_bn'],
-        'rank_eps': [0.2, 0.3],  # 0.05, 0.6, 1, 2
+        'rank_eps': [0.01, 0.05, 0.1, 0.2],  # 0.05, 0.6, 1, 2
         'max_lr': [2e-4, 5e-4],
     }
 
@@ -152,10 +153,10 @@ def params_for_SR_baseline():
     params = {
         'project_name': 'deip_SRx4_baseline',
         'description': 'direct_train',
-        'init_stu_with_teacher': [0],
+        'init_stu_with_teacher': [1],
         'layer_type': ['normal_no_bn'],
-        'rank_eps': [0.05],  # 0.05, 0.6, 1, 2
-        'max_lr': [2e-4, 5e-4, 1e-3],
+        'rank_eps': [0.01, 0.05, 0.1, 0.2],  # 0.05, 0.6, 1, 2
+        'max_lr': [2e-4, 5e-4],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -171,12 +172,13 @@ def params_for_SR_baseline_small():
 
 def params_for_baseline():
     params = {
-        'project_name': 'deip_baselines',
+        'project_name': 'deip_baselines_20x4',
         'description': 'direct_train',
         'layer_type': 'normal',
         'init_stu_with_teacher': [0],
-        'rank_eps': [0.01, 0.05, 0.1, 0.2],  # 0.05, 0.6, 1, 2
-        'max_lr': [0.05, 0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        # 'rank_eps': [0.01, 0.05, 0.1, 0.2],
+        'rank_eps': [0.3, 0.4, 0.5],
+        'max_lr': [0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
     }
 
     return {**templates['cifar100-classification'], **params}
@@ -205,8 +207,7 @@ def params_for_deip_progressive_distillation():
         'layer_type': 'normal',
         'init_stu_with_teacher': [1],
         'rank_eps': [0.01, 0.05, 0.1, 0.2],
-        'distill_coe': [1e-3, 1e-4, 0],
-        'max_lr': [0.05, 0.2],
+        'max_lr': [0.2],
         'seed': 233,
     }
 
@@ -216,7 +217,7 @@ def params_for_deip_progressive_distillation():
 def params_for_deip():
     # params = params_for_baseline()
     # params = params_for_deip_distillation()
-    params = params_for_deip_progressive_distillation()
+    # params = params_for_deip_progressive_distillation()
 
     # params = params_for_SR_baseline()
     # params = params_for_SR_baseline_small()
@@ -226,7 +227,7 @@ def params_for_deip():
     # params = params_for_SR_progressive_small()
     # params = params_for_SR_real_progressive()
     # params = params_for_SR_real_progressive_small()
-    # params = params_for_SR_baseline_with_add_ori()
+    params = params_for_SR_baseline_with_add_ori()
 
     # now with new EDSR_layerwise model
     return random_params(params)

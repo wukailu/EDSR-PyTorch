@@ -229,6 +229,7 @@ class DEIP_LightModel(LightningModule):
             raise NotImplementedError()
 
     def calc_width(self, images):
+        # TODO: calc width with model parameters instead of feature maps
         if self.params['progressive_distillation']:  # progressive 更好会不会是训得更久所以效果更好
             # TODO: calculate next layer width
             pass

@@ -46,6 +46,12 @@ class LayerWiseModel(nn.Module):
     def __len__(self):
         return len(self.sequential_models)
 
+    def __getitem__(self, item):
+        return self.sequential_models[item]
+
+    def __iter__(self):
+        return self.sequential_models.__iter__()
+
 
 class ConvertibleModel(LayerWiseModel):
     """
@@ -84,6 +90,16 @@ class ConvertibleModel(LayerWiseModel):
             else:
                 raise TypeError("Model can not be converted to plain model!")
         return ret
+
+    def generate_inference_model(self):
+        ret = []
+        layers = self.to_convertible_layers()
+        for m in layers:
+            if isinstance(m, ConvertibleLayer):
+                ret.append(m.to_conv_layer())
+            else:
+                ret.append(m)
+        return ConvertibleModel.from_convertible_models(ret)
 
     @staticmethod
     def from_convertible_models(model_list):
@@ -149,6 +165,7 @@ class InitializableLayer(nn.Module):
     """
     forward 时 x 输入为 原本x concat 上全1的一层在 channel 0
     """
+
     def init_student(self, conv_s, M):
         """
         init student ConvLayer with teacher ConvertibleLayer
@@ -189,6 +206,10 @@ class ConvertibleLayer(InitializableLayer):
         """
         pass
 
+    def to_conv_layer(self):
+        conv, act = self.simplify_layer()
+        return ConvLayer.fromConv2D(conv, act, const_channel_0=True)
+
 
 class ConvLayer(ConvertibleLayer):
     """
@@ -221,7 +242,10 @@ class ConvLayer(ConvertibleLayer):
             return self.conv, self.act
 
     def forward(self, x):
-        return self.act(self.bn(self.conv(x)))
+        if isinstance(self.bn, nn.BatchNorm2d):
+            return self.act(self.bn(self.conv(x)))
+        else:
+            return self.act(self.conv(x))
 
     @staticmethod
     def fromConv2D(conv: nn.Conv2d, act: nn.Module = nn.Identity(), const_channel_0=False):
@@ -230,7 +254,7 @@ class ConvLayer(ConvertibleLayer):
         :param conv: nn.conv2d
         :param act: act after this conv, default to be identity
         :param const_channel_0: is this conv already take input channel 0 as a const channel with 1, default false
-        :return:
+        :return:a ConvLayer
         """
         conv = conv_to_const_conv(conv, add_input_channel=not const_channel_0)
         ret = ConvLayer(conv.in_channels, conv.out_channels, conv.kernel_size, act=act)

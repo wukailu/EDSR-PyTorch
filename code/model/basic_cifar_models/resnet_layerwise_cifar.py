@@ -150,5 +150,20 @@ def _resnet20(expansion=1.0, **kwargs):
 
 
 @register_model
+def resnet32_layerwise(**kwargs):
+    return ResNet_CIFAR(num_blocks=[5, 5, 5], num_filters=[16, 16, 32, 64], **kwargs)
+
+
+@register_model
 def resnet20_layerwise(**kwargs):
     return _resnet20(expansion=1, **kwargs)
+
+
+@register_model
+def resnet20x2_layerwise(**kwargs):
+    return _resnet20(expansion=2, **kwargs)
+
+
+@register_model
+def resnet20x4_layerwise(**kwargs):
+    return _resnet20(expansion=4, **kwargs)

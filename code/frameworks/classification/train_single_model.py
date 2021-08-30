@@ -69,34 +69,37 @@ def train_model(model, params, save_name='default', checkpoint_monitor=None, mod
 
 
 @rank_zero_only
-def inference_statics(model, x_test=None, batch_size=16):
+def inference_statics(model, x_test=None, batch_size=None):
     import time
     import torch
-    torch.cuda.empty_cache()
-    torch.cuda.reset_max_memory_allocated()
 
     if x_test is None:
         x_test = model.val_dataloader().dataset[0][0]
+    if batch_size is None:
+        batch_size = model.val_dataloader().batch_size
     x = torch.stack([x_test] * batch_size, dim=0).cuda()
     model.cuda().eval()
+    total_input_size = x.nelement()
     with torch.no_grad():
-        total_time = 0
         for i in range(10):
             outs = model(x)
-        for i in range(20):
-            torch.cuda.synchronize()
-            start_time = time.process_time()
-            outs = model(x)
-            total_time += time.process_time() - start_time
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+        torch.cuda.reset_max_memory_allocated()
+        start_time = time.time()
+        for i in range(100):
+            outs = model(torch.randn_like(x))
+        torch.cuda.synchronize()
+        total_time = time.time() - start_time
         used_memory = torch.cuda.max_memory_allocated()
-        backend.log_metric('Inference_Time(ms)', float(total_time / 20 * 1000))
-        backend.log_metric('Memory(MB)', int(used_memory / 1024 / 1024))
+        backend.log_metric('Inference_Time(us)', float(total_time / 100 / total_input_size * 1e6))  # time usage per pixel per batch
+        backend.log_metric('Memory(KB)', float(used_memory / total_input_size / 1024))  # memory usage per pixel per batch
 
     from thop import profile
     x = torch.stack([x_test], dim=0).cuda()
-    flops, param_number = profile(model, inputs=(x,))
-    backend.log_metric('flops(M)', float(flops / 1024 / 1024))
-    backend.log_metric('parameters(K)', float(param_number / 1024))
+    flops, param_number = profile(model, inputs=(x,), verbose=False)
+    backend.log_metric('flops(K per pixel)', float(flops / x.nelement() / 1000))
+    backend.log_metric('parameters(KB)', float(param_number / 1024))
 
 
 if __name__ == "__main__":
@@ -109,4 +112,4 @@ if __name__ == "__main__":
         pl_model = train_model(pl_model, hparams, save_name='direct_train')
 
     if hparams['inference_statics']:
-        inference_statics(pl_model)
+        inference_statics(pl_model, batch_size=256)

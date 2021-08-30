@@ -13,9 +13,11 @@ def params_for_single_train():
         'max_lr': [0.2],
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'SGD',
-        'backbone': ['resnet20_layerwise'],
+        # 'backbone': ['resnet20_layerwise'],
+        'backbone': ['resnet20x4_layerwise', 'resnet20x2_layerwise', 'resnet32_layerwise'],
         "dataset": {'name': "cifar100", 'total_batch_size': 256},
         "seed": [233, 234, 235, 236],
+        'save_model': True,
     }
     return random_params(params)
 
@@ -32,6 +34,7 @@ def params_for_test():
         'backbone': ['resnet20'],
         "dataset": {'name': "cifar100", 'total_batch_size': 256},
         "seed": 0,
+        'save_model': False,
     }
     return random_params(params)
 
