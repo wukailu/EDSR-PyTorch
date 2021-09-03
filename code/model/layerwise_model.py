@@ -262,7 +262,7 @@ class ConvLayer(ConvertibleLayer):
         return ret
 
 
-def merge_1x1_and_3x3(layer1: ConvertibleLayer, layer3: ConvertibleLayer):
+def merge_1x1_and_3x3(layer1, layer3):
     """
     :param layer1 ConvLayer of shape (out_1, in_1, 1, 1) with bias or not
     :param layer3 ConvLayer of shape (out_2, out_1, k, k) with bias or not
@@ -281,6 +281,21 @@ def merge_1x1_and_3x3(layer1: ConvertibleLayer, layer3: ConvertibleLayer):
                      stride=conv3.stride, padding=conv3.padding, bias=False)
     conv.weight.data = kernel
     return ConvLayer.fromConv2D(conv, const_channel_0=True, act=act3)
+
+
+def merge_3x3_and_1x1(layer3: ConvertibleLayer, layer1: ConvertibleLayer):
+    # TODO: implement this
+    assert isinstance(layer1, ConvertibleLayer)
+    assert isinstance(layer3, ConvertibleLayer)
+    assert NotImplementedError()
+    pass
+
+
+def pinv_1x1(layer1: ConvLayer):
+    # TODO: implement this
+    assert isinstance(pinv_1x1, ConvLayer)
+    assert NotImplementedError()
+    pass
 
 
 class IdLayer(ConvertibleLayer):

@@ -214,6 +214,21 @@ def params_for_deip_progressive_distillation():
     return {**templates['cifar100-classification'], **params}
 
 
+def params_for_unit_test():
+    params = {
+        'project_name': 'unit_test',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': [1],
+        'layer_type': ['normal_no_bn'],
+        'rank_eps': [0.1],  # 0.05, 0.6, 1, 2
+        'max_lr': [5e-4],
+        'num_epochs': 1,
+        'seed': 0,
+    }
+
+    return {**templates['DIV2K-SRx4'], **params}
+
+
 def params_for_deip():
     # params = params_for_baseline()
     # params = params_for_deip_distillation()
@@ -227,7 +242,9 @@ def params_for_deip():
     # params = params_for_SR_progressive_small()
     # params = params_for_SR_real_progressive()
     # params = params_for_SR_real_progressive_small()
-    params = params_for_SR_baseline_with_add_ori()
+    # params = params_for_SR_baseline_with_add_ori()
+
+    params = params_for_unit_test()
 
     # now with new EDSR_layerwise model
     return random_params(params)

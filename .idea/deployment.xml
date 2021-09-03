@@ -16,24 +16,24 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="172.16.124.19">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/kailu/EDSR-PyTorch" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="172.16.124.20">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/kailu/EDSR-PyTorch" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="172.16.124.45">
         <serverdata>
           <mappings>
             <mapping deploy="/home/kailu/EDSR-PyTorch" local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="172.16.124.45 (1)">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/home/kailu/EDSR-PyTorch" local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="kailu@172.16.124.17:22">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

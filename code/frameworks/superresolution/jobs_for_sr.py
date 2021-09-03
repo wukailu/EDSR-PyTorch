@@ -153,7 +153,8 @@ def dense_model_train():
         'save_model': True,
         'max_lr': 5e-4,
         'backbone': {
-            'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr'],
+            # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr'],
+            'arch': ['RCAN_sr', 'HAN_sr',],
             # 'arch': ['EDSR_layerwise_sr'],
             'n_feats': [50],
         },
@@ -213,6 +214,7 @@ def PlainFlopsPSNRCurve():
             'n_feats': width,
             'add_ori': 1,
         },
+        'max_lr': 5e-4,
     }
 
     # return {**templates['DIV2K-b16-SRx4'], **params}
@@ -285,9 +287,9 @@ def bn_test():
 
 def params_for_SR():
     # params = directTrainPlain()
-    # params = dense_model_train()
+    params = dense_model_train()
     # params = stack_out_test()
-    params = PlainFlopsPSNRCurve()
+    # params = PlainFlopsPSNRCurve()
     # params = square_test()
     # params = bn_test()
 

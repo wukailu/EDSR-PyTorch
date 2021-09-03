@@ -1,6 +1,5 @@
 import numpy
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 import pwd
 import json
@@ -13,10 +12,11 @@ else:
     dirs = []
 hparams_cache = {}
 
+
 # TODO: add support for torch_stat
 
 def update_dirs():
-    global dirs
+    global dirs, hparams_cache
     if os.path.exists(base_dir):
         dirs = os.listdir(base_dir)
     else:
@@ -25,6 +25,7 @@ def update_dirs():
 
 
 def show_img(results: np.ndarray, vmin=None, vmax=None):
+    import matplotlib.pyplot as plt
     plt.figure(figsize=(72, 8))
     plt.matshow(results, vmin=vmin, vmax=vmax)
     plt.colorbar()
@@ -76,7 +77,8 @@ def get_targets(param_filter, hole_range=None):
 
 
 def merge_results(param_filter):
-    return {50000 // get_hparams(t)['dataset_params']['total']: pkl_load_artifacts(t) for t in get_targets(param_filter)}
+    return {50000 // get_hparams(t)['dataset_params']['total']: pkl_load_artifacts(t) for t in
+            get_targets(param_filter)}
 
 
 def mean_results(param_filter):
@@ -216,7 +218,8 @@ def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None,
             if 'ignore_exist' in hyper_params:
                 ignore = hyper_params['ignore_exist']
                 hyper_params.pop('ignore_exist')
-            if (hyper_params not in submitted_jobs) and ((not ignore) or len(get_targets(dict_filter(hyper_params))) == 0):
+            if (hyper_params not in submitted_jobs) and (
+                    (not ignore) or len(get_targets(dict_filter(hyper_params))) == 0):
                 break
         submitted_jobs.append(hyper_params.copy())
 
@@ -276,7 +279,6 @@ def cnt_all_combinations(obj):
             else:
                 comb *= cnt_all_combinations(values)
     return comb
-
 
 # def summarize_result(exp_filter):
 #     targets = get_targets(exp_filter)

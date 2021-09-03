@@ -8,6 +8,7 @@ from model.layerwise_model import pad_const_channel, ConvertibleModel
 
 def super_resolution_test():
     params = {
+        'method': 'DEIP_Init',
         'task': 'super-resolution',
         'loss': 'L1',
         'metric': 'psnr255',
@@ -33,10 +34,11 @@ def super_resolution_test():
         'add_ori': 0,
         'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
-        'rank_eps': 0.01,  # 0.05, 0.6, 1, 2
+        'rank_eps': 0.5,  # 0.05, 0.6, 1, 2
         'seed': 0,
         'num_epochs': 1,
         'max_lr': 5e-4,
+        'init_with_teacher_param': 1,
     }
     params = prepare_params(params)
     model = load_model(params)

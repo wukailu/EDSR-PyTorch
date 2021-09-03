@@ -1,4 +1,5 @@
 # Distill Everything Into a Plain model
+from typing import List
 
 import torch
 from torch import nn
@@ -7,7 +8,8 @@ from frameworks.distillation.feature_distillation import get_distill_module
 from frameworks.lightning_base_model import LightningModule, _Module
 from model import freeze, unfreeze_BN, freeze_BN
 from model.basic_cifar_models.resnet_layerwise_cifar import LastLinearLayer
-from model.layerwise_model import ConvertibleLayer, ConvertibleModel, pad_const_channel, ConvLayer
+from model.layerwise_model import ConvertibleLayer, ConvertibleModel, pad_const_channel, ConvLayer, IdLayer, \
+    merge_1x1_and_3x3
 
 
 # TODO: fix conflicts between add_ori and init_stu_with_teacher
@@ -20,7 +22,11 @@ class DEIP_LightModel(LightningModule):
         freeze(self.teacher_model.eval())
 
         self.plain_model = nn.ModuleList()
+
+        import time
+        start_time = time.process_time()
         self.init_student()
+        print("initialization student width used ", time.process_time() - start_time)
 
         if self.params['add_ori'] and self.params['task'] == 'super-resolution':
             import copy
@@ -49,8 +55,6 @@ class DEIP_LightModel(LightningModule):
         return ConvertibleModel(teacher.to_convertible_layers())
 
     def init_student(self):
-        import time
-        start_time = time.process_time()
         # First version, no progressive learning
         images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
         widths = [self.params['input_channel']] + self.calc_width(images=images)
@@ -65,7 +69,6 @@ class DEIP_LightModel(LightningModule):
             for idx in range(len(widths) - 2):
                 self.append_layer(widths[idx], widths[idx + 1], f_shapes[idx][2:], f_shapes[idx + 1][2:])
         self.append_tail(widths[-2], widths[-1])
-        print("initialization student width used ", time.process_time() - start_time)
 
         if self.params['init_stu_with_teacher']:
             print("init student with teacher!")
@@ -74,8 +77,9 @@ class DEIP_LightModel(LightningModule):
             # Method 1, branch 2: merge bias into conv by adding a constant channel to feature map
             # Method 2: Feature map mapping is kept by layer distillation, use the matrix from distillation, but this
             # need to be calculated on-the-fly.
-            # Choice 1: Shall we restrict the feature map before relu or after relu?
-            # Note 1: Pay attention to gradient vanishing after intialization.
+            # Method 3: Feature map is sampled from teacher, and use decomposition technic to determined width and mapping,
+            # generate student kernel with mapping and teacher kernel each layer.
+            # Note 1: Pay attention to gradient vanishing after initialization.
 
             assert len(self.plain_model) == len(self.teacher_model.sequential_models)
             # Implement Method 1:
@@ -130,6 +134,7 @@ class DEIP_LightModel(LightningModule):
             'task': 'classification',
             'input_channel': 3,
             'progressive_distillation': False,
+            'init_with_teacher_param': False,
             'rank_eps': 5e-2,
             'use_bn': True,
             'add_ori': False,
@@ -229,56 +234,150 @@ class DEIP_LightModel(LightningModule):
             raise NotImplementedError()
 
     def calc_width(self, images):
-        # TODO: calc width with model parameters instead of feature maps
-        if self.params['progressive_distillation']:  # progressive 更好会不会是训得更久所以效果更好
-            # TODO: calculate next layer width
-            pass
-        else:
-            ret = []
-            with torch.no_grad():
-                f_list, _ = self.teacher_model(images[:16], with_feature=True)
-                teacher = [f.size(1) for f in f_list]
+        ret = []
+        with torch.no_grad():
+            f_list, _ = self.teacher_model(images[:16], with_feature=True)
+            teacher_width = [f.size(1) for f in f_list]
+            if self.params['init_with_teacher_param']:  # calc width with model parameters instead of feature maps
+                for m in self.teacher_model[:-2]:
+                    assert isinstance(m, ConvertibleLayer)
+                    mat = m.simplify_layer()[0].weight.detach().flatten(start_dim=1)
+                    ret.append(rank_estimate(mat, eps=self.params['rank_eps']))
+            else:
                 for f in f_list[:-2]:
-                    #  Here Simple SVD is used, which is the best approximation to min_{D'} ||D-D'||_F where rank(D') <= r
-                    #  A question is, how to solve min_{D'} ||(D-D')*W||_F where rank(D') <= r, W is matrix with positive weights and * is element-wise production
-                    #  refer to wiki, it's called `Weighted low-rank approximation problems`, which does not have an analytic solution
-                    ret.append(rank_estimate(f, eps=self.params['rank_eps']))
-                ret.append(f_list[-2].size(1))
-                ret.append(f_list[-1].size(1))  # num classes
-            print("calculated teacher width = ", teacher)
-            print("calculated student width = ", ret)
-            return ret
+                    mat = f.transpose(0, 1).flatten(start_dim=1)
+                    ret.append(rank_estimate(mat, eps=self.params['rank_eps']))
+        ret.append(teacher_width[-2])
+        ret.append(teacher_width[-1])  # num classes
+        print("calculated teacher width = ", teacher_width)
+        print("calculated student width = ", ret)
+        return ret
 
 
-def rank_estimate(feature, weight=None, eps=5e-2):
+class DEIP_Init(DEIP_LightModel):
     """
-    Estimate the size of feature map to approximate this.
-    :param feature: tensor of shape (N, C, *)
-    :param weight: tensor of shape (1, C, *) where is the importance weight on each neural
+    全新的初始化方式，根据 feature map 采样决定各层的 feature map 映射以及学生网络的参数
+    假设上一层 f_t = M f_s + b
+    下一层 f'_t = M' f'_s + b'
+    老师网络该层权重为 w_t, 对应 Conv3x3_t, 需推导出学生网络权重
+    f'_t = Conv3x3_t(f_t) = Conv3x3_t(conv1x1_i(f_s)) = Conv3x3'(f_s)
+    f'_t = M' Conv3x3_s(f_s) + b' = Conv1x1_{i+1}(Conv3x3_s(f_s))
+    Conv3x3_s = Conv1x1_{i+1}^{-1} Conv3x3'(f_s)  ---> 等价于 解 线性方程组
+    """
+
+    def init_student(self):
+        # TODO: verify this code
+        assert not self.params['add_ori']
+        assert self.params['init_stu_with_teacher']
+        images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
+
+        widths = [self.params['input_channel']]
+        bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
+        with torch.no_grad():
+            f_list, _ = self.teacher_model(images[:16], with_feature=True)
+            teacher_width = [f.size(1) for f in f_list]
+            for f in f_list[:-2]:
+                mat = f.transpose(0, 1).flatten(start_dim=1)
+                # M*fs + bias \approx mat
+                M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
+                                               with_solution=True)
+                conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
+                conv1x1.weight.data[:] = fs.reshape_as(conv1x1.weight)
+                conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)
+                bridges.append(ConvLayer.fromConv2D(conv1x1))
+        widths.append(teacher_width[-2])
+        bridges.append(IdLayer(teacher_width[-2]))
+        widths.append(teacher_width[-1])
+        bridges.append(IdLayer(teacher_width[-1]))
+        print("calculated teacher width = ", teacher_width)
+        print("calculated student width = ", widths)
+
+        with torch.no_grad():
+            for i in range(len(bridges)-2):
+                eq_conv, act = merge_1x1_and_3x3(bridges[i], self.teacher_model[i]).simplify_layer()
+                B = eq_conv.weight.data
+                M = bridges[i+1].simplify_layer()[0].weight.data
+                M, bias = M[:, 1:], M[:, 0]
+                B[:, 0, B.size(2)//2, B.size(3)//2] -= bias
+                M = M.flatten(start_dim=1)
+                B = B.transpose(0, 1).flatten(start_dim=1)
+                # solve MX=B
+                X = torch.lstsq(B, M)
+                conv = nn.Conv2d(widths[i], widths[i+1], kernel_size=eq_conv.kernel_size, stride=eq_conv.stride,
+                                 padding=eq_conv.padding, bias=False)
+                self.plain_model.append(ConvLayer.fromConv2D(conv, act=act, const_channel_0=True))
+        self.append_tail(widths[-2], widths[-1])
+        self.teacher_model.sequential_models[-1].init_student(self.plain_model[-1], torch.eye(widths[-2]))
+
+
+def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False):
+    # TODO: consider how can we align f to 1-var or 1-norm
+    """
+    Estimate the size of feature map to approximate this. The return matrix f' should be positive if possible
+    :param use_NMF: whether use NMF instead of SVD
+    :param with_rank: shall we return rank of f'
+    :param with_solution: shall we return f = M f'
+    :param with_bias: whether normalize f to zero-mean
+    :param f: tensor of shape (C, N)
     :param eps: the error bar for low_rank approximation
     """
-    f = feature.flatten(start_dim=2)
-    if weight is not None:
-        f = f * weight
-    f = f.permute((1, 2, 0)).flatten(start_dim=1)
-
+    #  Here Simple SVD is used, which is the best approximation to min_{D'} ||D-D'||_F where rank(D') <= r
+    #  A question is, how to solve min_{D'} ||(D-D')*W||_F where rank(D') <= r,
+    #  W is matrix with positive weights and * is element-wise production
+    #  refer to wiki, it's called `Weighted low-rank approximation problems`, which does not have an analytic solution
+    assert len(f.shape) == 2
     # svd can not solve too large feature maps, so take samples
     if f.size(1) > 32768:
         perm = torch.randperm(f.size(1))[:32768]
         f = f[:, perm]
-    u, s, v = torch.svd(f)
+
+    if with_bias:
+        bias = f.mean(dim=1, keepdim=True)
+        f -= bias
+    else:
+        bias = torch.zeros_like(f).mean(dim=1, keepdim=True)
+
+    if not use_NMF:
+        u, s, v = torch.svd(f)
+        M = u
+        f2 = torch.mm(torch.diag(s), v.t())
 
     error = 0
+    ret = []
     for r in range(1, f.size(0) + 1):
-        # print('now at ', r, 'error = ', error)
-        approx = torch.mm(torch.mm(u[:, :r], torch.diag(s[:r])), v[:, :r].t())
+        if use_NMF:
+            # TODO: verify this
+            # TODO: modify to semi-NMF which only require app_f to be positive
+            from sklearn.decomposition import NMF
+            model = NMF(n_components=r, init='nndsvda', random_state=0)
+            app_f = model.fit_transform(f.T()).T()
+            app_M = model.components_.T()
+        else:
+            app_M = M[:, :r]
+            app_f = f2[:r]
+
+        approx = torch.mm(M[:, :r], f2[:r])
         error = torch.max(torch.abs(f - approx))  # take absolute error, you can use weight to balance it.
+        max_value = f.abs().max()
         # add relative eps
-        if error < eps * torch.max(torch.abs(f)) or error < eps:
-            return r
-    print("rank estimation failed! feature shape is ", feature.shape)
-    print("max value and min value in feature is ", feature.max(), feature.min())
-    raise AssertionError(f"rank estimation failed! The last error is {error}")
+        # if error < eps * torch.max(torch.abs(f)) or error < eps:
+        if ((torch.abs(f - approx) / torch.max(f.abs(), torch.ones_like(f)) * max_value * 0.1) < eps).all():
+            if with_solution:
+                ret.append(app_M)
+                ret.append(app_f)
+            if with_bias:
+                ret.append(bias)
+            if with_rank:
+                ret.append(r)
+            break
+    if len(ret) == 0:
+        print("rank estimation failed! feature shape is ", f.shape)
+        print("max value and min value in feature is ", f.max(), f.min())
+        raise AssertionError(f"rank estimation failed! The last error is {error}")
+    elif len(ret) == 1:
+        return ret[0]
+    else:
+        return tuple(ret)
 
 
 # TODO: 啥时候把蒸馏改成多继承
@@ -336,7 +435,8 @@ class DEIP_Progressive_Distillation(DEIP_Distillation):
         import numpy as np
         super().__init__(hparams)
         self.current_layer = 0
-        self.milestone_epochs = [int(i) for i in np.linspace(0, self.params['num_epochs'], len(self.plain_model) + 1)[1:-1]]
+        self.milestone_epochs = [int(i) for i in
+                                 np.linspace(0, self.params['num_epochs'], len(self.plain_model) + 1)[1:-1]]
         print(f'there are totally {len(self.plain_model)} layers in student, milestones are {self.milestone_epochs}')
         self.bridges = self.init_bridges()
         if not self.params['freeze_teacher_bn']:
@@ -415,7 +515,7 @@ class DEIP_Full_Progressive(DEIP_Progressive_Distillation):
         print(f'plain model weight hash {get_model_weight_hash(self.plain_model)}')
         if self.current_epoch in self.milestone_epochs:
             with torch.no_grad():
-                print(f'initializing layer {self.current_layer+1}')
+                print(f'initializing layer {self.current_layer + 1}')
                 if self.params['freeze_trained']:
                     print(f'freezing layer {self.current_layer}')
                     freeze(self.plain_model[self.current_layer])  # use freeze will lead to large performance drop
@@ -426,9 +526,10 @@ class DEIP_Full_Progressive(DEIP_Progressive_Distillation):
                 M = M.reshape(M.shape[:2])
                 print(f'M has shape {M.shape}, len(self.plain_model) = {len(self.plain_model)} ')
                 self.current_layer += 1
-                if self.current_layer != len(self.plain_model)-1:
-                    M = self.init_layer(self.plain_model[self.current_layer], self.teacher_model.sequential_models[self.current_layer], M)
-                    self.bridges[self.current_layer].weight.data = M.reshape(list(M.shape)+[1, 1]).cuda()
+                if self.current_layer != len(self.plain_model) - 1:
+                    M = self.init_layer(self.plain_model[self.current_layer],
+                                        self.teacher_model.sequential_models[self.current_layer], M)
+                    self.bridges[self.current_layer].weight.data = M.reshape(list(M.shape) + [1, 1]).cuda()
                 else:
                     self.teacher_model.sequential_models[-1].init_student(self.plain_model[-1], M)
                 self.to(device)
@@ -460,6 +561,7 @@ def load_model(params):
         'Distillation': DEIP_Distillation,
         'Progressive_Distillation': DEIP_Progressive_Distillation,
         'DEIP_Full_Progressive': DEIP_Full_Progressive,
+        'DEIP_Init': DEIP_Init,
     }
     print("using method ", params['method'])
     model = methods[params['method']](params)
