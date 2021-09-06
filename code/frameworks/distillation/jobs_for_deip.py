@@ -229,10 +229,38 @@ def params_for_unit_test():
     return {**templates['DIV2K-SRx4'], **params}
 
 
+def deip_CIFAR100_init_new():
+    params = {
+        'project_name': 'deip_CIFAR100_init_new',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': [0, 1],
+        'layer_type': 'normal',
+        'rank_eps': [0.05, 0.1, 0.2, 0.3],
+        'max_lr': [0.05, 0.1, 0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+    }
+
+    return {**templates['cifar100-classification'], **params}
+
+
+def params_for_SR_new_init():
+    params = {
+        'project_name': 'deip_SRx4_init_new',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': [0, 1],
+        'layer_type': ['normal_no_bn'],
+        'rank_eps': [0.1],
+        'max_lr': [1e-4, 5e-5],
+        # 'max_lr': [5e-4, 2e-4, 1e-3],
+    }
+
+    return {**templates['DIV2K-SRx4'], **params}
+
+
 def params_for_deip():
     # params = params_for_baseline()
     # params = params_for_deip_distillation()
     # params = params_for_deip_progressive_distillation()
+    # params = deip_CIFAR100_init_new()
 
     # params = params_for_SR_baseline()
     # params = params_for_SR_baseline_small()
@@ -243,12 +271,12 @@ def params_for_deip():
     # params = params_for_SR_real_progressive()
     # params = params_for_SR_real_progressive_small()
     # params = params_for_SR_baseline_with_add_ori()
+    params = params_for_SR_new_init()
 
-    params = params_for_unit_test()
-
-    # now with new EDSR_layerwise model
+    # params = params_for_unit_test()
     return random_params(params)
 
 
 if __name__ == "__main__":
     submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=100, job_directory='.')
+    # submit_jobs(params_for_deip, 'frameworks/distillation/unit_test.py', number_jobs=1, job_directory='.')

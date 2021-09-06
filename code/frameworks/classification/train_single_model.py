@@ -75,6 +75,7 @@ def inference_statics(model, x_test=None, batch_size=None):
 
     if x_test is None:
         x_test = model.val_dataloader().dataset[0][0]
+    print('x_test size ', x_test.shape)
     if batch_size is None:
         batch_size = model.val_dataloader().batch_size
     x = torch.stack([x_test] * batch_size, dim=0).cuda()

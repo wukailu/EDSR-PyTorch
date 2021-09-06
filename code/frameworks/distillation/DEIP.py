@@ -266,13 +266,11 @@ class DEIP_Init(DEIP_LightModel):
     """
 
     def init_student(self):
-        # TODO: verify this code
         assert not self.params['add_ori']
-        assert self.params['init_stu_with_teacher']
         images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
 
         widths = [self.params['input_channel']]
-        bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
+        self.bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
         with torch.no_grad():
             f_list, _ = self.teacher_model(images[:16], with_feature=True)
             teacher_width = [f.size(1) for f in f_list]
@@ -280,34 +278,73 @@ class DEIP_Init(DEIP_LightModel):
                 mat = f.transpose(0, 1).flatten(start_dim=1)
                 # M*fs + bias \approx mat
                 M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
-                                               with_solution=True)
+                                               with_solution=True, use_NMF=False)
+                print('fs_shape', fs.shape, 'fs_min', fs.min(), 'fs_mean', fs.mean())
                 conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
-                conv1x1.weight.data[:] = fs.reshape_as(conv1x1.weight)
+                conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)
                 conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)
-                bridges.append(ConvLayer.fromConv2D(conv1x1))
+                self.bridges.append(ConvLayer.fromConv2D(conv1x1))
+                widths.append(r)
         widths.append(teacher_width[-2])
-        bridges.append(IdLayer(teacher_width[-2]))
+        self.bridges.append(IdLayer(teacher_width[-2]))
         widths.append(teacher_width[-1])
-        bridges.append(IdLayer(teacher_width[-1]))
-        print("calculated teacher width = ", teacher_width)
+        self.bridges.append(IdLayer(teacher_width[-1]))
+        print("calculated teacher width = ", [self.params['input_channel']] + teacher_width)
         print("calculated student width = ", widths)
 
         with torch.no_grad():
-            for i in range(len(bridges)-2):
-                eq_conv, act = merge_1x1_and_3x3(bridges[i], self.teacher_model[i]).simplify_layer()
-                B = eq_conv.weight.data
-                M = bridges[i+1].simplify_layer()[0].weight.data
-                M, bias = M[:, 1:], M[:, 0]
-                B[:, 0, B.size(2)//2, B.size(3)//2] -= bias
-                M = M.flatten(start_dim=1)
-                B = B.transpose(0, 1).flatten(start_dim=1)
-                # solve MX=B
-                X = torch.lstsq(B, M)
-                conv = nn.Conv2d(widths[i], widths[i+1], kernel_size=eq_conv.kernel_size, stride=eq_conv.stride,
+            for i in range(len(self.bridges) - 2):
+                eq_conv, act = merge_1x1_and_3x3(self.bridges[i], self.teacher_model[i]).simplify_layer()
+                conv = nn.Conv2d(widths[i] + 1, widths[i + 1], kernel_size=eq_conv.kernel_size, stride=eq_conv.stride,
                                  padding=eq_conv.padding, bias=False)
+                if self.params['init_stu_with_teacher']:
+                    B = eq_conv.weight.data
+                    M = self.bridges[i + 1].simplify_layer()[0].weight.data.flatten(start_dim=1)
+                    M, bias = M[:, 1:], M[:, 0]
+                    B[:, 0, B.size(2) // 2, B.size(3) // 2] -= bias
+                    B = B.flatten(start_dim=1)
+                    # solve MX=B
+                    X = torch.lstsq(B, M)[0][:M.size(1)]
+                    conv.weight.data[:] = X.reshape_as(conv.weight)
                 self.plain_model.append(ConvLayer.fromConv2D(conv, act=act, const_channel_0=True))
         self.append_tail(widths[-2], widths[-1])
-        self.teacher_model.sequential_models[-1].init_student(self.plain_model[-1], torch.eye(widths[-2]))
+        if self.params['init_stu_with_teacher']:
+            self.teacher_model.sequential_models[-1].init_student(self.plain_model[-1], torch.eye(widths[-2]))
+
+
+def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, ret_err=False):
+    ret = []
+    if use_NMF:
+        f = f[:, :512]
+        from utils.NMF.snmf import SNMF
+        method = SNMF(f.cpu().numpy(), num_bases=r)
+        method.factorize(niter=200)
+        app_f = torch.from_numpy(method.H)
+        app_M = torch.from_numpy(method.W)
+    else:
+        app_M = M[:, :r]
+        app_f = f2[:r]
+
+    approx = torch.mm(app_M, app_f)
+    error = torch.norm(f - approx, p=2) / torch.norm(f, p=2)
+    # add relative eps
+    # if error < eps * torch.max(torch.abs(f)) or error < eps:
+    # if ((torch.abs(f - approx) / torch.max(f.abs(), torch.ones_like(f) * max_value * 0.1)) < eps).all():
+    if error < eps:
+        ret.append(True)
+    else:
+        ret.append(False)
+    if with_solution:
+        ret.append(app_M)
+        ret.append(app_f)
+    if with_bias:
+        ret.append(bias)
+    if with_rank:
+        ret.append(r)
+    if not ret_err:
+        return ret
+    else:
+        return ret, error
 
 
 def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False):
@@ -341,43 +378,42 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
         u, s, v = torch.svd(f)
         M = u
         f2 = torch.mm(torch.diag(s), v.t())
+    else:
+        M, f2 = None, None
 
-    error = 0
-    ret = []
-    for r in range(1, f.size(0) + 1):
-        if use_NMF:
-            # TODO: verify this
-            # TODO: modify to semi-NMF which only require app_f to be positive
-            from sklearn.decomposition import NMF
-            model = NMF(n_components=r, init='nndsvda', random_state=0)
-            app_f = model.fit_transform(f.T()).T()
-            app_M = model.components_.T()
-        else:
-            app_M = M[:, :r]
-            app_f = f2[:r]
-
-        approx = torch.mm(M[:, :r], f2[:r])
-        error = torch.max(torch.abs(f - approx))  # take absolute error, you can use weight to balance it.
-        max_value = f.abs().max()
-        # add relative eps
-        # if error < eps * torch.max(torch.abs(f)) or error < eps:
-        if ((torch.abs(f - approx) / torch.max(f.abs(), torch.ones_like(f)) * max_value * 0.1) < eps).all():
-            if with_solution:
-                ret.append(app_M)
-                ret.append(app_f)
-            if with_bias:
-                ret.append(bias)
-            if with_rank:
-                ret.append(r)
+    final_ret = []
+    L, R = 0, f.size(0)  # 好吧，不得不写倍增 [ )
+    step = 1
+    while L + step < R:
+        ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps)
+        if ret[0]:
+            R = L + step
+            final_ret = ret
             break
-    if len(ret) == 0:
+        else:
+            step *= 2
+    L = step // 2
+    step = step // 2
+    while step != 0:
+        if L + step < R:
+            ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps)
+            if not ret[0]:
+                L = L + step
+            else:
+                R = L + step
+                final_ret = ret
+        step = step // 2
+
+    if len(final_ret) == 0:
+        final_ret, error = test_rank(R, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, ret_err=True)
         print("rank estimation failed! feature shape is ", f.shape)
         print("max value and min value in feature is ", f.max(), f.min())
-        raise AssertionError(f"rank estimation failed! The last error is {error}")
-    elif len(ret) == 1:
-        return ret[0]
+        print(f"rank estimation failed! The last error is {error}")
+
+    if len(final_ret) == 2:
+        return final_ret[1]
     else:
-        return tuple(ret)
+        return final_ret[1:]
 
 
 # TODO: 啥时候把蒸馏改成多继承

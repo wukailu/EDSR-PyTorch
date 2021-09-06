@@ -37,6 +37,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="kailu@172.16.124.45:22 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/kailu/EDSR-PyTorch" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
     </serverData>
     <option name="myAutoUpload" value="ALWAYS" />
   </component>

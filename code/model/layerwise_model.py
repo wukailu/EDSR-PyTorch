@@ -72,12 +72,18 @@ class ConvertibleModel(LayerWiseModel):
                 raise TypeError("Model can not be converted to plain model!")
         return simplify_sequential_model(ret)
 
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None, pre_act_feature=False):
         f_list = []
         for m in self.sequential_models[start_forward_from: until]:
-            x = m(pad_const_channel(x))
+            if pre_act_feature and isinstance(m, ConvertibleLayer):
+                conv, act = m.simplify_layer()
+                x = conv(pad_const_channel(x))
+            else:
+                x = m(pad_const_channel(x))
             if with_feature:
                 f_list.append(x)
+            if pre_act_feature and isinstance(m, ConvertibleLayer):
+                x = act(x)
         return (f_list, x) if with_feature else x
 
     def __len__(self):

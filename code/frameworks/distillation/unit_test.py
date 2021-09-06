@@ -34,7 +34,7 @@ def super_resolution_test():
         'add_ori': 0,
         'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
-        'rank_eps': 0.5,  # 0.05, 0.6, 1, 2
+        'rank_eps': 0.1,  # 0.05, 0.6, 1, 2
         'seed': 0,
         'num_epochs': 1,
         'max_lr': 5e-4,
@@ -42,48 +42,41 @@ def super_resolution_test():
     }
     params = prepare_params(params)
     model = load_model(params)
-    model.plain_model = ConvertibleModel.from_convertible_models(model.plain_model).generate_inference_model()
-    inference_statics(model)
-    # x_test = model.val_dataloader().dataset[0][0]
-    # x_test = torch.stack([x_test], dim=0)
-    # f_list, _ = model.teacher_model(x_test, with_feature=True)
-    # for f in f_list:
-    #     print(f.shape, f.max(), f.min())
 
-    # model.teacher_model = None
-    # inference_statics(model, x_test=x_test, batch_size=1)
-    # x_test = torch.randn((7, 3, 32, 32))
-    # xs = x_test.detach()
-    # xt = x_test.detach()
-    #
-    # with torch.no_grad():
-    #     for layer_s, layer_t, M in zip(model.plain_model, model.teacher_model.sequential_models, model.M_maps):
-    #         conv_s, act_s = layer_s.simplify_layer()
-    #         conv_t, act_t = layer_t.simplify_layer()
-    #
-    #         print('teacher_shape, ', conv_t.weight.shape[:2])
-    #         print('student_shape, ', conv_s.weight.shape[:2])
-    #
-    #         xs = conv_s(pad_const_channel(xs))
-    #         xt = conv_t(pad_const_channel(xt))
-    #
-    #         print(torch.max(torch.abs(matmul_on_first_two_dim(xs, M.transpose(0, 1)) - xt)), torch.max(torch.abs(xt)))
-    #
-    #         xs = act_s(xs)
-    #         xt = act_t(xt)
-    #
-    #     print(type(model.plain_model[-1]), type(model.teacher_model.sequential_models[-1]))
-    #
-    #     xs = model.plain_model[-1](pad_const_channel(xs))
-    #     xt = model.teacher_model.sequential_models[-1](pad_const_channel(xt))
-    #     print(torch.max(torch.abs(xs - xt)), torch.max(torch.abs(xt)))
-    #
-    #     print("---------full test--------")
-    #
-    #     ps = model(x_test)
-    #     pt = model.teacher_model(x_test)
-    #     print(ps[0], pt[0])
-    #     print(torch.max(torch.abs(ps - pt)), torch.max(torch.abs(pt)))
+    # ======= speed statistics ===========
+    # model.plain_model = ConvertibleModel.from_convertible_models(model.plain_model).generate_inference_model()
+    # inference_statics(model)
+
+    # ======= teacher student difference ========
+    x_test = model.val_dataloader().dataset[0][0]
+    x_test = torch.stack([x_test], dim=0)
+    xs = x_test.detach()
+    xt = x_test.detach()
+    with torch.no_grad():
+        for layer_s, layer_t, M in zip(model.plain_model[:-1], model.teacher_model[:-1], model.bridges[1:]):
+            conv_s, act_s = layer_s.simplify_layer()
+            conv_t, act_t = layer_t.simplify_layer()
+
+            print('teacher_shape, ', conv_t.weight.shape)
+            print('student_shape, ', conv_s.weight.shape)
+
+            xs = conv_s(pad_const_channel(xs))
+            xt = conv_t(pad_const_channel(xt))
+
+            xs = act_s(xs)
+            xt = act_t(xt)
+
+            pt = M(pad_const_channel(xs))  # approximation of teacher feature map from student feature map
+            print('max_t', xt.abs().max(), 'max_pt', pt.abs().max(), 'max_diff', (xt-pt).abs().max())
+
+        xs = model.plain_model[-1](pad_const_channel(xs))
+        xt = model.teacher_model.sequential_models[-1](pad_const_channel(xt))
+        print('final_diff', torch.max(torch.abs(xs - xt)), 'final_teacher_max', torch.max(torch.abs(xt)))
+
+        print("---------full test--------")
+        ps = model(x_test)
+        pt = model.teacher_model(x_test)
+        print('final_diff', torch.max(torch.abs(ps - pt)), 'final_teacher_max', torch.max(torch.abs(pt)))
 
 
 def classification_test():
@@ -156,4 +149,6 @@ def classification_test():
 
 
 if __name__ == '__main__':
+    import random
+    random.seed(0)
     super_resolution_test()
