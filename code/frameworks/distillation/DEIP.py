@@ -141,6 +141,7 @@ class DEIP_LightModel(LightningModule):
             'layer_type': 'normal',
             'init_stu_with_teacher': False,
             'teacher_pretrain_path': None,
+            'init_tail': False,
         }
         self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)
@@ -268,7 +269,6 @@ class DEIP_Init(DEIP_LightModel):
     def init_student(self):
         assert not self.params['add_ori']
         images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
-
         widths = [self.params['input_channel']]
         self.bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
         with torch.no_grad():
@@ -298,6 +298,7 @@ class DEIP_Init(DEIP_LightModel):
                 conv = nn.Conv2d(widths[i] + 1, widths[i + 1], kernel_size=eq_conv.kernel_size, stride=eq_conv.stride,
                                  padding=eq_conv.padding, bias=False)
                 if self.params['init_stu_with_teacher']:
+                    print('Initializing layer...')
                     B = eq_conv.weight.data
                     M = self.bridges[i + 1].simplify_layer()[0].weight.data.flatten(start_dim=1)
                     M, bias = M[:, 1:], M[:, 0]
@@ -308,7 +309,7 @@ class DEIP_Init(DEIP_LightModel):
                     conv.weight.data[:] = X.reshape_as(conv.weight)
                 self.plain_model.append(ConvLayer.fromConv2D(conv, act=act, const_channel_0=True))
         self.append_tail(widths[-2], widths[-1])
-        if self.params['init_stu_with_teacher']:
+        if self.params['init_stu_with_teacher'] or self.params['init_tail']:
             self.teacher_model.sequential_models[-1].init_student(self.plain_model[-1], torch.eye(widths[-2]))
 
 

@@ -246,10 +246,11 @@ def params_for_SR_new_init():
     params = {
         'project_name': 'deip_SRx4_init_new',
         'method': 'DEIP_Init',
-        'init_stu_with_teacher': [0, 1],
+        'init_stu_with_teacher': 0,
+        'init_tail': 1,
         'layer_type': ['normal_no_bn'],
         'rank_eps': [0.1],
-        'max_lr': [1e-4, 5e-5],
+        'max_lr': [1e-4, 5e-5, 2e-4],
         # 'max_lr': [5e-4, 2e-4, 1e-3],
     }
 

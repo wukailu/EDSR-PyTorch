@@ -6,6 +6,10 @@ from model import matmul_on_first_two_dim
 from model.layerwise_model import pad_const_channel, ConvertibleModel
 
 
+def tensor_static(x, name):
+    print(name, 'shape', x.shape, 'mean', x.mean(), 'var', x.var(), 'max', x.max(), 'min', x.min())
+
+
 def super_resolution_test():
     params = {
         'method': 'DEIP_Init',
@@ -32,7 +36,7 @@ def super_resolution_test():
         'save_model': False,
         'project_name': 'deip_SRx4_baseline',
         'add_ori': 0,
-        'init_stu_with_teacher': 1,
+        'init_stu_with_teacher': 0,
         'layer_type': 'normal_no_bn',
         'rank_eps': 0.1,  # 0.05, 0.6, 1, 2
         'seed': 0,
@@ -52,13 +56,11 @@ def super_resolution_test():
     x_test = torch.stack([x_test], dim=0)
     xs = x_test.detach()
     xt = x_test.detach()
+    cnt=0
     with torch.no_grad():
         for layer_s, layer_t, M in zip(model.plain_model[:-1], model.teacher_model[:-1], model.bridges[1:]):
             conv_s, act_s = layer_s.simplify_layer()
             conv_t, act_t = layer_t.simplify_layer()
-
-            print('teacher_shape, ', conv_t.weight.shape)
-            print('student_shape, ', conv_s.weight.shape)
 
             xs = conv_s(pad_const_channel(xs))
             xt = conv_t(pad_const_channel(xt))
@@ -67,41 +69,52 @@ def super_resolution_test():
             xt = act_t(xt)
 
             pt = M(pad_const_channel(xs))  # approximation of teacher feature map from student feature map
-            print('max_t', xt.abs().max(), 'max_pt', pt.abs().max(), 'max_diff', (xt-pt).abs().max())
+
+            print('---------layer ', cnt, '--------')
+            cnt += 1
+            tensor_static(xs, 'student')
+            tensor_static(xt, 'teacher')
+            tensor_static(pt, 'p_teacher')
+            tensor_static(xt - pt, 'diff')
 
         xs = model.plain_model[-1](pad_const_channel(xs))
         xt = model.teacher_model.sequential_models[-1](pad_const_channel(xt))
-        print('final_diff', torch.max(torch.abs(xs - xt)), 'final_teacher_max', torch.max(torch.abs(xt)))
+        tensor_static(xs, 'final_student')
+        tensor_static(xt, 'final_teacher')
+        tensor_static(xt - xt, 'diff')
 
         print("---------full test--------")
         ps = model(x_test)
         pt = model.teacher_model(x_test)
-        print('final_diff', torch.max(torch.abs(ps - pt)), 'final_teacher_max', torch.max(torch.abs(pt)))
+        tensor_static(ps, 'final_student')
+        tensor_static(pt, 'final_teacher')
+        tensor_static(ps - pt, 'diff')
 
 
 def classification_test():
     params = {
         'metric': 'acc',
+        'gpus': 1,
         'num_epochs': 300,
+        'layer_type': 'normal',
+        'weight_decay': 0.0005,
+        'max_lr': 0.1,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'SGD',
+        'teacher_pretrain_path': '/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt',
         'dataset': {
             'workers': 4,
             'name': 'cifar100',
             'total_batch_size': 256,
             'batch_size': 256
         },
-        'distill_coe': 0,
-        'init_stu_with_teacher': 1,
-        'layer_type': 'normal',
-        'lr_scheduler': 'OneCycLR',
-        'max_lr': 0.2,
-        'method': 'Progressive_Distillation',
-        'optimizer': 'SGD',
-        'rank_eps': 0.1,
-        'seed': 233,
-        'teacher_pretrain_path': '/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt',
-        'weight_decay': 0.0005,
-        'learning_rate': 0.2,
-        'lr': 0.2
+        'seed': 235,
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': 0,
+        'rank_eps': 0.05,
+        'backend': None,
+        'learning_rate': 0.1,
+        'lr': 0.1
     }
     params = prepare_params(params)
     model = load_model(params)
