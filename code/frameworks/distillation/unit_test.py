@@ -54,38 +54,38 @@ def super_resolution_test():
     # ======= teacher student difference ========
     x_test = model.val_dataloader().dataset[0][0]
     x_test = torch.stack([x_test], dim=0)
-    xs = x_test.detach()
-    xt = x_test.detach()
-    cnt=0
+    # xs = x_test.detach()
+    # xt = x_test.detach()
+    # cnt=0
     with torch.no_grad():
-        for layer_s, layer_t, M in zip(model.plain_model[:-1], model.teacher_model[:-1], model.bridges[1:]):
-            conv_s, act_s = layer_s.simplify_layer()
-            conv_t, act_t = layer_t.simplify_layer()
-
-            xs = conv_s(pad_const_channel(xs))
-            xt = conv_t(pad_const_channel(xt))
-
-            xs = act_s(xs)
-            xt = act_t(xt)
-
-            pt = M(pad_const_channel(xs))  # approximation of teacher feature map from student feature map
-
-            print('---------layer ', cnt, '--------')
-            cnt += 1
-            tensor_static(xs, 'student')
-            tensor_static(xt, 'teacher')
-            tensor_static(pt, 'p_teacher')
-            tensor_static(xt - pt, 'diff')
-
-        xs = model.plain_model[-1](pad_const_channel(xs))
-        xt = model.teacher_model.sequential_models[-1](pad_const_channel(xt))
-        tensor_static(xs, 'final_student')
-        tensor_static(xt, 'final_teacher')
-        tensor_static(xt - xt, 'diff')
+        # for layer_s, layer_t, M in zip(model.plain_model[:-1], model.teacher_model[:-1], model.bridges[1:]):
+        #     conv_s, act_s = layer_s.simplify_layer()
+        #     conv_t, act_t = layer_t.simplify_layer()
+        #
+        #     xs = conv_s(pad_const_channel(xs))
+        #     xt = conv_t(pad_const_channel(xt))
+        #
+        #     xs = act_s(xs)
+        #     xt = act_t(xt)
+        #
+        #     pt = M(pad_const_channel(xs))  # approximation of teacher feature map from student feature map
+        #
+        #     print('---------layer ', cnt, '--------')
+        #     cnt += 1
+        #     tensor_static(xs, 'student')
+        #     tensor_static(xt, 'teacher')
+        #     tensor_static(pt, 'p_teacher')
+        #     tensor_static(xt - pt, 'diff')
+        #
+        # xs = model.plain_model[-1](pad_const_channel(xs))
+        # xt = model.teacher_model.sequential_models[-1](pad_const_channel(xt))
+        # tensor_static(xs, 'final_student')
+        # tensor_static(xt, 'final_teacher')
+        # tensor_static(xt - xt, 'diff')
 
         print("---------full test--------")
-        ps = model(x_test)
-        pt = model.teacher_model(x_test)
+        ps = model(x_test, until=-1)
+        pt = model.teacher_model(x_test, until=-1)
         tensor_static(ps, 'final_student')
         tensor_static(pt, 'final_teacher')
         tensor_static(ps - pt, 'diff')
@@ -109,7 +109,7 @@ def classification_test():
             'batch_size': 256
         },
         'seed': 235,
-        'method': 'DEIP_Init',
+        'method': 'DEIP_Dropout_Init',
         'init_stu_with_teacher': 0,
         'rank_eps': 0.05,
         'backend': None,
@@ -119,11 +119,15 @@ def classification_test():
     params = prepare_params(params)
     model = load_model(params)
 
-    x_test = model.val_dataloader().dataset[0][0]
-    x_test = torch.stack([x_test], dim=0)
+    x_test = next(iter(model.val_dataloader()))[0]
 
-    ret = model.teacher_model(x_test, until=20)
-    print(ret.shape)
+    with torch.no_grad():
+        print("---------full test--------")
+        ps = model(x_test)
+        pt = model.teacher_model(x_test)
+        tensor_static(ps, 'final_student')
+        tensor_static(pt, 'final_teacher')
+        tensor_static(ps - pt, 'diff')
     # f_list, _ = model.teacher_model(x_test, with_feature=True)
     # for f in f_list:
     #     print(f.shape, f.max(), f.min())
@@ -164,4 +168,4 @@ def classification_test():
 if __name__ == '__main__':
     import random
     random.seed(0)
-    super_resolution_test()
+    classification_test()

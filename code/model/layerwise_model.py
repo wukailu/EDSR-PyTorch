@@ -234,6 +234,8 @@ class ConvLayer(ConvertibleLayer):
         """
         super().__init__()
         self.conv = default_conv(in_channel + 1, out_channel, kernel_size, bias=False, stride=stride)
+        torch.nn.init.xavier_normal_(self.conv.weight.data, gain=1)
+        self.conv.weight.data *= 2**0.5
         self.conv.weight.data[:, 0] = 0
         if bn:
             self.bn = nn.BatchNorm2d(out_channel)

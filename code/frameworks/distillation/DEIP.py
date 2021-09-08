@@ -183,6 +183,8 @@ class DEIP_LightModel(LightningModule):
         return loss
 
     def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3):
+        assert len(previous_f_size) == 2
+        assert len(current_f_size) == 2
         if self.params['add_ori']:
             in_channels += 3
         if self.params['layer_type'].startswith('normal'):
@@ -196,6 +198,8 @@ class DEIP_LightModel(LightningModule):
             else:
                 stride_w = previous_f_size[0] // current_f_size[0]
                 stride_h = previous_f_size[1] // current_f_size[1]
+                assert stride_h >= 1
+                assert stride_w >= 1
                 stride = (stride_w, stride_h)
 
             new_layer = ConvLayer(in_channels, out_channels, kernel_size, bn=bn, act=act, stride=stride)
@@ -255,58 +259,43 @@ class DEIP_LightModel(LightningModule):
         return ret
 
 
-class DEIP_Init(DEIP_LightModel):
+class DEIP_Dropout_Init(DEIP_LightModel):
     """
-    全新的初始化方式，根据 feature map 采样决定各层的 feature map 映射以及学生网络的参数
-    假设上一层 f_t = M f_s + b
-    下一层 f'_t = M' f'_s + b'
-    老师网络该层权重为 w_t, 对应 Conv3x3_t, 需推导出学生网络权重
-    f'_t = Conv3x3_t(f_t) = Conv3x3_t(conv1x1_i(f_s)) = Conv3x3'(f_s)
-    f'_t = M' Conv3x3_s(f_s) + b' = Conv1x1_{i+1}(Conv3x3_s(f_s))
-    Conv3x3_s = Conv1x1_{i+1}^{-1} Conv3x3'(f_s)  ---> 等价于 解 线性方程组
+    根据 feature map 决定学生的网络宽度，然后通过对老师的channel 进行 dropout 实现变窄。
     """
 
     def init_student(self):
         assert not self.params['add_ori']
-        images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
+        images = self.unpack_batch(next(iter(self.dataProvider.train_dl)))[0]
         widths = [self.params['input_channel']]
-        self.bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
         with torch.no_grad():
-            f_list, _ = self.teacher_model(images[:16], with_feature=True)
+            f_list, _ = self.teacher_model(images, with_feature=True)
             teacher_width = [f.size(1) for f in f_list]
             for f in f_list[:-2]:
                 mat = f.transpose(0, 1).flatten(start_dim=1)
                 # M*fs + bias \approx mat
-                M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
-                                               with_solution=True, use_NMF=False)
-                print('fs_shape', fs.shape, 'fs_min', fs.min(), 'fs_mean', fs.mean())
-                conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
-                conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)
-                conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)
-                self.bridges.append(ConvLayer.fromConv2D(conv1x1))
+                _, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True)
                 widths.append(r)
         widths.append(teacher_width[-2])
-        self.bridges.append(IdLayer(teacher_width[-2]))
         widths.append(teacher_width[-1])
-        self.bridges.append(IdLayer(teacher_width[-1]))
         print("calculated teacher width = ", [self.params['input_channel']] + teacher_width)
         print("calculated student width = ", widths)
 
         with torch.no_grad():
-            for i in range(len(self.bridges) - 2):
-                eq_conv, act = merge_1x1_and_3x3(self.bridges[i], self.teacher_model[i]).simplify_layer()
+            M = torch.arange(widths[0])
+            for i in range(len(widths) - 2):
+                eq_conv, act = self.teacher_model[i].simplify_layer()
                 conv = nn.Conv2d(widths[i] + 1, widths[i + 1], kernel_size=eq_conv.kernel_size, stride=eq_conv.stride,
                                  padding=eq_conv.padding, bias=False)
                 if self.params['init_stu_with_teacher']:
                     print('Initializing layer...')
-                    B = eq_conv.weight.data
-                    M = self.bridges[i + 1].simplify_layer()[0].weight.data.flatten(start_dim=1)
-                    M, bias = M[:, 1:], M[:, 0]
-                    B[:, 0, B.size(2) // 2, B.size(3) // 2] -= bias
-                    B = B.flatten(start_dim=1)
-                    # solve MX=B
-                    X = torch.lstsq(B, M)[0][:M.size(1)]
-                    conv.weight.data[:] = X.reshape_as(conv.weight)
+                    X = eq_conv.weight.data[:, 1:][:, M]
+                    bias = eq_conv.weight.data[:, 0]
+                    M = torch.sort(torch.randperm(X.size(0))[:widths[i + 1]])[0]
+                    X = X[M] * (X.size(1) / widths[i])  # 向前 scale
+                    bias = bias[M]
+                    conv.weight.data[:, 1:] = X
+                    conv.weight.data[:, 0] = bias
                 self.plain_model.append(ConvLayer.fromConv2D(conv, act=act, const_channel_0=True))
         self.append_tail(widths[-2], widths[-1])
         if self.params['init_stu_with_teacher'] or self.params['init_tail']:
@@ -435,7 +424,7 @@ class DEIP_Distillation(DEIP_LightModel):
     def complete_hparams(self):
         default_sr_list = {
             'dist_method': 'FD_Conv1x1_MSE',
-            'distill_coe': 1,
+            'distill_coe': 0,
         }
         self.params = {**default_sr_list, **self.params}
         DEIP_LightModel.complete_hparams(self)
@@ -465,6 +454,71 @@ class DEIP_Distillation(DEIP_LightModel):
         metric = self.metric(predictions, labels)
         self.log(phase + '/' + self.params['metric'], metric, sync_dist=True)
         return loss
+
+
+class DEIP_Init(DEIP_Distillation):
+    """
+    全新的初始化方式，根据 feature map 采样决定各层的 feature map 映射以及学生网络的参数
+    假设上一层 f_t = M f_s + b
+    下一层 f'_t = M' f'_s + b'
+    老师网络该层权重为 w_t, 对应 Conv3x3_t, 需推导出学生网络权重
+    f'_t = Conv3x3_t(f_t) = Conv3x3_t(conv1x1_i(f_s)) = Conv3x3'(f_s)
+    f'_t = M' Conv3x3_s(f_s) + b' = Conv1x1_{i+1}(Conv3x3_s(f_s))
+    Conv3x3_s = Conv1x1_{i+1}^{-1} Conv3x3'(f_s)  ---> 等价于 解 线性方程组
+    """
+
+    def get_distillation_module(self):
+        from frameworks.distillation.feature_distillation import BridgeDistill
+        return BridgeDistill(self.bridges[1:])
+
+    def init_student(self):
+        assert not self.params['add_ori']
+        images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
+        widths = [self.params['input_channel']]
+        self.bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
+        with torch.no_grad():
+            f_list, _ = self.teacher_model(images[:16], with_feature=True)
+            teacher_width = [f.size(1) for f in f_list]
+            for f in f_list[:-2]:
+                mat = f.transpose(0, 1).flatten(start_dim=1)
+                # M*fs + bias \approx mat
+                M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
+                                               with_solution=True, use_NMF=False)
+                print('fs_shape', fs.shape, 'fs_min', fs.min(), 'fs_mean', fs.mean())
+                conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
+                conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)
+                conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)
+                self.bridges.append(ConvLayer.fromConv2D(conv1x1))
+                widths.append(r)
+        widths.append(teacher_width[-2])
+        self.bridges.append(IdLayer(teacher_width[-2]))
+        widths.append(teacher_width[-1])
+        self.bridges.append(IdLayer(teacher_width[-1]))
+        print("calculated teacher width = ", [self.params['input_channel']] + teacher_width)
+        print("calculated student width = ", widths)
+        f_shapes = [images.shape[-2:]] + [f.shape[-2:] for f in f_list[:-1]]
+        with torch.no_grad():
+            for i in range(len(self.bridges) - 2):
+                if self.params['init_stu_with_teacher']:
+                    print('Initializing layer...')
+                    eq_conv, act = merge_1x1_and_3x3(self.bridges[i], self.teacher_model[i]).simplify_layer()
+                    conv = nn.Conv2d(widths[i] + 1, widths[i + 1], kernel_size=eq_conv.kernel_size,
+                                     stride=eq_conv.stride,
+                                     padding=eq_conv.padding, bias=False)
+                    B = eq_conv.weight.data
+                    M = self.bridges[i + 1].simplify_layer()[0].weight.data.flatten(start_dim=1)
+                    M, bias = M[:, 1:], M[:, 0]
+                    B[:, 0, B.size(2) // 2, B.size(3) // 2] -= bias
+                    B = B.flatten(start_dim=1)
+                    # solve MX=B
+                    X = torch.lstsq(B, M)[0][:M.size(1)]
+                    conv.weight.data[:] = X.reshape_as(conv.weight)
+                    self.plain_model.append(ConvLayer.fromConv2D(conv, act=act, const_channel_0=True))
+                else:
+                    self.append_layer(widths[i], widths[i + 1], f_shapes[i], f_shapes[i + 1])
+        self.append_tail(widths[-2], widths[-1])
+        if self.params['init_stu_with_teacher'] or self.params['init_tail']:
+            self.teacher_model.sequential_models[-1].init_student(self.plain_model[-1], torch.eye(widths[-2]))
 
 
 class DEIP_Progressive_Distillation(DEIP_Distillation):
@@ -599,6 +653,7 @@ def load_model(params):
         'Progressive_Distillation': DEIP_Progressive_Distillation,
         'DEIP_Full_Progressive': DEIP_Full_Progressive,
         'DEIP_Init': DEIP_Init,
+        'DEIP_Dropout_Init': DEIP_Dropout_Init,
     }
     print("using method ", params['method'])
     model = methods[params['method']](params)
