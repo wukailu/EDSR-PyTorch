@@ -2,6 +2,8 @@ from abc import abstractmethod
 
 import torch
 
+from model.layerwise_model import pad_const_channel
+
 
 def get_distill_module(name):
     methods = {
@@ -46,8 +48,7 @@ class BridgeDistill(DistillationMethod):
         loss = []
         coe = self.alpha ** epoch_ratio
         for fs, ft, b in zip(feat_s, feat_t, self.bridge):
-            if self.norm == 'MSE':
-                loss.append(self.loss(fs, ft))
+            loss.append(self.loss(b(pad_const_channel(fs)), ft))
         return torch.mean(torch.stack(loss)) * coe
 
 

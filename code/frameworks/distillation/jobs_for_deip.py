@@ -255,6 +255,26 @@ def params_for_SR_new_init():
     return {**templates['DIV2K-SRx4'], **params}
 
 
+def params_for_SR_new_init_distill():
+    params = {
+        'project_name': 'deip_SRx4_init_new',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': 1,
+        'layer_type': ['normal_no_bn'],
+        'rank_eps': [0.1],
+        'max_lr': [2e-4],
+        'distill_coe': [10, 1, 0.1, 1e-2],
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_alpha': [1, 0.3, 0.1, 0.01],
+            'distill_loss': ['MSE', 'L1'],
+        },
+        'seed': 233,
+    }
+
+    return {**templates['DIV2K-SRx4'], **params}
+
+
 def params_for_SR_new_conv_init():
     params = {
         'project_name': 'deip_SRx4_init_new_conv_init',
@@ -264,7 +284,7 @@ def params_for_SR_new_conv_init():
         'init_tail': 1,
         'layer_type': ['normal_no_bn'],
         'rank_eps': [0.1],
-        'max_lr': [5e-5, 1e-4, 2e-4, 5e-4],
+        'max_lr': [1e-3, 2e-3, 5e-3],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -285,7 +305,9 @@ def params_for_deip():
     # params = params_for_SR_real_progressive()
     # params = params_for_SR_real_progressive_small()
     # params = params_for_SR_baseline_with_add_ori()
-    params = params_for_SR_new_init()
+    # params = params_for_SR_new_init()
+    # params = params_for_SR_new_init_distill()
+    params = params_for_SR_new_conv_init()
 
     # params = params_for_unit_test()
     return random_params(params)

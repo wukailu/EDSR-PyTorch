@@ -418,7 +418,8 @@ class DEIP_Distillation(DEIP_LightModel):
         with torch.no_grad():
             feat_t, out_t = self.teacher_model(sample, with_feature=True)
             feat_s, out_s = self(sample, with_feature=True)
-            dist_method = get_distill_module(self.params['dist_method'])(feat_s, feat_t)
+            distill_config = self.params['dist_method']
+            dist_method = get_distill_module(distill_config['name'])(feat_s, feat_t, **distill_config)
         return dist_method
 
     def complete_hparams(self):
@@ -428,6 +429,8 @@ class DEIP_Distillation(DEIP_LightModel):
         }
         self.params = {**default_sr_list, **self.params}
         DEIP_LightModel.complete_hparams(self)
+        if isinstance(self.params['dist_method'], str):
+            self.params['dist_method'] = {'name': self.params['dist_method']}
 
     def step(self, batch, phase: str):
         images, labels = self.unpack_batch(batch)
@@ -467,9 +470,18 @@ class DEIP_Init(DEIP_Distillation):
     Conv3x3_s = Conv1x1_{i+1}^{-1} Conv3x3'(f_s)  ---> 等价于 解 线性方程组
     """
 
+    def complete_hparams(self):
+        default_sr_list = {
+            'dist_method': 'BridgeDistill',
+        }
+        self.params = {**default_sr_list, **self.params}
+        DEIP_Distillation.complete_hparams(self)
+
     def get_distillation_module(self):
+        distill_config = self.params['dist_method']
+        assert distill_config['name'] == 'BridgeDistill'
         from frameworks.distillation.feature_distillation import BridgeDistill
-        return BridgeDistill(self.bridges[1:])
+        return BridgeDistill(self.bridges[1:], **distill_config)
 
     def init_student(self):
         assert not self.params['add_ori']

@@ -27,7 +27,7 @@ spec:
           - name: pvc-mount  # 和上面的名字对应
             mountPath: /data # 在pod的文件系统中的挂载点
         imagePullPolicy: Always
-        image: harbor.iiis.co/wuvin/pylight:v2
+        image: harbor.iiis.co/wuvin/pylight:v1
         command: ["bash", "-c", "--"]
         args: ["while true; do sleep 30; done;"]
         resources:
