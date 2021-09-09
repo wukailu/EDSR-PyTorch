@@ -38,6 +38,17 @@ def freeze(model: torch.nn.Module):
         param.requires_grad = False
 
 
+def SR_conv_init(conv: torch.nn.Conv2d):
+    torch.nn.init.xavier_normal_(conv.weight.data, gain=1)
+    conv.weight.data *= 2 ** 0.5
+    return conv
+
+
+def scale_weight(conv: torch.nn.Conv2d, ratio):
+    conv.weight.data *= ratio
+    return conv
+
+
 def unfreeze_BN(model: torch.nn.Module):
     model.train()
     for m in model.modules():

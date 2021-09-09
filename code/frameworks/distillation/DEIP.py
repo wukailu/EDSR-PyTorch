@@ -202,7 +202,8 @@ class DEIP_LightModel(LightningModule):
                 assert stride_w >= 1
                 stride = (stride_w, stride_h)
 
-            new_layer = ConvLayer(in_channels, out_channels, kernel_size, bn=bn, act=act, stride=stride)
+            new_layer = ConvLayer(in_channels, out_channels, kernel_size, bn=bn, act=act, stride=stride,
+                                  SR_init=self.params['task'] == 'super-resolution')
         elif self.params['layer_type'] == 'repvgg':
             # TODO: convert this to convertible layers
             from model.basic_cifar_models.repvgg import RepVGGBlock
@@ -337,10 +338,11 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
         return ret, error
 
 
-def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False):
+def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False, fix_r=-1):
     # TODO: consider how can we align f to 1-var or 1-norm
     """
     Estimate the size of feature map to approximate this. The return matrix f' should be positive if possible
+    :param fix_r: just fix the returned width as r = fix_r to get the decomposition results
     :param use_NMF: whether use NMF instead of SVD
     :param with_rank: shall we return rank of f'
     :param with_solution: shall we return f = M f'
@@ -370,6 +372,10 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
         f2 = torch.mm(torch.diag(s), v.t())
     else:
         M, f2 = None, None
+
+    if fix_r != -1:
+        fix_r = min(fix_r, f.size(0))
+        return test_rank(fix_r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, ret_err=False)[1:]
 
     final_ret = []
     L, R = 0, f.size(0)  # 好吧，不得不写倍增 [ )
@@ -493,9 +499,10 @@ class DEIP_Init(DEIP_Distillation):
             teacher_width = [f.size(1) for f in f_list]
             for f in f_list[:-2]:
                 mat = f.transpose(0, 1).flatten(start_dim=1)
+                fix_r = self.params['fix_r'] if 'fix_r' in self.params else -1
                 # M*fs + bias \approx mat
                 M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
-                                               with_solution=True, use_NMF=False)
+                                               with_solution=True, use_NMF=False, fix_r=fix_r)
                 print('fs_shape', fs.shape, 'fs_min', fs.min(), 'fs_mean', fs.mean())
                 conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
                 conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)

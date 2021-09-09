@@ -60,7 +60,6 @@ class RCAB(nn.Module):
 class ResidualGroup(nn.Module):
     def __init__(self, conv, n_feat, kernel_size, reduction, act, res_scale, n_resblocks):
         super(ResidualGroup, self).__init__()
-        modules_body = []
         modules_body = [
             RCAB(
                 conv, n_feat, kernel_size, reduction, bias=True, bn=False, act=nn.ReLU(True), res_scale=1) \

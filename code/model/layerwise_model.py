@@ -3,7 +3,7 @@ from typing import Tuple
 
 import torch
 from torch import nn
-from model import default_conv, matmul_on_first_two_dim, init_conv_with_conv, convbn_to_conv
+from model import default_conv, matmul_on_first_two_dim, init_conv_with_conv, convbn_to_conv, SR_conv_init
 
 """
 只有当所有 skip connection 分支上的值都是非负数时，才能转化为等宽的全卷积网络
@@ -222,7 +222,7 @@ class ConvLayer(ConvertibleLayer):
     stride is not supported so far
     """
 
-    def __init__(self, in_channel, out_channel, kernel_size, stride=1, bn=False, act: nn.Module = nn.Identity()):
+    def __init__(self, in_channel, out_channel, kernel_size, stride=1, bn=False, act: nn.Module = nn.Identity(), SR_init=False):
         """
         create a Convertible Layer with a conv-bn-act structure, where the input has a const channel at 0.
         :param in_channel: original in_channels
@@ -234,8 +234,8 @@ class ConvLayer(ConvertibleLayer):
         """
         super().__init__()
         self.conv = default_conv(in_channel + 1, out_channel, kernel_size, bias=False, stride=stride)
-        torch.nn.init.xavier_normal_(self.conv.weight.data, gain=1)
-        self.conv.weight.data *= 2**0.5
+        if SR_init:
+            SR_conv_init(self.conv)
         self.conv.weight.data[:, 0] = 0
         if bn:
             self.bn = nn.BatchNorm2d(out_channel)

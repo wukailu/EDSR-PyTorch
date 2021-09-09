@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from . import common
 from .utils import register_model
+from .. import SR_conv_init
 from ..layerwise_model import LayerWiseModel
 
 
@@ -26,9 +27,23 @@ def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale
 
     model = Plain_layerwise_Model(widths=widths, input_transform=input_transform, **kwargs)
     model.append_tail(tailModule)
+
+    # align the variance for all layers
+    with torch.no_grad():
+        x_test = torch.randint(0, 255, (2, 3, 24, 24)).float()
+        inp = x_test.clone()
+        for i in range(len(model)):
+            out = model(x_test, start_forward_from=i, until=i + 1, ori=inp)
+            scale = (x_test.var(unbiased=False) / out.var(unbiased=False)) ** 0.5
+            print('scale = ', scale)
+            for m in model.sequential_models[i].modules():
+                if isinstance(m, nn.Conv2d):
+                    m.weight.data *= scale
+            x_test = model(x_test, start_forward_from=i, until=i + 1, ori=inp)
     return model
 
 
+# TODO: implement this as ConvertibleModel
 class Plain_layerwise_Model(LayerWiseModel):
     def __init__(self, widths, layerType='normal_no_bn', input_transform=None, f_lists=None, add_ori=False,
                  stack_output=False, square_ratio=0, square_num=0, square_layer_strategy=0, square_before_relu=False, **kwargs):
@@ -123,15 +138,13 @@ class Plain_layerwise_Model(LayerWiseModel):
         import copy
         self.sequential_models.append(copy.deepcopy(tailModule))
 
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None, ori=None):
         f_list = []
         if self.input_transform is not None:
             x = self.input_transform(x)
 
-        if self.add_ori:
+        if self.add_ori and ori is None:
             ori = x
-        else:
-            ori = None
 
         if self.stack_output:
             stack_out = 0
