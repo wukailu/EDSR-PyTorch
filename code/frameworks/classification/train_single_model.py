@@ -107,7 +107,7 @@ if __name__ == "__main__":
     hparams = get_params()
     hparams = prepare_params(hparams)
     backend.log(hparams)
-    pl_model = _Module(hparams).cuda()
+    pl_model = _Module(hparams)
 
     if not hparams['skip_train']:
         pl_model = train_model(pl_model, hparams, save_name='direct_train')

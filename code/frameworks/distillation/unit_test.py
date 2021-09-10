@@ -36,7 +36,7 @@ def super_resolution_test():
         'save_model': False,
         'project_name': 'deip_SRx4_baseline',
         'add_ori': 0,
-        'init_stu_with_teacher': 0,
+        'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
         'rank_eps': 0.1,  # 0.05, 0.6, 1, 2
         'seed': 0,
@@ -48,6 +48,7 @@ def super_resolution_test():
     model = load_model(params)
 
     # ======= speed statistics ===========
+    inference_statics(model, batch_size=1)
     # model.plain_model = ConvertibleModel.from_convertible_models(model.plain_model).generate_inference_model()
     # inference_statics(model)
 
@@ -168,4 +169,5 @@ def classification_test():
 if __name__ == '__main__':
     import random
     random.seed(0)
-    classification_test()
+    # classification_test()
+    super_resolution_test()
