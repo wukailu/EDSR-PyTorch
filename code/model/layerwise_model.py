@@ -172,8 +172,22 @@ class DenseFeatureFusionSubModel(ConvertibleSubModel):
         self.bias = skip_connection_bias
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        pass
+        real_f_list = []
+        f_list = []
+        x = x[1:]
+        for m in self.models[start_forward_from:until]:
+            x = m(pad_const_channel(x))
+            f_list.append(x.detach() + self.bias)
+            if with_feature:
+                real_f_list.append(torch.cat(f_list, dim=1))
+        if with_feature:
+            return real_f_list, real_f_list[-1]
+        else:
+            return torch.cat(f_list, dim=1)
 
+    def to_convertible_layers(self):
+        # TODO: implement this
+        pass
 
 class InitializableLayer(nn.Module):
     """
