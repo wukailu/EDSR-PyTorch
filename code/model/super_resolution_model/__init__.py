@@ -14,3 +14,4 @@ from .imdn_model import *
 from .baseline_model import *
 from .edsr_layerwise_model import *
 from .plain_layerwise_model import *
+from .rdn_layerwise_model import *

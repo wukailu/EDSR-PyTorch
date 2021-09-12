@@ -117,9 +117,9 @@ class ConvertibleSubModel(ConvertibleModel):
     和上面唯一的区别是，输入默认 x 已经还有常数层
     """
 
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None, pre_act_feature=False):
         x = x[:, 1:]
-        return ConvertibleModel.forward(self, x, with_feature, start_forward_from, until)
+        return ConvertibleModel.forward(self, x, with_feature, start_forward_from, until, pre_act_feature)
 
 
 class SequentialConvertibleSubModel(ConvertibleSubModel):
@@ -127,7 +127,10 @@ class SequentialConvertibleSubModel(ConvertibleSubModel):
         super().__init__()
         for m in args:
             assert isinstance(m, (ConvertibleLayer, ConvertibleSubModel))
-            self.sequential_models.append(m)
+            if isinstance(m, ConvertibleLayer):
+                self.sequential_models.append(m)
+            elif isinstance(m, ConvertibleSubModel):
+                self.sequential_models += m.to_convertible_layers()
 
 
 class SkipConnectionSubModel(ConvertibleSubModel):
@@ -137,16 +140,16 @@ class SkipConnectionSubModel(ConvertibleSubModel):
         self.n_feats = n_feats
         self.bias = skip_connection_bias
 
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None, pre_act_feature=False):
         if with_feature:
-            f_list, _ = self.model(x, with_feature, start_forward_from, until)
+            f_list, _ = self.model(x, with_feature, start_forward_from, until, pre_act_feature)
             f_list = [torch.cat([x[:, 1:], f], dim=1) for f in f_list]
             return f_list, f_list[-1]
         elif until is not None and until < len(self):
-            ans = self.model(x, with_feature, start_forward_from, until)
+            ans = self.model(x, with_feature, start_forward_from, until, pre_act_feature)
             return torch.cat([x[:, 1:], ans], dim=1)
         else:
-            ans = self.model(x, with_feature, start_forward_from, until)
+            ans = self.model(x, with_feature, start_forward_from, until, pre_act_feature)
             return x[:, 1:] + ans
 
     def __len__(self):
