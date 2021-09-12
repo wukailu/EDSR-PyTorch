@@ -72,18 +72,12 @@ class ConvertibleModel(LayerWiseModel):
                 raise TypeError("Model can not be converted to plain model!")
         return simplify_sequential_model(ret)
 
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None, pre_act_feature=False):
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         f_list = []
         for m in self.sequential_models[start_forward_from: until]:
-            if pre_act_feature and isinstance(m, ConvertibleLayer):
-                conv, act = m.simplify_layer()
-                x = conv(pad_const_channel(x))
-            else:
-                x = m(pad_const_channel(x))
+            x = m(pad_const_channel(x))
             if with_feature:
                 f_list.append(x)
-            if pre_act_feature and isinstance(m, ConvertibleLayer):
-                x = act(x)
         return (f_list, x) if with_feature else x
 
     def __len__(self):
@@ -117,9 +111,9 @@ class ConvertibleSubModel(ConvertibleModel):
     和上面唯一的区别是，输入默认 x 已经还有常数层
     """
 
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None, pre_act_feature=False):
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         x = x[:, 1:]
-        return ConvertibleModel.forward(self, x, with_feature, start_forward_from, until, pre_act_feature)
+        return ConvertibleModel.forward(self, x, with_feature, start_forward_from, until)
 
 
 class SequentialConvertibleSubModel(ConvertibleSubModel):
@@ -127,29 +121,27 @@ class SequentialConvertibleSubModel(ConvertibleSubModel):
         super().__init__()
         for m in args:
             assert isinstance(m, (ConvertibleLayer, ConvertibleSubModel))
-            if isinstance(m, ConvertibleLayer):
-                self.sequential_models.append(m)
-            elif isinstance(m, ConvertibleSubModel):
-                self.sequential_models += m.to_convertible_layers()
+            self.sequential_models.append(m)
 
 
 class SkipConnectionSubModel(ConvertibleSubModel):
-    def __init__(self, model_list, n_feats, skip_connection_bias=0):
+    def __init__(self, model_list, n_feats, skip_connection_bias=0, sum_output=True):
         super().__init__()
         self.model = SequentialConvertibleSubModel(*model_list)
         self.n_feats = n_feats
         self.bias = skip_connection_bias
+        self.sum_output = sum_output
 
-    def forward(self, x, with_feature=False, start_forward_from=0, until=None, pre_act_feature=False):
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         if with_feature:
-            f_list, _ = self.model(x, with_feature, start_forward_from, until, pre_act_feature)
+            f_list, _ = self.model(x, with_feature, start_forward_from, until)
             f_list = [torch.cat([x[:, 1:], f], dim=1) for f in f_list]
             return f_list, f_list[-1]
         elif until is not None and until < len(self):
-            ans = self.model(x, with_feature, start_forward_from, until, pre_act_feature)
+            ans = self.model(x, with_feature, start_forward_from, until)
             return torch.cat([x[:, 1:], ans], dim=1)
         else:
-            ans = self.model(x, with_feature, start_forward_from, until, pre_act_feature)
+            ans = self.model(x, with_feature, start_forward_from, until)
             return x[:, 1:] + ans
 
     def __len__(self):
@@ -168,6 +160,19 @@ class SkipConnectionSubModel(ConvertibleSubModel):
             ret += [ConcatLayer(IdLayer(self.n_feats, act=m.simplify_layer()[1]), m)]
         ret += [ConcatLayer(IdLayer(self.n_feats, bias=-self.bias), model_list[-1], sum_output=True)]
         return nn.ModuleList(ret)
+
+
+class DenseFeatureFusionSubModel(ConvertibleSubModel):
+    """
+    把每个子模块的输出记录下来, concat 到输出最后面
+    """
+    def __init__(self, model_list, skip_connection_bias=0):
+        super().__init__()
+        self.models = nn.ModuleList(model_list)
+        self.bias = skip_connection_bias
+
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+        pass
 
 
 class InitializableLayer(nn.Module):
