@@ -129,8 +129,13 @@ class SequentialConvertibleSubModel(ConvertibleSubModel):
 
 
 class SkipConnectionSubModel(ConvertibleSubModel):
-    def __init__(self, model_list, n_feats, skip_connection_bias=0, sum_output=True):
+    """
+    增加一个并行的跨层链接，跨层链接是加在上面的，即 x -> [x, m(x)]
+    """
+
+    def __init__(self, model_list, n_feats, n_outs=None, skip_connection_bias=0, sum_output=True):
         super().__init__(model_list)
+        self.n_outs = n_outs if n_outs is not None else n_feats
         self.n_feats = n_feats
         self.bias = skip_connection_bias
         self.sum_output = sum_output
@@ -145,13 +150,16 @@ class SkipConnectionSubModel(ConvertibleSubModel):
             return torch.cat([x[:, 1:], ans], dim=1)
         else:
             ans = ConvertibleSubModel.forward(self, x, with_feature, start_forward_from, until)
-            return x[:, 1:] + ans
+            if self.sum_output:
+                return x[:, 1:] + ans
+            else:
+                return torch.cat([x[:, 1:], ans], dim=1)
 
     def to_convertible_layers(self):
         model_list = ConvertibleSubModel.to_convertible_layers(self)
         assert len(model_list) >= 1
         if not isinstance(model_list[-1].simplify_layer()[1], nn.Identity):
-            model_list.append(IdLayer(self.n_feats))
+            model_list.append(IdLayer(self.n_outs))
 
         ret = []
         id1 = IdLayer(self.n_feats, bias=self.bias, act=model_list[0].simplify_layer()[1])
@@ -179,9 +187,9 @@ class DenseFeatureFusionSubModel(ConvertibleSubModel):
         real_f_list = []
         f_list = []
         x = x[:, 1:]
-        for m, bias in zip(self.sequential_models[start_forward_from:until], self.bias[start_forward_from:until]):
+        for m in self.sequential_models[start_forward_from:until]:
             x = m(pad_const_channel(x))
-            f_list.append(x.detach() + bias)
+            f_list.append(x.detach())
             if with_feature:
                 real_f_list.append(torch.cat(f_list, dim=1))
         if with_feature:
@@ -474,6 +482,11 @@ def simplify_sequential_model(model_list):
                 pre_1x1 = m
             else:
                 ret += [m]
+        elif not isinstance(m, ConvertibleLayer):
+            assert isinstance(m, InitializableLayer)
+            ret += [pre_1x1]
+            pre_1x1 = None
+            ret += [m]
         else:
             pre_1x1 = merge_1x1_and_3x3(pre_1x1, m)
             if not is_mergeable_1x1(pre_1x1):
