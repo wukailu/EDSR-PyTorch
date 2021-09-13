@@ -132,11 +132,11 @@ class Plain_layerwise_Model(LayerWiseModel):
                                        padding=kernel_size // 2, config=config)
         else:
             raise NotImplementedError()
-        self.sequential_models.append(new_layer)
+        self.append(new_layer)
 
     def append_tail(self, tailModule: nn.Module):
         import copy
-        self.sequential_models.append(copy.deepcopy(tailModule))
+        self.append(copy.deepcopy(tailModule))
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None, ori=None):
         f_list = []
@@ -151,12 +151,12 @@ class Plain_layerwise_Model(LayerWiseModel):
         else:
             stack_out = None
 
-        ids = list(range(len(self.sequential_models)))
+        ids = list(range(len(self)))
         for idx in ids[start_forward_from: until]:
-            m = self.sequential_models[idx]
+            m = self[idx]
 
             # 尾部的 TailModule 直接接到输出
-            if idx == len(self.sequential_models) - 1:
+            if idx == len(self) - 1:
                 if self.stack_output:
                     x = m(stack_out)
                 else:

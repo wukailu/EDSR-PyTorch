@@ -5,10 +5,7 @@ from torch import nn
 import torch
 if __name__ == '__main__':
     params = {
-        'arch': 'Plain_layerwise_sr',
-        'num_modules': 36,
-        'n_feats': 256,
-        'add_ori': 1,
+        'arch': 'RDN_layerwise_sr',
     }
     model = get_classifier(params, "DIV2K")
     x_test = torch.randint(0, 255, (2, 3, 24, 24)).float()
@@ -24,24 +21,24 @@ if __name__ == '__main__':
         for f in f_list:
             print('f.shape', f.shape, 'f.mean', f.mean(), 'f.var', f.var(), 'f.min', f.min(), 'f.max', f.max())
 
-    # ans = x_test.detach()
-    # out = x_test.detach()
-    # assert isinstance(model, ConvertibleModel)
-    # for layer in model.to_convertible_layers()[:-1]:
-    #     if isinstance(layer, ConvertibleLayer):
-    #         print(type(layer))
-    #         conv, act = layer.simplify_layer()
-    #         assert isinstance(conv, nn.Conv2d)
-    #         with torch.no_grad():
-    #             ans = pad_const_channel(ans)
-    #             out = pad_const_channel(out)
-    #             ans = layer(ans)
-    #             out = act(conv(out))
-    #             diff_max = (ans - out).abs().max()  # this should be smaller than 1e-5
-    #             print("ans shape", ans.shape, "diff_max = ", diff_max, "ans_max", ans.max())
-    #             if diff_max > 1e-4:
-    #                 print((out-ans).argmax(dim=0)[1], out - ans)
-    #                 assert diff_max < 1e-4
+    ans = x_test.detach()
+    out = x_test.detach()
+    assert isinstance(model, ConvertibleModel)
+    for layer in model.to_convertible_layers()[:-1]:
+        if isinstance(layer, ConvertibleLayer):
+            print(type(layer))
+            conv, act = layer.simplify_layer()
+            assert isinstance(conv, nn.Conv2d)
+            with torch.no_grad():
+                ans = pad_const_channel(ans)
+                out = pad_const_channel(out)
+                ans = layer(ans)
+                out = act(conv(out))
+                diff_max = (ans - out).abs().max()  # this should be smaller than 1e-5
+                print("ans shape", ans.shape, "diff_max = ", diff_max, "ans_max", ans.max())
+                if diff_max > 1e-4:
+                    print((out-ans).argmax(dim=0)[1], out - ans)
+                    assert diff_max < 1e-4
 
     # with torch.no_grad():
     #     out = model(x_test)

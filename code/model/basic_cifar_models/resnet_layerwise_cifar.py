@@ -129,11 +129,11 @@ class ResNet_CIFAR(ConvertibleModel):
         super().__init__()
         self.in_planes = num_filters[0]
 
-        self.sequential_models.append(ConvLayer(3, num_filters[0], kernel_size=3, act=nn.ReLU()))
-        self.sequential_models += self._make_layer(num_filters[1], num_blocks[0], stride=1, option=option)
-        self.sequential_models += self._make_layer(num_filters[2], num_blocks[1], stride=2, option=option)
-        self.sequential_models += self._make_layer(num_filters[3], num_blocks[2], stride=2, option=option)
-        self.sequential_models.append(LastLinearLayer(num_filters[3], num_classes))
+        self.append(ConvLayer(3, num_filters[0], kernel_size=3, act=nn.ReLU()))
+        self += self._make_layer(num_filters[1], num_blocks[0], stride=1, option=option)
+        self += self._make_layer(num_filters[2], num_blocks[1], stride=2, option=option)
+        self += self._make_layer(num_filters[3], num_blocks[2], stride=2, option=option)
+        self.append(LastLinearLayer(num_filters[3], num_classes))
 
     def _make_layer(self, planes, num_blocks, stride, option):
         strides = [stride] + [1] * (num_blocks - 1)

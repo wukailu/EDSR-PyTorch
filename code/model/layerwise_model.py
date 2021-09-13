@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Tuple
+from typing import Tuple, List
 
 import torch
 from torch import nn
@@ -31,7 +31,7 @@ def pad_const_channel(x):
 
 
 class LayerWiseModel(nn.Module):
-    def __init__(self, sequential_models=nn.ModuleList()):
+    def __init__(self, sequential_models=()):
         super().__init__()
         self.sequential_models = nn.ModuleList(sequential_models)
 
@@ -52,6 +52,12 @@ class LayerWiseModel(nn.Module):
     def __iter__(self):
         return self.sequential_models.__iter__()
 
+    def append(self, module):
+        return self.sequential_models.append(module)
+
+    def __iadd__(self, modules):
+        return self.sequential_models.extend(modules)
+
 
 class ConvertibleModel(LayerWiseModel):
     """
@@ -61,12 +67,10 @@ class ConvertibleModel(LayerWiseModel):
     usually the tail of this module is only initializable, not convertible
     """
 
-    def to_convertible_layers(self):
+    def to_convertible_layers(self) -> List[nn.Module]:
         ret = []
         for m in self.sequential_models:
-            if isinstance(m, InitializableLayer):
-                ret.append(m)
-            elif isinstance(m, ConvertibleModel):
+            if isinstance(m, (InitializableLayer, ConvertibleSubModel)):
                 ret += m.to_convertible_layers()
             else:
                 raise TypeError("Model can not be converted to plain model!")
@@ -118,37 +122,33 @@ class ConvertibleSubModel(ConvertibleModel):
 
 class SequentialConvertibleSubModel(ConvertibleSubModel):
     def __init__(self, *args):
-        super().__init__()
         for m in args:
-            assert isinstance(m, (ConvertibleLayer, ConvertibleSubModel))
-            self.sequential_models.append(m)
+            if not isinstance(m, (ConvertibleLayer, ConvertibleSubModel)):
+                raise TypeError("Expect ConvertibleLayer or ConvertibleSubModel, got ", type(m), 'instead')
+        super().__init__(args)
 
 
 class SkipConnectionSubModel(ConvertibleSubModel):
     def __init__(self, model_list, n_feats, skip_connection_bias=0, sum_output=True):
-        super().__init__()
-        self.model = SequentialConvertibleSubModel(*model_list)
+        super().__init__(model_list)
         self.n_feats = n_feats
         self.bias = skip_connection_bias
         self.sum_output = sum_output
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         if with_feature:
-            f_list, _ = self.model(x, with_feature, start_forward_from, until)
+            f_list, _ = ConvertibleSubModel.forward(self, x, with_feature, start_forward_from, until)
             f_list = [torch.cat([x[:, 1:], f], dim=1) for f in f_list]
             return f_list, f_list[-1]
         elif until is not None and until < len(self):
-            ans = self.model(x, with_feature, start_forward_from, until)
+            ans = ConvertibleSubModel.forward(self, x, with_feature, start_forward_from, until)
             return torch.cat([x[:, 1:], ans], dim=1)
         else:
-            ans = self.model(x, with_feature, start_forward_from, until)
+            ans = ConvertibleSubModel.forward(self, x, with_feature, start_forward_from, until)
             return x[:, 1:] + ans
 
-    def __len__(self):
-        return len(self.model)
-
     def to_convertible_layers(self):
-        model_list = self.model.to_convertible_layers()
+        model_list = ConvertibleSubModel.to_convertible_layers(self)
         assert len(model_list) >= 1
         if not isinstance(model_list[-1].simplify_layer()[1], nn.Identity):
             model_list.append(IdLayer(self.n_feats))
@@ -158,26 +158,30 @@ class SkipConnectionSubModel(ConvertibleSubModel):
         ret += [ConcatLayer(id1, model_list[0], share_input=True)]
         for m in model_list[1:-1]:
             ret += [ConcatLayer(IdLayer(self.n_feats, act=m.simplify_layer()[1]), m)]
-        ret += [ConcatLayer(IdLayer(self.n_feats, bias=-self.bias), model_list[-1], sum_output=True)]
-        return nn.ModuleList(ret)
+        ret += [ConcatLayer(IdLayer(self.n_feats, bias=-self.bias), model_list[-1], sum_output=self.sum_output)]
+        return ret
 
 
 class DenseFeatureFusionSubModel(ConvertibleSubModel):
     """
     把每个子模块的输出记录下来, concat 到输出最后面
     """
-    def __init__(self, model_list, skip_connection_bias=0):
-        super().__init__()
-        self.models = nn.ModuleList(model_list)
-        self.bias = skip_connection_bias
+
+    def __init__(self, model_list, n_feats, skip_connection_bias=0):
+        super().__init__(model_list)
+        for m in model_list:
+            assert isinstance(m, (ConvertibleLayer, ConvertibleModel))
+        self.bias = skip_connection_bias if isinstance(skip_connection_bias, (list, tuple)) \
+            else [skip_connection_bias] * len(model_list)
+        self.n_feats = n_feats if isinstance(n_feats, (list, tuple)) else [n_feats] * len(model_list)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         real_f_list = []
         f_list = []
-        x = x[1:]
-        for m in self.models[start_forward_from:until]:
+        x = x[:, 1:]
+        for m, bias in zip(self.sequential_models[start_forward_from:until], self.bias[start_forward_from:until]):
             x = m(pad_const_channel(x))
-            f_list.append(x.detach() + self.bias)
+            f_list.append(x.detach() + bias)
             if with_feature:
                 real_f_list.append(torch.cat(f_list, dim=1))
         if with_feature:
@@ -186,8 +190,16 @@ class DenseFeatureFusionSubModel(ConvertibleSubModel):
             return torch.cat(f_list, dim=1)
 
     def to_convertible_layers(self):
-        # TODO: implement this
-        pass
+        if len(self) == 1:
+            return self[0].to_convertible_layers()
+        else:
+            layers = self[-1].to_convertible_layers()
+            for m, width, bias in zip(self[-2::-1], self.n_feats[-2::-1], self.bias[-2::-1]):
+                layers = SkipConnectionSubModel(layers, width, skip_connection_bias=bias,
+                                                sum_output=False).to_convertible_layers()
+                layers = m.to_convertible_layers() + layers
+            return layers
+
 
 class InitializableLayer(nn.Module):
     """
@@ -208,6 +220,9 @@ class InitializableLayer(nn.Module):
         M1[0][0] = 1
         M1[1:, 1:] = M
         return init_conv_with_conv(conv, conv_s.conv, M1)
+
+    def to_convertible_layers(self):
+        return [self]
 
 
 class ConvertibleLayer(InitializableLayer):
@@ -244,7 +259,8 @@ class ConvLayer(ConvertibleLayer):
     stride is not supported so far
     """
 
-    def __init__(self, in_channel, out_channel, kernel_size, stride=1, bn=False, act: nn.Module = nn.Identity(), SR_init=False):
+    def __init__(self, in_channel, out_channel, kernel_size, stride=1, bn=False, act: nn.Module = nn.Identity(),
+                 SR_init=False):
         """
         create a Convertible Layer with a conv-bn-act structure, where the input has a const channel at 0.
         :param in_channel: original in_channels
@@ -467,4 +483,4 @@ def simplify_sequential_model(model_list):
                 pass
     if pre_1x1 is not None:
         ret += [pre_1x1]
-    return nn.ModuleList(ret)
+    return ret

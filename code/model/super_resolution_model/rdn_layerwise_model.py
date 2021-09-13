@@ -7,7 +7,7 @@ import torch.nn as nn
 from . import RDN_Tail
 from .utils import register_model
 from ..layerwise_model import ConvLayer, ConvertibleLayer, IdLayer, ConcatLayer, \
-    SkipConnectionSubModel, ConvertibleModel
+    SkipConnectionSubModel, ConvertibleModel, SequentialConvertibleSubModel, DenseFeatureFusionSubModel
 
 
 @register_model
@@ -28,7 +28,7 @@ class RDB_Conv_Layerwise(ConvertibleLayer):
 
     def forward(self, x):
         out = self.conv(x)
-        return torch.cat((x, out), 1)
+        return torch.cat((x[:, 1:], out), 1)
 
 
 def RDB_Layerwise(growRate0, growRate, nConvLayers, kSize=3):
@@ -42,7 +42,6 @@ def RDB_Layerwise(growRate0, growRate, nConvLayers, kSize=3):
 
 
 class RDN_layerwise_Model(ConvertibleModel):
-    # TODO: Implement this
     def __init__(self, scale=4, n_feats=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
         super().__init__()
         G0 = n_feats
@@ -51,7 +50,8 @@ class RDN_layerwise_Model(ConvertibleModel):
         # number of RDB blocks, conv layers, out channels
         self.D, C, G = {
             'A': (20, 6, 32),
-            'B': (16, 8, 64),
+            'B': (6, 4, 32),
+            # 'B': (16, 8, 64),
         }[RDNconfig]
 
         # Shallow feature extraction net
@@ -66,24 +66,17 @@ class RDN_layerwise_Model(ConvertibleModel):
             )
 
         # Global Feature Fusion
-        self.GFF = nn.Sequential(*[
-            nn.Conv2d(self.D * G0, G0, 1, padding=0, stride=1),
-            nn.Conv2d(G0, G0, kSize, padding=(kSize - 1) // 2, stride=1)
-        ])
+        self.GFF = SequentialConvertibleSubModel(
+            ConvLayer(self.D * G0, G0, 1, stride=1),
+            ConvLayer(G0, G0, kSize, stride=1)
+        )
 
         # Up-sampling net
         self.UPNet = RDN_Tail(n_feats, scale, RDNkSize, n_colors, G, remove_const_channel=True)
 
-    def forward(self, x):
-        f__1 = self.SFENet1(x)
-        x = self.SFENet2(f__1)
-
-        RDBs_out = []
-        for i in range(self.D):
-            x = self.RDBs[i](x)
-            RDBs_out.append(x)
-
-        x = self.GFF(torch.cat(RDBs_out, 1))
-        x += f__1
-
-        return self.UPNet(x)
+        self.append(self.SFENet1)
+        backbone = SkipConnectionSubModel([self.SFENet2,
+                                           DenseFeatureFusionSubModel(self.RDBs, G0, skip_connection_bias=0),
+                                           self.GFF], G0, skip_connection_bias=0)
+        self.append(backbone)
+        self.append(self.UPNet)
