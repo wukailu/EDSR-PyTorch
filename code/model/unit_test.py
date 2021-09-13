@@ -10,7 +10,9 @@ from model.super_resolution_model import RDB_Layerwise
 
 if __name__ == '__main__':
     params = {
-        'arch': 'RDN_layerwise_sr',
+        'arch': 'Plain_layerwise_sr',
+        'add_ori': True,
+        'add_ori_interval': 2,
     }
     model = get_classifier(params, "DIV2K")
     x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()
@@ -21,10 +23,10 @@ if __name__ == '__main__':
     # model = get_classifier(params, "cifar100")
     # x_test = torch.randn((1, 3, 32, 32))
 
-    # with torch.no_grad():
-    #     f_list, _ = model(x_test, with_feature=True)
-    #     for f in f_list:
-    #         print('f.shape', f.shape, 'f.mean', f.mean(), 'f.var', f.var(), 'f.min', f.min(), 'f.max', f.max())
+    with torch.no_grad():
+        f_list, _ = model(x_test, with_feature=True)
+        for f in f_list:
+            print('f.shape', f.shape, 'f.mean', f.mean(), 'f.var', f.var(), 'f.min', f.min(), 'f.max', f.max())
 
     # ans = x_test.detach()
     # out = x_test.detach()
@@ -52,13 +54,13 @@ if __name__ == '__main__':
     # x_test = model(x_test, until=1)
     # x_test = model[1](pad_const_channel(x_test), until=1)[:, :64]
     # model = model[1][1]
-    print(type(model))
-    with torch.no_grad():
-        # out = model(pad_const_channel(x_test))
-        out = model(x_test)
-        out2 = ConvertibleModel.from_convertible_models(model.to_convertible_layers())(x_test)
-        print('diff out out2 = ', (out-out2).abs().max(), 'out_max = ', out.abs().max(), 'out2 max = ', out2.abs().max())
-        print([(out-out2)[:, i].max() for i in range(out.size(1))])
+    # print(type(model))
+    # with torch.no_grad():
+        # # out = model(pad_const_channel(x_test))
+        # out = model(x_test)
+        # out2 = ConvertibleModel.from_convertible_models(model.to_convertible_layers())(x_test)
+        # print('diff out out2 = ', (out-out2).abs().max(), 'out_max = ', out.abs().max(), 'out2 max = ', out2.abs().max())
+        # print([(out-out2)[:, i].max() for i in range(out.size(1))])
 
     # inference_statics(model, x_test=x_test, batch_size=256)
 

@@ -8,7 +8,7 @@ from ..layerwise_model import LayerWiseModel
 
 
 @register_model
-def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale=4, tail='easy', mean_shift=False,
+def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=16, out_nc=3, scale=4, tail='easy', mean_shift=False,
                     rgb_range=255, n_colors=3, **kwargs):
     nf = n_feats if nf is None else nf
     input_transform = common.MeanShift(rgb_range, sign=-1) if mean_shift else None
@@ -46,18 +46,25 @@ def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=4, out_nc=3, scale
 # TODO: implement this as ConvertibleModel
 class Plain_layerwise_Model(LayerWiseModel):
     def __init__(self, widths, layerType='normal_no_bn', input_transform=None, f_lists=None, add_ori=False,
-                 stack_output=False, square_ratio=0, square_num=0, square_layer_strategy=0, square_before_relu=False, **kwargs):
+                 stack_output=False, square_ratio=0, square_num=0, square_layer_strategy=0, square_before_relu=False,
+                 add_ori_interval=1, **kwargs):
         """
         :arg widths width of each feature map, start from data, end at the one before tail. e.x. [3, 64, 64, 128, 200]
         :arg add_ori if this is true, there will be 3 more channel on input, which is original input data
+        :arg add_ori_interval this one specify the interval of add_ori, default to be 1
         :arg stack_output if this is true, all feature maps will be stacked and pass by a 1x1 conv to generate output before tail,
         otherwise output is just the result from last conv
         :type stack_output: bool
         :type add_ori: bool
+        :type add_ori_interval: int
         """
         super().__init__()
         self.layerType = layerType
-        self.add_ori = add_ori
+        if add_ori:
+            self.add_ori = list(range(0, len(widths)-1, add_ori_interval))
+            print('add_ori at layer:', self.add_ori)
+        else:
+            self.add_ori = []
         self.stack_output = stack_output
         self.input_transform = input_transform
 
@@ -78,14 +85,14 @@ class Plain_layerwise_Model(LayerWiseModel):
         assert len(f_lists) == len(widths)
         for i in range(len(widths) - 1):
             ratio = square_ratio if i in square_layers else 0
-            self.append_layer(widths[i], widths[i + 1], f_lists[i], f_lists[i + 1], square_before_relu=square_before_relu,
-                              square_ratio=ratio)
+            self.append_layer(widths[i], widths[i + 1], f_lists[i], f_lists[i + 1],
+                              square_before_relu=square_before_relu, square_ratio=ratio, add_ori=(i in self.add_ori))
         if self.stack_output:
             self.stack_1x1 = nn.ModuleList([nn.Conv2d(fs, widths[-1], 1) for fs in widths[1:]])
 
     def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3, square_ratio=0,
-                     square_before_relu=False):
-        if self.add_ori:
+                     square_before_relu=False, add_ori=False):
+        if add_ori:
             in_channels += 3
         if self.layerType.startswith('normal'):
             new_layers = []
@@ -98,6 +105,8 @@ class Plain_layerwise_Model(LayerWiseModel):
                 new_layers.append(
                     nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2,
                               stride=(stride_w, stride_h)))
+            if add_ori:
+                new_layers[0].weight.data[:, :3] *= (in_channels-3)/3
             if 'no_bn' not in self.layerType:
                 new_layers.append(nn.BatchNorm2d(out_channels))
 
@@ -143,7 +152,7 @@ class Plain_layerwise_Model(LayerWiseModel):
         if self.input_transform is not None:
             x = self.input_transform(x)
 
-        if self.add_ori and ori is None:
+        if len(self.add_ori) != 0 and ori is None:
             ori = x
 
         if self.stack_output:
@@ -162,7 +171,7 @@ class Plain_layerwise_Model(LayerWiseModel):
                 else:
                     x = m(x)
             else:
-                if self.add_ori:
+                if idx in self.add_ori:
                     x = torch.cat([x, ori], dim=1)
                 x = m(x)
                 if self.stack_output:

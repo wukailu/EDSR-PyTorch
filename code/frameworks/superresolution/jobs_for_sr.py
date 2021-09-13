@@ -176,20 +176,18 @@ def naiveBaseline():
 
 
 def directTrainPlain():
-    resource = 16384 * 3
-    depth = random_params([16, 32])
-    width = int((resource / depth) ** 0.5)
+    depth, width = random_params([(20, 87), (30, 71), (60, 50)])
     params = {
-        'project_name': 'plain_SR_tail_test',
+        'project_name': 'plain_SR_add_ori_interval_test',
         'num_epochs': 300,
         'backbone': {
             'arch': 'Plain_layerwise_sr',
             'num_modules': depth,
             'n_feats': width,
             'add_ori': 1,
-            'tail': ['edsr', 'easy'],
+            'add_ori_interval': [1, 2, 3],
+            'tail': ['easy'],
         },
-        'seed': [233, 234],
     }
 
     return {**templates['DIV2K-b32-SRx4'], **params}
@@ -289,8 +287,8 @@ def bn_test():
 
 
 def params_for_SR():
-    # params = directTrainPlain()
-    params = dense_model_train()
+    params = directTrainPlain()
+    # params = dense_model_train()
     # params = stack_out_test()
     # params = PlainFlopsPSNRCurve()
     # params = square_test()
