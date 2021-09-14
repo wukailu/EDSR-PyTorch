@@ -40,8 +40,7 @@ class RDN_layerwise_Model(ConvertibleModel):
         # number of RDB blocks, conv layers, out channels
         self.D, C, G = {
             'A': (20, 6, 32),
-            'B': (6, 4, 32),
-            # 'B': (16, 8, 64),
+            'B': (16, 8, 64),
         }[RDNconfig]
 
         # Shallow feature extraction net
