@@ -287,8 +287,8 @@ def bn_test():
 
 
 def params_for_SR():
-    params = directTrainPlain()
-    # params = dense_model_train()
+    # params = directTrainPlain()
+    params = dense_model_train()
     # params = stack_out_test()
     # params = PlainFlopsPSNRCurve()
     # params = square_test()
