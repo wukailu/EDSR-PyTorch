@@ -1,6 +1,4 @@
-# import frameworks.classification.train_single_model import inference_statics
-from torch import nn
-
+from frameworks.classification.train_single_model import inference_statics
 from model import get_classifier
 from model.layerwise_model import ConvertibleLayer, pad_const_channel, ConvertibleModel, DenseFeatureFusionSubModel, \
     ConvLayer
@@ -10,9 +8,8 @@ from model.super_resolution_model import RDB_Layerwise
 
 if __name__ == '__main__':
     params = {
-        'arch': 'Plain_layerwise_sr',
-        'add_ori': True,
-        'add_ori_interval': 2,
+        'arch': 'rdn_layerwise_sr',
+        # 'arch': 'rdn_sr',
     }
     model = get_classifier(params, "DIV2K")
     x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()
@@ -62,5 +59,6 @@ if __name__ == '__main__':
         # print('diff out out2 = ', (out-out2).abs().max(), 'out_max = ', out.abs().max(), 'out2 max = ', out2.abs().max())
         # print([(out-out2)[:, i].max() for i in range(out.size(1))])
 
-    # inference_statics(model, x_test=x_test, batch_size=256)
+    x_test = torch.randint(0, 255, (3, 24, 24)).float()
+    inference_statics(model, x_test=x_test, batch_size=16)
 
