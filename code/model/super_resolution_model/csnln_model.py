@@ -1,4 +1,4 @@
-import model.utils
+import model.model_utils
 from model.super_resolution_model import common
 import torch.nn as nn
 import torch
@@ -14,7 +14,7 @@ def CSNLN(**kwargs):
 
 # projection between attention branches
 class MultisourceProjection(nn.Module):
-    def __init__(self, in_channel, kernel_size=3, scale=2, conv=model.utils.default_conv):
+    def __init__(self, in_channel, kernel_size=3, scale=2, conv=model.model_utils.default_conv):
         super(MultisourceProjection, self).__init__()
         deconv_ksize, stride, padding, up_factor = {
             2: (6, 2, 2, 2),
@@ -39,7 +39,7 @@ class MultisourceProjection(nn.Module):
 
 # projection with local branch
 class RecurrentProjection(nn.Module):
-    def __init__(self, in_channel, kernel_size=3, scale=2, conv=model.utils.default_conv):
+    def __init__(self, in_channel, kernel_size=3, scale=2, conv=model.model_utils.default_conv):
         super(RecurrentProjection, self).__init__()
         self.scale = scale
         stride_conv_ksize, stride, padding = {
@@ -86,7 +86,7 @@ class RecurrentProjection(nn.Module):
 
 
 class CSNLN_Model(nn.Module):
-    def __init__(self, depth=12, rgb_range=255, n_colors=3, n_feats=64, scale=4, conv=model.utils.default_conv, **kwargs):
+    def __init__(self, depth=12, rgb_range=255, n_colors=3, n_feats=64, scale=4, conv=model.model_utils.default_conv, **kwargs):
         super(CSNLN_Model, self).__init__()
 
         # n_convblock = args.n_convblocks
@@ -133,7 +133,7 @@ class CSNLN_Model(nn.Module):
 # in-scale non-local attention
 class NonLocalAttention(nn.Module):
     def __init__(self, channel=128, reduction=2, ksize=3, scale=3, stride=1, softmax_scale=10, average=True,
-                 conv=model.utils.default_conv):
+                 conv=model.model_utils.default_conv):
         super(NonLocalAttention, self).__init__()
         self.conv_match1 = common.BasicBlock(conv, channel, channel // reduction, 1, bn=False, act=nn.PReLU())
         self.conv_match2 = common.BasicBlock(conv, channel, channel // reduction, 1, bn=False, act=nn.PReLU())
@@ -157,7 +157,7 @@ class NonLocalAttention(nn.Module):
 # cross-scale non-local attention
 class CrossScaleAttention(nn.Module):
     def __init__(self, channel=128, reduction=2, ksize=3, scale=3, stride=1, softmax_scale=10, average=True,
-                 conv=model.utils.default_conv):
+                 conv=model.model_utils.default_conv):
         super(CrossScaleAttention, self).__init__()
         self.ksize = ksize
         self.stride = stride

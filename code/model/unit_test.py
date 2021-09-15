@@ -8,8 +8,8 @@ from model.super_resolution_model import RDB_Layerwise
 
 if __name__ == '__main__':
     params = {
-        'arch': 'rdn_layerwise_sr',
-        # 'arch': 'rdn_sr',
+        # 'arch': 'rdn_layerwise_sr',
+        'arch': 'rdn_sr',
     }
     model = get_classifier(params, "DIV2K")
     x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()
@@ -20,10 +20,10 @@ if __name__ == '__main__':
     # model = get_classifier(params, "cifar100")
     # x_test = torch.randn((1, 3, 32, 32))
 
-    with torch.no_grad():
-        f_list, _ = model(x_test, with_feature=True)
-        for f in f_list:
-            print('f.shape', f.shape, 'f.mean', f.mean(), 'f.var', f.var(), 'f.min', f.min(), 'f.max', f.max())
+    # with torch.no_grad():
+    #     f_list, _ = model(x_test, with_feature=True)
+    #     for f in f_list:
+    #         print('f.shape', f.shape, 'f.mean', f.mean(), 'f.var', f.var(), 'f.min', f.min(), 'f.max', f.max())
 
     # ans = x_test.detach()
     # out = x_test.detach()
@@ -59,6 +59,18 @@ if __name__ == '__main__':
         # print('diff out out2 = ', (out-out2).abs().max(), 'out_max = ', out.abs().max(), 'out2 max = ', out2.abs().max())
         # print([(out-out2)[:, i].max() for i in range(out.size(1))])
 
+    print(type(model))
     x_test = torch.randint(0, 255, (3, 24, 24)).float()
     inference_statics(model, x_test=x_test, batch_size=16)
 
+### layerwise_rdn
+# --------------> Inference_Time(us) = 3.6313236449603683 <-------------
+# --------------> Memory(KB) = 8.936342592592593 <-------------
+# --------------> flops(K per pixel) = 7602.426666666667 <-------------
+# --------------> parameters(KB) = 21814.6279296875 <-------------
+
+### rdn
+# --------------> Inference_Time(us) = 2.5558797642588615 <-------------
+# --------------> Memory(KB) = 10.248354311342593 <-------------
+# --------------> flops(K per pixel) = 7580.069333333333 <-------------
+# --------------> parameters(KB) = 21749.1279296875 <-------------

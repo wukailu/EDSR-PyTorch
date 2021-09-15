@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-import model.utils
+import model.model_utils
 from model.super_resolution_model import common
 from .utils import register_model
 from ..layerwise_model import ConvertibleLayer, merge_1x1_and_3x3, ConvLayer, \
@@ -17,7 +17,7 @@ class HeadLayer(ConvertibleLayer):
     def __init__(self, rgb_range, n_colors, n_feats, kernel_size):
         super().__init__()
         self.sub_mean = common.MeanShift(rgb_range)
-        self.conv = model.utils.default_conv(n_colors, n_feats, kernel_size)
+        self.conv = model.model_utils.default_conv(n_colors, n_feats, kernel_size)
 
     def forward(self, x):
         x = self.sub_mean(x[:, 1:])
@@ -48,8 +48,8 @@ class EDSRTail(InitializableLayer):
         super().__init__()
         self.remove_const_channel = remove_const_channel
         m_tail = [
-            common.Upsampler(model.utils.default_conv, scale, n_feats, act=False),
-            model.utils.default_conv(n_feats, n_colors, kernel_size)
+            common.Upsampler(model.model_utils.default_conv, scale, n_feats, act=False),
+            model.model_utils.default_conv(n_feats, n_colors, kernel_size)
         ]
         self.tail = nn.Sequential(*m_tail)
         self.add_mean = common.MeanShift(rgb_range, sign=1)

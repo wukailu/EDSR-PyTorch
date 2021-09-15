@@ -189,7 +189,7 @@ class DenseFeatureFusionSubModel(ConvertibleSubModel):
         x = x[:, 1:]
         for m in self.sequential_models[start_forward_from:until]:
             x = m(pad_const_channel(x))
-            f_list.append(x.detach())
+            f_list.append(x)
             if with_feature:
                 real_f_list.append(torch.cat(f_list, dim=1))
         if with_feature:

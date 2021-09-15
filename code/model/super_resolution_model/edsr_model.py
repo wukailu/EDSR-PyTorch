@@ -2,7 +2,7 @@ import os
 import torch
 import torch.nn as nn
 
-import model.utils
+import model.model_utils
 from model.super_resolution_model import common
 from .utils import register_model, unpack_feature, pack_feature
 
@@ -29,7 +29,7 @@ def EDSR(pretrained=False, **hparams):
 
 class EDSR_Model(nn.Module):
     def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, res_scale=1,
-                 conv=model.utils.default_conv, **kwargs):
+                 conv=model.model_utils.default_conv, **kwargs):
         super(EDSR_Model, self).__init__()
 
         n_resblocks = n_resblocks

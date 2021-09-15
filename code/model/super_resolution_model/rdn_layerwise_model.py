@@ -44,28 +44,28 @@ class RDN_layerwise_Model(ConvertibleModel):
         }[RDNconfig]
 
         # Shallow feature extraction net
-        self.SFENet1 = ConvLayer(n_colors, G0, kSize, stride=1)
-        self.SFENet2 = ConvLayer(G0, G0, kSize, stride=1)
+        SFENet1 = ConvLayer(n_colors, G0, kSize, stride=1)
+        SFENet2 = ConvLayer(G0, G0, kSize, stride=1)
 
         # Redidual dense blocks and dense feature fusion
-        self.RDBs = nn.ModuleList()
+        RDBs = nn.ModuleList()
         for i in range(self.D):
-            self.RDBs.append(
+            RDBs.append(
                 RDB_Layerwise(growRate0=G0, growRate=G, nConvLayers=C)
             )
 
         # Global Feature Fusion
-        self.GFF = SequentialConvertibleSubModel(
+        GFF = SequentialConvertibleSubModel(
             ConvLayer(self.D * G0, G0, 1, stride=1),
             ConvLayer(G0, G0, kSize, stride=1)
         )
 
         # Up-sampling net
-        self.UPNet = RDN_Tail(n_feats, scale, RDNkSize, n_colors, G, remove_const_channel=True)
+        UPNet = RDN_Tail(n_feats, scale, RDNkSize, n_colors, G, remove_const_channel=True)
 
-        self.append(self.SFENet1)
-        backbone = SkipConnectionSubModel([self.SFENet2,
-                                           DenseFeatureFusionSubModel(self.RDBs, G0, skip_connection_bias=1000),
-                                           self.GFF], G0, skip_connection_bias=1000)
+        self.append(SFENet1)
+        backbone = SkipConnectionSubModel([SFENet2,
+                                           DenseFeatureFusionSubModel(RDBs, G0, skip_connection_bias=1000),
+                                           GFF], G0, skip_connection_bias=1000)
         self.append(backbone)
-        self.append(self.UPNet)
+        self.append(UPNet)

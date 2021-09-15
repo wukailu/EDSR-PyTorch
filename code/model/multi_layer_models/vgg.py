@@ -232,7 +232,7 @@ if __name__ == '__main__':
 
     test_x = torch.randn(2, 3, 32, 32).requires_grad_(True)
     net = vgg8_bn(num_classes=100)
-    from model.utils import freeze
+    from model.model_utils import freeze
     freeze(net)
     feats, test_logit = net(test_x, with_feature=True, pre_act=False)
 

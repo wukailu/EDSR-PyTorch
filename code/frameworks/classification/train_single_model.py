@@ -4,8 +4,8 @@ import os
 sys.path.append(os.getcwd())
 
 from frameworks.lightning_base_model import _Module
-import utils.backend as backend
 from pytorch_lightning.utilities import rank_zero_only
+import utils.backend as backend
 
 
 ###

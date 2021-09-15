@@ -1,7 +1,7 @@
 import os
 import torch
 
-import model.utils
+import model.model_utils
 from model.super_resolution_model import common
 import torch.nn as nn
 from .utils import register_model, unpack_feature, pack_feature
@@ -22,7 +22,7 @@ def MDSR(pretrained=False, **hparams):
     return model
 
 class MDSR_Model(nn.Module):
-    def __init__(self, n_resblocks=16, n_feats=64, rgb_range=255, n_colors=3, scale=4, conv=model.utils.default_conv):
+    def __init__(self, n_resblocks=16, n_feats=64, rgb_range=255, n_colors=3, scale=4, conv=model.model_utils.default_conv):
         super(MDSR_Model, self).__init__()
         n_resblocks = n_resblocks
         n_feats = n_feats

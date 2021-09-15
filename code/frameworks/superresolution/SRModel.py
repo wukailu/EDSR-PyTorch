@@ -103,7 +103,7 @@ class TwoStageSR(SR_LightModel):
         self.model_pretrained = SR_LightModel.load_from_checkpoint(checkpoint_path=self.params['pretrained_from']).sequential_models
         self.model = SR_LightModel.load_from_checkpoint(checkpoint_path=self.params['pretrained_from']).sequential_models
         if 'two_stage_no_freeze' not in self.params or not self.params['two_stage_no_freeze']:
-            from model.utils import freeze
+            from model.model_utils import freeze
             freeze(self.model_pretrained)
 
     # x2 + x2 = x4
@@ -123,7 +123,7 @@ class SRDistillation(SR_LightModel):
 
     def load_teacher(self):
         model = load_model({'load_from': self.params['teacher']}).model
-        from model.utils import freeze
+        from model.model_utils import freeze
         freeze(model)
         return model
 
@@ -174,7 +174,7 @@ class SRDistillation(SR_LightModel):
 class MeanTeacherSRDistillation(SRDistillation):
     def load_teacher(self):
         import copy
-        from model.utils import freeze
+        from model.model_utils import freeze
         model = copy.deepcopy(self.model)
         freeze(model)
         return model

@@ -91,7 +91,6 @@ class RDN_Tail(InitializableLayer):
 class RDN_Model(nn.Module):
     def __init__(self, scale=4, n_feats=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
         super(RDN_Model, self).__init__()
-        r = scale
         G0 = n_feats
         kSize = RDNkSize
 
