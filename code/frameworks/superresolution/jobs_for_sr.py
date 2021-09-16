@@ -157,7 +157,8 @@ def dense_model_train():
         'backbone': {
             # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr'],
             # 'arch': ['RCAN_sr', 'HAN_sr',],
-            'arch': ['RDN_layerwise_sr'],
+            # 'arch': ['RDN_layerwise_sr'],
+            'arch': ['edsr_layerwise_sr'],
             'n_feats': [50],
         },
     }

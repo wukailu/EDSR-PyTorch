@@ -8,8 +8,8 @@ from model.super_resolution_model import RDB_Layerwise
 
 if __name__ == '__main__':
     params = {
-        # 'arch': 'rdn_layerwise_sr',
-        'arch': 'rdn_sr',
+        'arch': 'edsr_layerwise_sr',
+        # 'arch': 'rdn_sr',
     }
     model = get_classifier(params, "DIV2K")
     x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()

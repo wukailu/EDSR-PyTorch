@@ -50,7 +50,7 @@ class DEIP_LightModel(LightningModule):
             self.plain_model.to(device)
 
     def load_teacher(self):
-        teacher = _Module.load_from_checkpoint(checkpoint_path=self.params['teacher_pretrain_path']).sequential_models
+        teacher = _Module.load_from_checkpoint(checkpoint_path=self.params['teacher_pretrain_path']).model
         assert isinstance(teacher, ConvertibleModel)
         return ConvertibleModel(teacher.to_convertible_layers())
 

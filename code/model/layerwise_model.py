@@ -53,10 +53,12 @@ class LayerWiseModel(nn.Module):
         return self.sequential_models.__iter__()
 
     def append(self, module):
-        return self.sequential_models.append(module)
+        self.sequential_models.append(module)
+        return self
 
     def __iadd__(self, modules):
-        return self.sequential_models.extend(modules)
+        self.sequential_models.extend(modules)
+        return self
 
 
 class ConvertibleModel(LayerWiseModel):

@@ -110,7 +110,7 @@ def classification_test():
             'batch_size': 256
         },
         'seed': 235,
-        'method': 'DEIP_Dropout_Init',
+        'method': 'DEIP_Init',
         'init_stu_with_teacher': 0,
         'rank_eps': 0.05,
         'backend': None,
@@ -169,5 +169,5 @@ def classification_test():
 if __name__ == '__main__':
     import random
     random.seed(0)
-    # classification_test()
-    super_resolution_test()
+    classification_test()
+    # super_resolution_test()
