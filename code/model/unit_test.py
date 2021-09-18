@@ -8,8 +8,9 @@ from model.super_resolution_model import RDB_Layerwise
 
 if __name__ == '__main__':
     params = {
-        'arch': 'edsr_layerwise_sr',
-        # 'arch': 'rdn_sr',
+        'arch': 'Plain_layerwise_sr',
+        'n_feats': 90,
+        'num_modules': 20,
     }
     model = get_classifier(params, "DIV2K")
     x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()
@@ -60,8 +61,8 @@ if __name__ == '__main__':
         # print([(out-out2)[:, i].max() for i in range(out.size(1))])
 
     print(type(model))
-    x_test = torch.randint(0, 255, (3, 24, 24)).float()
-    inference_statics(model, x_test=x_test, batch_size=16)
+    x_test = torch.randint(0, 255, (3, 256, 256)).float()
+    inference_statics(model, x_test=x_test, batch_size=1)
 
 ### layerwise_rdn
 # --------------> Inference_Time(us) = 3.6313236449603683 <-------------

@@ -153,18 +153,17 @@ def dense_model_train():
     params = {
         'project_name': 'DIV2Kx4_model',
         'save_model': True,
-        'max_lr': 5e-4,
         'backbone': {
             # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr'],
             # 'arch': ['RCAN_sr', 'HAN_sr',],
-            # 'arch': ['RDN_layerwise_sr'],
-            'arch': ['edsr_layerwise_sr'],
+            'arch': ['RDN_layerwise_sr', 'RDN_sr'],
+            # 'arch': ['edsr_layerwise_sr'],
             'n_feats': [50],
         },
     }
 
-    # return {**templates['DIV2K-b32-SRx4'], **params}
-    return {**templates['DIV2K-b16-SRx4'], **params}
+    return {**templates['DIV2K-b32-SRx4'], **params}
+    # return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def naiveBaseline():

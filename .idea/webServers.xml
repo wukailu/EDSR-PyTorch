@@ -3,7 +3,7 @@
   <component name="WebServers">
     <option name="servers">
       <webServer id="462bcd12-a7a2-4d39-ac9c-30381f7d833e" name="172.16.124.45">
-        <fileTransfer accessType="SFTP" host="172.16.124.45" port="22" sshConfigId="a919c3c9-647f-4fb5-b6e8-d86382e23d93" sshConfig="kailu@172.16.124.45:22 password">
+        <fileTransfer accessType="SFTP" host="172.16.124.45" port="2022" sshConfigId="a919c3c9-647f-4fb5-b6e8-d86382e23d93" sshConfig="kailu@172.16.124.45:2022 password">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
@@ -16,6 +16,13 @@
           </advancedOptions>
         </fileTransfer>
       </webServer>
+      <webServer id="378195fc-f3e1-454c-a769-ef48c338b1c9" name="172.16.116.236">
+        <fileTransfer accessType="SFTP" host="172.16.116.236" port="22" sshConfigId="636e671d-9a32-4d7c-aa21-4a2fb39353ab" sshConfig="kailu@172.16.116.236:22">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
     </option>
     <groups>
       <group>
@@ -23,6 +30,7 @@
         <servers>
           <name value="172.16.124.45" />
           <name value="172.16.116.233" />
+          <name value="172.16.116.236" />
         </servers>
       </group>
     </groups>

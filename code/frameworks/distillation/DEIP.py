@@ -503,7 +503,10 @@ class DEIP_Init(DEIP_Distillation):
                 # M*fs + bias \approx mat
                 M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
                                                with_solution=True, use_NMF=False, fix_r=fix_r)
+                print('---------layer ', len(self.bridges), '--------')
                 print('fs_shape', fs.shape, 'fs_min', fs.min(), 'fs_mean', fs.mean())
+                print('M_shape', M.shape, 'M_min', M.min(), 'M_mean', M.mean())
+                print('bias_shape', bias.shape, 'bias_min', bias.min(), 'bias_mean', bias.mean())
                 conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
                 conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)
                 conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)

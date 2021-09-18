@@ -9,6 +9,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="172.16.116.236">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/kailu/EDSR-PyTorch" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="172.16.124.45">
         <serverdata>
           <mappings>

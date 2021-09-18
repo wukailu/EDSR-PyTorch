@@ -8,6 +8,7 @@ pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_a0131.ckpt",
+    "RDNx4": "/data/pretrained/lightning_models/layerwise_rdnx4_div2k_03029.ckpt",
 }
 
 templates = {
@@ -248,9 +249,11 @@ def params_for_SR_new_init():
         'project_name': 'deip_SRx4_init_new',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': pretrain_paths['RDNx4'],
         'layer_type': ['normal_no_bn'],
-        'rank_eps': [0.1, 0.2, 0.3],
-        'max_lr': [1e-4, 2e-4, 5e-4],
+        'rank_eps': [0.1, 0.2],
+        'max_lr': [2e-4, 5e-4],
+        'seed': 233,
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -275,15 +278,17 @@ def params_for_SR_new_init_distill():
         'project_name': 'deip_SRx4_init_new',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': pretrain_paths['RDNx4'],
         'layer_type': ['normal_no_bn'],
         'rank_eps': [0.1],
         'max_lr': [2e-4],
-        'distill_coe': [0.3, 0.1],
+        'distill_coe': [0.3, 0.5],
         'dist_method': {
             'name': 'BridgeDistill',
-            'distill_alpha': [1, 0.3, 0.1, 0.01],
+            'distill_alpha': [0.01, 0.001],
             'distill_loss': ['MSE'],
         },
+        'seed': 233,
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -320,9 +325,9 @@ def params_for_deip():
     # params = params_for_SR_real_progressive_small()
     # params = params_for_SR_baseline_with_add_ori()
     # params = params_for_SR_new_init()
-    # params = params_for_SR_new_init_distill()
+    params = params_for_SR_new_init_distill()
     # params = params_for_SR_new_conv_init()
-    params = params_for_SR_new_init_equal_width()
+    # params = params_for_SR_new_init_equal_width()
 
     # params = params_for_unit_test()
     return random_params(params)
