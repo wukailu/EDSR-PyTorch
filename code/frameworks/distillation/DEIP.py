@@ -6,7 +6,7 @@ from torch import nn
 
 from frameworks.distillation.feature_distillation import get_distill_module
 from frameworks.lightning_base_model import LightningModule, _Module
-from model import freeze, unfreeze_BN, freeze_BN
+from model import freeze, unfreeze_BN, freeze_BN, std_alignment
 from model.basic_cifar_models.resnet_layerwise_cifar import LastLinearLayer
 from model.layerwise_model import ConvertibleLayer, ConvertibleModel, pad_const_channel, ConvLayer, IdLayer, \
     merge_1x1_and_3x3
@@ -22,11 +22,16 @@ class DEIP_LightModel(LightningModule):
         freeze(self.teacher_model.eval())
 
         self.plain_model = nn.ModuleList()
+        self.fs_std = []
+        self.example_data = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
 
         import time
         start_time = time.process_time()
         self.init_student()
         print("initialization student width used ", time.process_time() - start_time)
+        if self.params['std_align']:
+            std_alignment(self.plain_model, self.example_data, self.fs_std)
+            print("std alignment finished ")
 
         if self.params['add_ori'] and self.params['task'] == 'super-resolution':
             import copy
@@ -142,6 +147,7 @@ class DEIP_LightModel(LightningModule):
             'init_stu_with_teacher': False,
             'teacher_pretrain_path': None,
             'init_tail': False,
+            'std_align': False,
         }
         self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)
@@ -231,9 +237,14 @@ class DEIP_LightModel(LightningModule):
             self.plain_model.append(LastLinearLayer(last_channel, output_channel))
         elif self.params['task'] == 'super-resolution':
             from model.super_resolution_model.edsr_layerwise_model import EDSRTail
+            from model.super_resolution_model.rdn_layerwise_model import RDN_Tail
             if isinstance(self.teacher_model.sequential_models[-1], EDSRTail):
                 self.plain_model.append(
                     EDSRTail(self.params['scale'], last_channel, output_channel, 3, self.params['rgb_range']))
+            elif isinstance(self.teacher_model.sequential_models[-1], RDN_Tail):
+                self.plain_model.append(
+                    RDN_Tail(last_channel, self.params['scale'], 3, 3, last_channel, remove_const_channel=True)
+                )
             else:
                 raise NotImplementedError()
         else:
@@ -316,8 +327,22 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
         app_M = M[:, :r]
         app_f = f2[:r]
 
+    #  try to keep app_f and f has the same variance
+    scale = f.std(unbiased=False) / app_f.std(unbiased=False)
+    app_f *= scale
+    app_M /= scale
+
     approx = torch.mm(app_M, app_f)
     error = torch.norm(f - approx, p=2) / torch.norm(f, p=2)
+
+    # if with_bias:
+    #     # adjust the app_f to most positive value
+    #     neg = app_f.clone()
+    #     neg[neg > 0] = 0
+    #     adjust = -neg.mean(dim=1, keepdim=True) * 3
+    #     app_f = app_f + adjust
+    #     bias -= app_M @ adjust
+
     # add relative eps
     # if error < eps * torch.max(torch.abs(f)) or error < eps:
     # if ((torch.abs(f - approx) / torch.max(f.abs(), torch.ones_like(f) * max_value * 0.1)) < eps).all():
@@ -356,9 +381,11 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
     #  refer to wiki, it's called `Weighted low-rank approximation problems`, which does not have an analytic solution
     assert len(f.shape) == 2
     # svd can not solve too large feature maps, so take samples
+    print('f origin std', f.std())
     if f.size(1) > 32768:
         perm = torch.randperm(f.size(1))[:32768]
         f = f[:, perm]
+    print('f sample std', f.std())
 
     if with_bias:
         bias = f.mean(dim=1, keepdim=True)
@@ -444,21 +471,24 @@ class DEIP_Distillation(DEIP_LightModel):
         if self.training:
             feat_s, predictions = self(images, with_feature=True)
             task_loss = self.criterion(predictions, labels)
-
-            with torch.no_grad():
-                feat_t, out_t = self.teacher_model(images, with_feature=True)
-            assert len(feat_s) == len(feat_t)
-            dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch / self.params['num_epochs'])
-            loss = task_loss + dist_loss * self.params['distill_coe']
-
-            self.log('train/dist_loss', dist_loss, sync_dist=True)
             self.log('train/task_loss', task_loss, sync_dist=True)
+
+            if self.params['distill_coe'] != 0:
+                with torch.no_grad():
+                    feat_t, out_t = self.teacher_model(images, with_feature=True)
+                assert len(feat_s) == len(feat_t)
+                dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch / self.params['num_epochs'])
+                loss = task_loss + dist_loss * self.params['distill_coe']
+                self.log('train/dist_loss', dist_loss, sync_dist=True)
+            else:
+                loss = task_loss
         else:
             predictions = self.forward(images)
             loss = self.criterion(predictions, labels)
-            teacher_pred = self.teacher_model(images)
-            metric = self.metric(teacher_pred, labels)
-            self.log(phase + '/' + 'teacher_' + self.params['metric'], metric, sync_dist=True)
+            if self.params['distill_coe'] != 0:
+                teacher_pred = self.teacher_model(images)
+                metric = self.metric(teacher_pred, labels)
+                self.log(phase + '/' + 'teacher_' + self.params['metric'], metric, sync_dist=True)
 
         metric = self.metric(predictions, labels)
         self.log(phase + '/' + self.params['metric'], metric, sync_dist=True)
@@ -491,7 +521,7 @@ class DEIP_Init(DEIP_Distillation):
 
     def init_student(self):
         assert not self.params['add_ori']
-        images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
+        images = self.example_data
         widths = [self.params['input_channel']]
         self.bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
         with torch.no_grad():
@@ -500,18 +530,25 @@ class DEIP_Init(DEIP_Distillation):
             for f in f_list[:-2]:
                 mat = f.transpose(0, 1).flatten(start_dim=1)
                 fix_r = self.params['fix_r'] if 'fix_r' in self.params else -1
+
                 # M*fs + bias \approx mat
                 M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
                                                with_solution=True, use_NMF=False, fix_r=fix_r)
-                print('---------layer ', len(self.bridges), '--------')
-                print('fs_shape', fs.shape, 'fs_min', fs.min(), 'fs_mean', fs.mean())
-                print('M_shape', M.shape, 'M_min', M.min(), 'M_mean', M.mean())
-                print('bias_shape', bias.shape, 'bias_min', bias.min(), 'bias_mean', bias.mean())
                 conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
                 conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)
                 conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)
+
+                self.fs_std.append(fs.std())
+                print('---------layer ', len(self.bridges), '--------')
+                print('mat_shape', mat.shape, 'mat_min', mat.min(), 'mat_mean', mat.mean(), 'mat_std', f.std())
+                print('ft_shape', f.shape, 'f_min', f.min(), 'f_mean', f.mean(), 'f_std', f.std())
+                print('fs_shape', fs.shape, 'fs_min', fs.min(), 'fs_mean', fs.mean(), 'fs_std', fs.std())
+                print('M_shape', M.shape, 'M_min', M.min(), 'M_mean', M.mean(), 'M_std', M.std())
+                print('bias_shape', bias.shape, 'bias_min', bias.min(), 'bias_mean', bias.mean(), 'bias_std', bias.std())
+
                 self.bridges.append(ConvLayer.fromConv2D(conv1x1))
                 widths.append(r)
+            self.fs_std.append(f_list[-2].std())
         widths.append(teacher_width[-2])
         self.bridges.append(IdLayer(teacher_width[-2]))
         widths.append(teacher_width[-1])
@@ -541,6 +578,7 @@ class DEIP_Init(DEIP_Distillation):
         self.append_tail(widths[-2], widths[-1])
         if self.params['init_stu_with_teacher'] or self.params['init_tail']:
             self.teacher_model.sequential_models[-1].init_student(self.plain_model[-1], torch.eye(widths[-2]))
+            print('Tail initialized')
 
 
 class DEIP_Progressive_Distillation(DEIP_Distillation):

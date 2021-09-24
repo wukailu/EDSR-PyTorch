@@ -7,8 +7,12 @@ from utils.tools import submit_jobs, random_params
 pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
-    "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_a0131.ckpt",
+    "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_e324f.ckpt",
+    "EDSR_100x4": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5.ckpt",
+    "EDSR_100x4_0bias": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5_0bias.ckpt",
+    "EDSR_200x4": "/data/pretrained/lightning_models/layerwise_edsr200x4_div2k_ca503.ckpt",
     "RDNx4": "/data/pretrained/lightning_models/layerwise_rdnx4_div2k_03029.ckpt",
+    "RDNx4_0bias": "/data/pretrained/lightning_models/layerwise_rdnx4_div2k_03029_0bias.ckpt",
 }
 
 templates = {
@@ -39,7 +43,7 @@ templates = {
         'teacher_pretrain_path': pretrain_paths['EDSRx4'],
         "dataset": {
             'name': "DIV2K",
-            'batch_size': 32,
+            'total_batch_size': 32,
             'patch_size': 96,
             'ext': 'sep',
             'repeat': 20,
@@ -246,14 +250,29 @@ def deip_CIFAR100_init_new():
 
 def params_for_SR_new_init():
     params = {
-        'project_name': 'deip_SRx4_init_new',
+        'project_name': 'deip_SRx4_init_new_0bias',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['RDNx4'],
+        'teacher_pretrain_path': pretrain_paths["EDSR_100x4_0bias"],
         'layer_type': ['normal_no_bn'],
         'rank_eps': [0.1, 0.2],
-        'max_lr': [2e-4, 5e-4],
-        'seed': 233,
+        'max_lr': [2e-4],
+    }
+
+    return {**templates['DIV2K-SRx4'], **params}
+
+
+def params_for_SR_new_init_std_align():
+    params = {
+        'project_name': 'deip_SRx4_init_new_align',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': pretrain_paths["RDNx4"],
+        # 'teacher_pretrain_path': pretrain_paths["EDSR_100x4"],
+        'layer_type': ['normal_no_bn'],
+        'rank_eps': [0.1, 0.2],
+        'max_lr': [2e-4],
+        'std_align': 1,
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -264,10 +283,12 @@ def params_for_SR_new_init_equal_width():
         'project_name': 'deip_SRx4_init_new_equal_width',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': pretrain_paths['RDNx4'],
         'layer_type': ['normal_no_bn'],
         'rank_eps': [0.1],
-        'fix_r': [50, 70],
-        'max_lr': [2e-4, 5e-4],
+        'fix_r': [50, 70, 100],
+        'max_lr': [2e-4],
+        'seed': 233,
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -278,9 +299,9 @@ def params_for_SR_new_init_distill():
         'project_name': 'deip_SRx4_init_new',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['RDNx4'],
+        'teacher_pretrain_path': pretrain_paths['EDSR_100x4'],
         'layer_type': ['normal_no_bn'],
-        'rank_eps': [0.1],
+        'rank_eps': [0.2],
         'max_lr': [2e-4],
         'distill_coe': [0.3, 0.5],
         'dist_method': {
@@ -288,7 +309,7 @@ def params_for_SR_new_init_distill():
             'distill_alpha': [0.01, 0.001],
             'distill_loss': ['MSE'],
         },
-        'seed': 233,
+        'seed': [233, 234],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -325,9 +346,10 @@ def params_for_deip():
     # params = params_for_SR_real_progressive_small()
     # params = params_for_SR_baseline_with_add_ori()
     # params = params_for_SR_new_init()
-    params = params_for_SR_new_init_distill()
+    # params = params_for_SR_new_init_distill()
     # params = params_for_SR_new_conv_init()
     # params = params_for_SR_new_init_equal_width()
+    params = params_for_SR_new_init_std_align()
 
     # params = params_for_unit_test()
     return random_params(params)

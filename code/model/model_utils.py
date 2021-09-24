@@ -38,6 +38,28 @@ def freeze(model: torch.nn.Module):
         param.requires_grad = False
 
 
+def std_alignment(model, x, fs_std=None):
+    if fs_std is None:
+        fs_std = []
+    from model.layerwise_model import pad_const_channel
+    from model.layerwise_model import ConvLayer
+    assert isinstance(model, nn.ModuleList)
+    assert isinstance(x, torch.Tensor)
+    with torch.no_grad():
+        for idx, m in enumerate(model):
+            last_std = x.std()
+            x = m(pad_const_channel(x))
+            new_std = x.std()
+            if isinstance(m, ConvLayer):
+                if len(fs_std) != 0 and idx < len(fs_std):
+                    print('last std = ', last_std, 'replaced by ', fs_std[idx])
+                    last_std = fs_std[idx]
+                else:
+                    print('use last std as target std')
+                m.conv.weight.data *= last_std/new_std
+                x *= last_std/new_std
+
+
 def SR_conv_init(conv: torch.nn.Conv2d):
     torch.nn.init.xavier_normal_(conv.weight.data, gain=1)
     conv.weight.data *= 2 ** 0.5

@@ -30,7 +30,7 @@ class HeadLayer(ConvertibleLayer):
         return conv.simplify_layer()
 
 
-def resBlock(n_feats, kernel_size, act):
+def resBlock(n_feats, kernel_size, act, skip_bias):
     """
     EDSR 的 resBlock 只有中间有个 act，第二层后面是没有act的
     :param n_feats: model width
@@ -40,7 +40,7 @@ def resBlock(n_feats, kernel_size, act):
     """
     conv1 = ConvLayer(n_feats, n_feats, kernel_size, act=act)
     conv2 = ConvLayer(n_feats, n_feats, kernel_size)
-    return SkipConnectionSubModel([conv1, conv2], n_feats, skip_connection_bias=1000)
+    return SkipConnectionSubModel([conv1, conv2], n_feats, skip_connection_bias=skip_bias)
 
 
 class EDSRTail(InitializableLayer):
@@ -85,7 +85,7 @@ class EDSRTail(InitializableLayer):
 
 
 class EDSR_layerwise_Model(ConvertibleModel):
-    def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, **kwargs):
+    def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, skip_bias=1000, **kwargs):
         super(EDSR_layerwise_Model, self).__init__()
 
         n_resblocks = n_resblocks
@@ -98,9 +98,9 @@ class EDSR_layerwise_Model(ConvertibleModel):
         # define body module
         body = []
         for _ in range(n_resblocks):
-            body += [resBlock(n_feats, kernel_size, act=nn.ReLU())]
+            body += [resBlock(n_feats, kernel_size, act=nn.ReLU(), skip_bias=skip_bias)]
         body.append(ConvLayer(n_feats, n_feats, kernel_size))
-        self.append(SkipConnectionSubModel(body, n_feats, skip_connection_bias=1000))
+        self.append(SkipConnectionSubModel(body, n_feats, skip_connection_bias=skip_bias))
 
         # define tail module
         self.append(EDSRTail(scale, n_feats, n_colors, kernel_size, rgb_range))

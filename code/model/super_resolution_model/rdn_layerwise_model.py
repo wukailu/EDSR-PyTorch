@@ -16,23 +16,23 @@ def RDN_layerwise(**hparams):
     return RDN_layerwise_Model(**hparams)
 
 
-def RDB_Conv_Layerwise(inChannels, growRate, kSize=3):
+def RDB_Conv_Layerwise(inChannels, growRate, skip_bias, kSize=3):
     conv = ConvLayer(inChannels, growRate, kSize, stride=1, act=nn.ReLU())
-    return SkipConnectionSubModel([conv], inChannels, n_outs=growRate, skip_connection_bias=1000, sum_output=False)
+    return SkipConnectionSubModel([conv], inChannels, n_outs=growRate, skip_connection_bias=skip_bias, sum_output=False)
 
 
-def RDB_Layerwise(growRate0, growRate, nConvLayers, kSize=3):
+def RDB_Layerwise(growRate0, growRate, nConvLayers, skip_bias, kSize=3):
     convs = []
     for c in range(nConvLayers):
-        convs.append(RDB_Conv_Layerwise(growRate0 + c * growRate, growRate, kSize))
+        convs.append(RDB_Conv_Layerwise(growRate0 + c * growRate, growRate, skip_bias, kSize))
     # Local Feature Fusion
     LFF = ConvLayer(growRate0 + nConvLayers * growRate, growRate0, kernel_size=1, stride=1)
-    model = SkipConnectionSubModel([*convs, LFF], growRate0, skip_connection_bias=1000)
+    model = SkipConnectionSubModel([*convs, LFF], growRate0, skip_connection_bias=skip_bias)
     return model
 
 
 class RDN_layerwise_Model(ConvertibleModel):
-    def __init__(self, scale=4, n_feats=64, RDNkSize=3, RDNconfig='B', n_colors=3, **kwargs):
+    def __init__(self, scale=4, n_feats=64, RDNkSize=3, RDNconfig='B', n_colors=3, skip_bias=1000, **kwargs):
         super().__init__()
         G0 = n_feats
         kSize = RDNkSize
@@ -51,7 +51,7 @@ class RDN_layerwise_Model(ConvertibleModel):
         RDBs = nn.ModuleList()
         for i in range(self.D):
             RDBs.append(
-                RDB_Layerwise(growRate0=G0, growRate=G, nConvLayers=C)
+                RDB_Layerwise(growRate0=G0, growRate=G, nConvLayers=C, skip_bias=skip_bias)
             )
 
         # Global Feature Fusion
@@ -65,7 +65,7 @@ class RDN_layerwise_Model(ConvertibleModel):
 
         self.append(SFENet1)
         backbone = SkipConnectionSubModel([SFENet2,
-                                           DenseFeatureFusionSubModel(RDBs, G0, skip_connection_bias=1000),
-                                           GFF], G0, skip_connection_bias=1000)
+                                           DenseFeatureFusionSubModel(RDBs, G0, skip_connection_bias=skip_bias),
+                                           GFF], G0, skip_connection_bias=skip_bias)
         self.append(backbone)
         self.append(UPNet)
