@@ -248,15 +248,52 @@ def deip_CIFAR100_init_new():
     return {**templates['cifar100-classification'], **params}
 
 
+def deip_CIFAR100_init_new_distill():
+    params = {
+        'project_name': 'deip_CIFAR100_init_new',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': [1],
+        'layer_type': ['normal_no_bn', 'normal'],
+        'rank_eps': [0.05, 0.1],
+        'max_lr': [0.05, 0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'distill_coe': [0.3, 0.5],
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_alpha': [0.01, 0.001],
+            'distill_loss': ['MSE'],
+        },
+        'seed': 233,
+    }
+
+    return {**templates['cifar100-classification'], **params}
+
+
 def params_for_SR_new_init():
     params = {
-        'project_name': 'deip_SRx4_init_new_0bias',
+        'project_name': 'deip_SRx4_init_new_Ridge',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths["EDSR_100x4_0bias"],
+        'ridge_alpha': [1e-2],
+        'teacher_pretrain_path': pretrain_paths["RDNx4"],
+        # 'teacher_pretrain_path': pretrain_paths["EDSRx4"],
         'layer_type': ['normal_no_bn'],
         'rank_eps': [0.1, 0.2],
         'max_lr': [2e-4],
+    }
+
+    return {**templates['DIV2K-SRx4'], **params}
+
+
+def params_for_SR_stable_test():
+    params = {
+        'project_name': 'deip_SRx4_stable_test',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': pretrain_paths["EDSR_200x4"],
+        'layer_type': ['normal_no_bn_scale', 'normal_no_bn', 'normal'],
+        'fix_r': 200,
+        'max_lr': [2e-4],
+        'seed': [233, 234],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -302,8 +339,9 @@ def params_for_SR_new_init_distill():
         'teacher_pretrain_path': pretrain_paths['EDSR_100x4'],
         'layer_type': ['normal_no_bn'],
         'rank_eps': [0.2],
+        'ridge_alpha': [1e-2],
         'max_lr': [2e-4],
-        'distill_coe': [0.3, 0.5],
+        'distill_coe': [0.3],
         'dist_method': {
             'name': 'BridgeDistill',
             'distill_alpha': [0.01, 0.001],
@@ -313,6 +351,29 @@ def params_for_SR_new_init_distill():
     }
 
     return {**templates['DIV2K-SRx4'], **params}
+
+
+def params_for_SR_new_init_distill_fix():
+    params = {
+        'project_name': 'deip_SRx4_distill_fix',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': pretrain_paths['EDSR_100x4'],
+        'layer_type': ['normal_no_bn'],
+        'rank_eps': [0.2],
+        'max_lr': [2e-4],
+        'distill_coe': [0.3, 0.5],
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_alpha': [0.001],
+            'distill_loss': ['MSE'],
+        },
+        "fix_distill_module": 1,
+        'seed': [233, 234],
+    }
+
+    return {**templates['DIV2K-SRx4'], **params}
+
 
 
 def params_for_SR_new_conv_init():
@@ -335,6 +396,7 @@ def params_for_deip():
     # params = params_for_deip_distillation()
     # params = params_for_deip_progressive_distillation()
     # params = deip_CIFAR100_init_new()
+    # params = deip_CIFAR100_init_new_distill()
 
     # params = params_for_SR_baseline()
     # params = params_for_SR_baseline_small()
@@ -346,10 +408,12 @@ def params_for_deip():
     # params = params_for_SR_real_progressive_small()
     # params = params_for_SR_baseline_with_add_ori()
     # params = params_for_SR_new_init()
-    # params = params_for_SR_new_init_distill()
+    # params = params_for_SR_stable_test()
+    params = params_for_SR_new_init_distill()
+    # params = params_for_SR_new_init_distill_fix()
     # params = params_for_SR_new_conv_init()
     # params = params_for_SR_new_init_equal_width()
-    params = params_for_SR_new_init_std_align()
+    # params = params_for_SR_new_init_std_align()
 
     # params = params_for_unit_test()
     return random_params(params)

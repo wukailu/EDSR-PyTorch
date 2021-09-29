@@ -328,20 +328,20 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
         app_f = f2[:r]
 
     #  try to keep app_f and f has the same variance
-    scale = f.std(unbiased=False) / app_f.std(unbiased=False)
-    app_f *= scale
-    app_M /= scale
+    # scale = f.std(unbiased=False) / app_f.std(unbiased=False)
+    # app_f *= scale
+    # app_M /= scale
 
     approx = torch.mm(app_M, app_f)
     error = torch.norm(f - approx, p=2) / torch.norm(f, p=2)
 
-    # if with_bias:
-    #     # adjust the app_f to most positive value
-    #     neg = app_f.clone()
-    #     neg[neg > 0] = 0
-    #     adjust = -neg.mean(dim=1, keepdim=True) * 3
-    #     app_f = app_f + adjust
-    #     bias -= app_M @ adjust
+    if with_bias:
+        # adjust the app_f to most positive value
+        neg = app_f.clone()
+        neg[neg > 0] = 0
+        adjust = -neg.mean(dim=1, keepdim=True) * 3
+        app_f = app_f + adjust
+        bias -= app_M @ adjust
 
     # add relative eps
     # if error < eps * torch.max(torch.abs(f)) or error < eps:
@@ -381,11 +381,9 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
     #  refer to wiki, it's called `Weighted low-rank approximation problems`, which does not have an analytic solution
     assert len(f.shape) == 2
     # svd can not solve too large feature maps, so take samples
-    print('f origin std', f.std())
     if f.size(1) > 32768:
         perm = torch.randperm(f.size(1))[:32768]
         f = f[:, perm]
-    print('f sample std', f.std())
 
     if with_bias:
         bias = f.mean(dim=1, keepdim=True)
@@ -444,6 +442,8 @@ class DEIP_Distillation(DEIP_LightModel):
     def __init__(self, hparams):
         super().__init__(hparams)
         self.dist_method = self.get_distillation_module()
+        if self.params['fix_distill_module']:
+            freeze(self.dist_method)
 
     def get_distillation_module(self):
         sample, _ = self.unpack_batch(self.train_dataloader().dataset[0])
@@ -458,6 +458,7 @@ class DEIP_Distillation(DEIP_LightModel):
     def complete_hparams(self):
         default_sr_list = {
             'dist_method': 'FD_Conv1x1_MSE',
+            'fix_distill_module': False,
             'distill_coe': 0,
         }
         self.params = {**default_sr_list, **self.params}
@@ -509,6 +510,7 @@ class DEIP_Init(DEIP_Distillation):
     def complete_hparams(self):
         default_sr_list = {
             'dist_method': 'BridgeDistill',
+            'ridge_alpha': 0.1,
         }
         self.params = {**default_sr_list, **self.params}
         DEIP_Distillation.complete_hparams(self)
@@ -521,11 +523,15 @@ class DEIP_Init(DEIP_Distillation):
 
     def init_student(self):
         assert not self.params['add_ori']
-        images = self.example_data
         widths = [self.params['input_channel']]
         self.bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
+
+        self.fs_his = []
+        self.ft_his = []
+
         with torch.no_grad():
-            f_list, _ = self.teacher_model(images[:16], with_feature=True)
+            f_list, _ = self.teacher_model(self.example_data, with_feature=True)
+            self.ft_his = f_list
             teacher_width = [f.size(1) for f in f_list]
             for f in f_list[:-2]:
                 mat = f.transpose(0, 1).flatten(start_dim=1)
@@ -539,6 +545,8 @@ class DEIP_Init(DEIP_Distillation):
                 conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)
 
                 self.fs_std.append(fs.std())
+                self.fs_his.append(fs)
+
                 print('---------layer ', len(self.bridges), '--------')
                 print('mat_shape', mat.shape, 'mat_min', mat.min(), 'mat_mean', mat.mean(), 'mat_std', f.std())
                 print('ft_shape', f.shape, 'f_min', f.min(), 'f_mean', f.mean(), 'f_std', f.std())
@@ -555,7 +563,7 @@ class DEIP_Init(DEIP_Distillation):
         self.bridges.append(IdLayer(teacher_width[-1]))
         print("calculated teacher width = ", [self.params['input_channel']] + teacher_width)
         print("calculated student width = ", widths)
-        f_shapes = [images.shape[-2:]] + [f.shape[-2:] for f in f_list[:-1]]
+        f_shapes = [self.example_data.shape[-2:]] + [f.shape[-2:] for f in f_list[:-1]]
         with torch.no_grad():
             for i in range(len(self.bridges) - 2):
                 if self.params['init_stu_with_teacher']:
@@ -570,9 +578,34 @@ class DEIP_Init(DEIP_Distillation):
                     B[:, 0, B.size(2) // 2, B.size(3) // 2] -= bias
                     B = B.flatten(start_dim=1)
                     # solve MX=B
-                    X = torch.lstsq(B, M)[0][:M.size(1)]
+                    # example, M: 20x12, X: 12x144, B:20x144
+                    # method 1: might got super large single value in X
+                    # X = torch.lstsq(B, M)[0][:M.size(1)]
+                    # method 2: no bias included
+                    from sklearn.linear_model import Ridge
+                    clf = Ridge(alpha=self.params['ridge_alpha'], fit_intercept=False)
+                    clf.fit(M.numpy(), B.numpy())
+                    X = torch.tensor(clf.coef_.T)
+                    # method 3: bias included, MX = B where B is centered, this method has problem that B is a kernel,
+                    # normalize a kernel will introduce problem
+                    # from sklearn.linear_model import Ridge
+                    # clf = Ridge(alpha=0.01, fit_intercept=False)
+                    # n_bias = B.mean(dim=1).reshape((-1, 1))
+                    # B -= n_bias
+                    # clf.fit(M.numpy(), B.numpy())
+                    # X = torch.tensor(clf.coef_.T)
+                    # if isinstance(self.bridges[i+1], IdLayer):
+                    #     self.bridges[i+1].bias += n_bias
+                    # elif isinstance(self.bridges[i+1], ConvLayer):
+                    #     self.bridges[i+1].conv.weight.data[:, 0, 0, 0] += n_bias[:, 0]
+                    # else:
+                    #     raise NotImplementedError()
+                    print('B_mean', B.mean(), 'B_std', B.std(), 'B_max', B.max(), 'B_min', B.min())
+                    print('M_mean', M.mean(), 'M_std', M.std(), 'M_max', M.max(), 'M_min', M.min())
+                    print('X_mean', X.mean(), 'X_std', X.std(), 'X_max', X.max(), 'X_min', X.min())
+
                     conv.weight.data[:] = X.reshape_as(conv.weight)
-                    self.plain_model.append(ConvLayer.fromConv2D(conv, act=act, const_channel_0=True))
+                    self.plain_model.append(ConvLayer.fromConv2D(conv, act=act, const_channel_0=True, version=self.params['layer_type']))
                 else:
                     self.append_layer(widths[i], widths[i + 1], f_shapes[i], f_shapes[i + 1])
         self.append_tail(widths[-2], widths[-1])

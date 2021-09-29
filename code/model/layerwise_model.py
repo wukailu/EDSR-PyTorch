@@ -79,6 +79,7 @@ class ConvertibleModel(LayerWiseModel):
         return simplify_sequential_model(ret)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+        # TODO: fix this, recursive into submodels
         f_list = []
         for m in self.sequential_models[start_forward_from: until]:
             x = m(pad_const_channel(x))
@@ -270,7 +271,7 @@ class ConvLayer(ConvertibleLayer):
     """
 
     def __init__(self, in_channel, out_channel, kernel_size, stride=1, bn=False, act: nn.Module = nn.Identity(),
-                 SR_init=False):
+                 SR_init=False, version='normal_no_bn'):
         """
         create a Convertible Layer with a conv-bn-act structure, where the input has a const channel at 0.
         :param in_channel: original in_channels
@@ -285,35 +286,47 @@ class ConvLayer(ConvertibleLayer):
         if SR_init:
             SR_conv_init(self.conv)
         self.conv.weight.data[:, 0] = 0
-        if bn:
+        if bn or ('no_bn' not in version):
             self.bn = nn.BatchNorm2d(out_channel)
         else:
             self.bn = nn.Identity()
+        if 'scale' in version:
+            self.scale = self.register_parameter('gamma', torch.nn.Parameter(torch.ones((1, out_channel, 1, 1))))
+            print('scale enabled!')
+        else:
+            self.scale = None
         self.act = act
 
     def simplify_layer(self):
+        import copy
+        conv = copy.deepcopy(self.conv)
+        if self.scale is not None:
+            conv.weight.data *= self.scale.reshape((-1, 1, 1, 1))
         if isinstance(self.bn, nn.BatchNorm2d):
-            return conv_to_const_conv(convbn_to_conv(self.conv, self.bn), add_input_channel=False), self.act
+            return conv_to_const_conv(convbn_to_conv(conv, self.bn), add_input_channel=False), self.act
         else:
-            return self.conv, self.act
+            return conv, self.act
 
     def forward(self, x):
+        x = self.conv(x)
         if isinstance(self.bn, nn.BatchNorm2d):
-            return self.act(self.bn(self.conv(x)))
-        else:
-            return self.act(self.conv(x))
+            x = self.bn(x)
+        if self.scale is not None:
+            x *= self.scale
+        return self.act(x)
 
     @staticmethod
-    def fromConv2D(conv: nn.Conv2d, act: nn.Module = nn.Identity(), const_channel_0=False):
+    def fromConv2D(conv: nn.Conv2d, act: nn.Module = nn.Identity(), const_channel_0=False, version='normal_no_bn'):
         """
         build a ConvLayer from a normal nn.conv2d
+        :param version: default as normal_no_bn
         :param conv: nn.conv2d
         :param act: act after this conv, default to be identity
         :param const_channel_0: is this conv already take input channel 0 as a const channel with 1, default false
         :return:a ConvLayer
         """
         conv = conv_to_const_conv(conv, add_input_channel=not const_channel_0)
-        ret = ConvLayer(conv.in_channels, conv.out_channels, conv.kernel_size, act=act)
+        ret = ConvLayer(conv.in_channels, conv.out_channels, conv.kernel_size, act=act, version=version)
         ret.conv = conv
         return ret
 
@@ -358,17 +371,20 @@ class IdLayer(ConvertibleLayer):
     def __init__(self, channel, bias=0, act=nn.Identity()):
         super().__init__()
         self.channel = channel
-        self.bias = bias
+        if isinstance(bias, (float, int)):
+            self.bias = torch.ones((channel, 1)) * bias
+        elif isinstance(bias, torch.Tensor):
+            self.bias = bias
         self.act = act
 
     def simplify_layer(self):
         conv = ConvLayer(self.channel, self.channel, 1)
-        conv.conv.weight.data[:, 0] = self.bias
+        conv.conv.weight.data[:, 0:1, 0, 0] = self.bias
         conv.conv.weight.data[:, 1:] = torch.eye(self.channel).view((self.channel, self.channel, 1, 1))
         return conv.conv, self.act
 
     def forward(self, x):
-        return self.act(x[:, 1:] + self.bias)
+        return self.act(x[:, 1:] + self.bias.reshape((1, -1, 1, 1)))
 
 
 def zero_pad(x, target_shape):
