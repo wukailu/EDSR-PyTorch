@@ -333,10 +333,10 @@ def params_for_SR_new_init_equal_width():
 
 def params_for_SR_new_init_distill():
     params = {
-        'project_name': 'deip_SRx4_init_new',
+        'project_name': 'deip_SRx4_init_new_distill',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR_100x4'],
+        'teacher_pretrain_path': pretrain_paths['RDNx4'],
         'layer_type': ['normal_no_bn'],
         'rank_eps': [0.2],
         'ridge_alpha': [1e-2],
@@ -353,23 +353,24 @@ def params_for_SR_new_init_distill():
     return {**templates['DIV2K-SRx4'], **params}
 
 
-def params_for_SR_new_init_distill_fix():
+def params_for_SR_new_init_distill_new_coe():
     params = {
-        'project_name': 'deip_SRx4_distill_fix',
+        'project_name': 'deip_SRx4_distill_new_coe',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR_100x4'],
+        'teacher_pretrain_path': pretrain_paths['RDNx4'],
         'layer_type': ['normal_no_bn'],
+        'distill_coe_mod': 'new',
+        'distill_coe': [0.1, 1, 10],
         'rank_eps': [0.2],
         'max_lr': [2e-4],
-        'distill_coe': [0.3, 0.5],
         'dist_method': {
             'name': 'BridgeDistill',
-            'distill_alpha': [0.001],
+            'distill_alpha': 1e-5,
             'distill_loss': ['MSE'],
         },
         "fix_distill_module": 1,
-        'seed': [233, 234],
+        'seed': [233],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -409,8 +410,8 @@ def params_for_deip():
     # params = params_for_SR_baseline_with_add_ori()
     # params = params_for_SR_new_init()
     # params = params_for_SR_stable_test()
-    params = params_for_SR_new_init_distill()
-    # params = params_for_SR_new_init_distill_fix()
+    # params = params_for_SR_new_init_distill()
+    params = params_for_SR_new_init_distill_new_coe()
     # params = params_for_SR_new_conv_init()
     # params = params_for_SR_new_init_equal_width()
     # params = params_for_SR_new_init_std_align()

@@ -86,7 +86,7 @@ def super_resolution_test():
 
         print("---------full test--------")
         ps = model(x_test, until=-1)
-        pt = model.teacher_model(x_test, until=-1)
+        pt = model.teacher_plain_model(x_test, until=-1)
         tensor_static(ps, 'final_student')
         tensor_static(pt, 'final_teacher')
         tensor_static(ps - pt, 'diff')
@@ -125,7 +125,7 @@ def classification_test():
     with torch.no_grad():
         print("---------full test--------")
         ps = model(x_test)
-        pt = model.teacher_model(x_test)
+        pt = model.teacher_plain_model(x_test)
         tensor_static(ps, 'final_student')
         tensor_static(pt, 'final_teacher')
         tensor_static(ps - pt, 'diff')

@@ -79,12 +79,53 @@ class ConvertibleModel(LayerWiseModel):
         return simplify_sequential_model(ret)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        # TODO: fix this, recursive into submodels
+        """
+        :param x: input without padded const
+        :param with_feature: bool, if true, model return the same feature as converted model feature
+        :param start_forward_from: None or number
+        :param until: None or number
+        :return:
+        """
         f_list = []
-        for m in self.sequential_models[start_forward_from: until]:
-            x = m(pad_const_channel(x))
-            if with_feature:
-                f_list.append(x)
+        idx = 0
+
+        if start_forward_from is None:
+            start = 0
+        elif start_forward_from < 0:
+            start = len(self) + start_forward_from
+        else:
+            start = start_forward_from
+        if until is None:
+            until = len(self)
+        elif until < 0:
+            until = len(self) + until
+        else:
+            until = until
+
+        for m in self.sequential_models:
+            if isinstance(m, LayerWiseModel):
+                lm = len(m)
+                il = max(idx, start)
+                ir = min(idx+lm, until)
+                if il < ir:
+                    if with_feature:
+                        mf_list, x = m.forward(pad_const_channel(x), with_feature=with_feature, start_forward_from=il-idx, until=ir-idx)
+                        f_list += mf_list
+                    else:
+                        x = m.forward(pad_const_channel(x), with_feature=with_feature, start_forward_from=il - idx, until=ir - idx)
+                else:
+                    idx += lm
+            elif isinstance(m, InitializableLayer):
+                if start <= idx < until:
+                    x = m(pad_const_channel(x))
+                    if with_feature and (not is_mergeable_1x1(m)):
+                        f_list.append(x)
+                idx += 1
+            else:
+                raise NotImplementedError()
+            if idx >= until:
+                break
+
         return (f_list, x) if with_feature else x
 
     def __len__(self):
@@ -145,12 +186,20 @@ class SkipConnectionSubModel(ConvertibleSubModel):
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         if with_feature:
-            f_list, _ = ConvertibleSubModel.forward(self, x, with_feature, start_forward_from, until)
-            f_list = [torch.cat([x[:, 1:], f], dim=1) for f in f_list]
-            return f_list, f_list[-1]
+            f_list, out = ConvertibleSubModel.forward(self, x, with_feature, start_forward_from, until)
+            if self.sum_output and (not is_mergeable_1x1(self.sequential_models[-1])):
+                f_list = [torch.cat([x[:, 1:] + self.bias, f], dim=1) for f in f_list[:-1]]
+                f_list.append(out)
+            else:
+                f_list = [torch.cat([x[:, 1:] + self.bias, f], dim=1) for f in f_list]
+            if self.sum_output:
+                out += x[:, 1:]
+            else:
+                out = torch.cat([x[:, 1:], out], dim=1)
+            return f_list, out
         elif until is not None and until < len(self):
             ans = ConvertibleSubModel.forward(self, x, with_feature, start_forward_from, until)
-            return torch.cat([x[:, 1:], ans], dim=1)
+            return torch.cat([x[:, 1:]+self.bias, ans], dim=1)
         else:
             ans = ConvertibleSubModel.forward(self, x, with_feature, start_forward_from, until)
             if self.sum_output:
@@ -182,31 +231,67 @@ class DenseFeatureFusionSubModel(ConvertibleSubModel):
         super().__init__(model_list)
         for m in model_list:
             assert isinstance(m, (ConvertibleLayer, ConvertibleModel))
-        self.bias = skip_connection_bias if isinstance(skip_connection_bias, (list, tuple)) \
-            else [skip_connection_bias] * len(model_list)
+        self.bias = skip_connection_bias
         self.n_feats = n_feats if isinstance(n_feats, (list, tuple)) else [n_feats] * len(model_list)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
+        # TODO: verify this code
+        x = x[:, 1:]
         real_f_list = []
         f_list = []
-        x = x[:, 1:]
-        for m in self.sequential_models[start_forward_from:until]:
-            x = m(pad_const_channel(x))
-            f_list.append(x)
-            if with_feature:
-                real_f_list.append(torch.cat(f_list, dim=1))
-        if with_feature:
-            return real_f_list, real_f_list[-1]
+        idx = 0
+
+        if start_forward_from is None:
+            start = 0
+        elif start_forward_from < 0:
+            start = len(self) + start_forward_from
         else:
-            return torch.cat(f_list, dim=1)
+            start = start_forward_from
+        if until is None:
+            until = len(self)
+        elif until < 0:
+            until = len(self) + until
+        else:
+            until = until
+
+        for m in self.sequential_models:
+            if isinstance(m, LayerWiseModel):
+                lm = len(m)
+                il = max(idx, start)
+                ir = min(idx + lm, until)
+                if il < ir:
+                    if with_feature:
+                        mf_list, x = m.forward(pad_const_channel(x), with_feature=with_feature, start_forward_from=il - idx,
+                                               until=ir - idx)
+                        real_f_list += [torch.cat(f_list + [mf], dim=1) for mf in mf_list]
+                        f_list.append(x + self.bias)
+                    else:
+                        x = m.forward(pad_const_channel(x), with_feature=with_feature, start_forward_from=il - idx, until=ir - idx)
+                        f_list.append(x + self.bias)
+                else:
+                    idx += lm
+            elif isinstance(m, InitializableLayer):
+                if start <= idx < until:
+                    x = m(pad_const_channel(x))
+                    if with_feature and (not is_mergeable_1x1(m)):
+                        real_f_list.append(torch.cat(f_list + [x], dim=1))
+                    f_list.append(x + self.bias)
+                idx += 1
+            else:
+                raise NotImplementedError()
+            if idx >= until:
+                break
+
+        out = torch.cat([f - self.bias for f in f_list], dim=1)
+        return (real_f_list, out) if with_feature else out
 
     def to_convertible_layers(self):
         if len(self) == 1:
             return self[0].to_convertible_layers()
         else:
             layers = self[-1].to_convertible_layers()
-            for m, width, bias in zip(self[-2::-1], self.n_feats[-2::-1], self.bias[-2::-1]):
-                layers = SkipConnectionSubModel(layers, width, skip_connection_bias=bias,
+            for m, width in zip(self[-2::-1], self.n_feats[-2::-1]):
+                layers = SkipConnectionSubModel(layers, width, skip_connection_bias=self.bias,
                                                 sum_output=False).to_convertible_layers()
                 layers = m.to_convertible_layers() + layers
             return layers
@@ -371,20 +456,17 @@ class IdLayer(ConvertibleLayer):
     def __init__(self, channel, bias=0, act=nn.Identity()):
         super().__init__()
         self.channel = channel
-        if isinstance(bias, (float, int)):
-            self.bias = torch.ones((channel, 1)) * bias
-        elif isinstance(bias, torch.Tensor):
-            self.bias = bias
+        self.bias = bias
         self.act = act
 
     def simplify_layer(self):
         conv = ConvLayer(self.channel, self.channel, 1)
-        conv.conv.weight.data[:, 0:1, 0, 0] = self.bias
+        conv.conv.weight.data[:, 0] = self.bias
         conv.conv.weight.data[:, 1:] = torch.eye(self.channel).view((self.channel, self.channel, 1, 1))
         return conv.conv, self.act
 
     def forward(self, x):
-        return self.act(x[:, 1:] + self.bias.reshape((1, -1, 1, 1)))
+        return self.act(x[:, 1:] + self.bias)
 
 
 def zero_pad(x, target_shape):
@@ -485,10 +567,18 @@ class ConcatLayer(ConvertibleLayer):
 def is_mergeable_1x1(conv):
     if conv is None or not isinstance(conv, ConvertibleLayer):
         return False
-    conv, act = conv.simplify_layer()
-    if conv.kernel_size == (1, 1) and isinstance(act, nn.Identity):
-        return True
-    return False
+    if isinstance(conv, ConvLayer):
+        return conv.conv.kernel_size == (1, 1) and isinstance(conv.act, nn.Identity)
+    elif isinstance(conv, IdLayer):
+        return isinstance(conv.act, nn.Identity)
+    elif isinstance(conv, ConcatLayer):
+        return isinstance(conv.act, nn.Identity) and conv.eq_conv1.kernel_size == (1,1) and conv.eq_conv2.kernel_size == (1,1)
+    else:
+        import copy
+        conv, act = copy.deepcopy(conv).cpu().simplify_layer()
+        if conv.kernel_size == (1, 1) and isinstance(act, nn.Identity):
+            return True
+        return False
 
 
 def simplify_sequential_model(model_list):

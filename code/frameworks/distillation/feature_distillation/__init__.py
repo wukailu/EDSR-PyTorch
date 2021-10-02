@@ -32,10 +32,9 @@ class DistillationMethod(torch.nn.Module):
 
 
 class BridgeDistill(DistillationMethod):
-    def __init__(self, bridge, distill_alpha=1, distill_loss='MSE', *args, **kwargs):
+    def __init__(self, bridge, distill_loss='MSE', *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bridge = bridge
-        self.alpha = distill_alpha
         if distill_loss == 'MSE':
             self.loss = torch.nn.MSELoss()
         elif distill_loss == 'L1':
@@ -46,10 +45,9 @@ class BridgeDistill(DistillationMethod):
     def forward(self, feat_s, feat_t, epoch_ratio):
         assert len(feat_s) == len(self.bridge)
         loss = []
-        coe = self.alpha ** epoch_ratio
         for fs, ft, b in zip(feat_s, feat_t, self.bridge):
             loss.append(self.loss(b(pad_const_channel(fs)), ft))
-        return torch.mean(torch.stack(loss)) * coe
+        return torch.mean(torch.stack(loss))
 
 
 class KD(DistillationMethod):
