@@ -19,9 +19,10 @@ def IMDN_free(**kwargs):
 
 # For any upscale factors
 class IMDN_AS(nn.Module):
-    def __init__(self, in_nc=3, nf=64, num_modules=6, out_nc=3, scale=4, **kwargs):
+    def __init__(self, in_nc=3, n_feats=64, num_modules=6, out_nc=3, scale=4, **kwargs):
         super(IMDN_AS, self).__init__()
 
+        nf = n_feats
         self.fea_conv = nn.Sequential(conv_layer(in_nc, nf, kernel_size=3, stride=2),
                                       nn.LeakyReLU(0.05),
                                       conv_layer(nf, nf, kernel_size=3, stride=2))

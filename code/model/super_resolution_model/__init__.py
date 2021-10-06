@@ -15,3 +15,7 @@ from .baseline_model import *
 from .edsr_layerwise_model import *
 from .plain_layerwise_model import *
 from .rdn_layerwise_model import *
+from .fsrcnn import *
+from .srcnn import *
+from .carn import *
+from .drrn import *

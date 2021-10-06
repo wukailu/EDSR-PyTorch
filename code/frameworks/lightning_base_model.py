@@ -5,6 +5,7 @@ import torchmetrics
 from datasets.dataProvider import DataProvider
 from model import get_classifier
 from copy import deepcopy
+from meter.super_resolution_meter import PSNR_SHAVE
 
 __all__ = ["LightningModule", "_Module"]
 
@@ -29,6 +30,10 @@ class LightningModule(pl.LightningModule, ABC):
             'acc': torchmetrics.Accuracy(),
             'psnr': torchmetrics.image.PSNR(),
             'psnr255': torchmetrics.image.PSNR(data_range=255),
+            'psnr_shave_x4': PSNR_SHAVE(scale=4, gray=False, data_range=255),
+            'psnr_gray_shave_x4': PSNR_SHAVE(scale=4, gray=True, data_range=255),
+            'psnr_shave_x2': PSNR_SHAVE(scale=2, gray=False, data_range=255),
+            'psnr_gray_shave_x2': PSNR_SHAVE(scale=2, gray=True, data_range=255),
         }
         return metric_map[self.params['metric'].lower()]
 

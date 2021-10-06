@@ -315,7 +315,7 @@ class DEIP_Dropout_Init(DEIP_LightModel):
             self.teacher_plain_model.sequential_models[-1].init_student(self.plain_model[-1], torch.eye(widths[-2]))
 
 
-def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, ret_err=False):
+def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust, ret_err=False):
     ret = []
     if use_NMF:
         f = f[:, :512]
@@ -336,7 +336,7 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
     approx = torch.mm(app_M, app_f)
     error = torch.norm(f - approx, p=2) / torch.norm(f, p=2)
 
-    if with_bias:
+    if with_bias and adjust:
         # adjust the app_f to most positive value
         neg = app_f.clone()
         neg[neg > 0] = 0
@@ -364,7 +364,7 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
         return ret, error
 
 
-def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False, fix_r=-1):
+def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False, fix_r=-1, adjust=True):
     # TODO: consider how can we align f to 1-var or 1-norm
     """
     Estimate the size of feature map to approximate this. The return matrix f' should be positive if possible
@@ -401,13 +401,13 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
 
     if fix_r != -1:
         fix_r = min(fix_r, f.size(0))
-        return test_rank(fix_r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, ret_err=False)[1:]
+        return test_rank(fix_r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust, ret_err=False)[1:]
 
     final_ret = []
     L, R = 0, f.size(0)  # 好吧，不得不写倍增 [ )
     step = 1
     while L + step < R:
-        ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps)
+        ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust)
         if ret[0]:
             R = L + step
             final_ret = ret
@@ -418,7 +418,7 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
     step = step // 2
     while step != 0:
         if L + step < R:
-            ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps)
+            ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust)
             if not ret[0]:
                 L = L + step
             else:
@@ -427,7 +427,7 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
         step = step // 2
 
     if len(final_ret) == 0:
-        final_ret, error = test_rank(R, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, ret_err=True)
+        final_ret, error = test_rank(R, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust, ret_err=True)
         print("rank estimation failed! feature shape is ", f.shape)
         print("max value and min value in feature is ", f.max(), f.min())
         print(f"rank estimation failed! The last error is {error}")
@@ -493,6 +493,8 @@ class DEIP_Distillation(DEIP_LightModel):
 
                 loss = task_loss * coe_task + dist_loss * coe_dist
                 self.log('train/dist_loss', dist_loss, sync_dist=True)
+                self.log('train/coe_task', coe_task, sync_dist=True)
+                self.log('train/coe_dist', coe_dist, sync_dist=True)
             else:
                 loss = task_loss
         else:
@@ -522,7 +524,8 @@ class DEIP_Init(DEIP_Distillation):
     def complete_hparams(self):
         default_sr_list = {
             'dist_method': 'BridgeDistill',
-            'ridge_alpha': 0.1,
+            'ridge_alpha': 0,
+            'decompose_adjust': True,
         }
         self.params = {**default_sr_list, **self.params}
         DEIP_Distillation.complete_hparams(self)
@@ -551,7 +554,7 @@ class DEIP_Init(DEIP_Distillation):
 
                 # M*fs + bias \approx mat
                 M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
-                                               with_solution=True, use_NMF=False, fix_r=fix_r)
+                                               with_solution=True, use_NMF=False, fix_r=fix_r, adjust=self.params['decompose_adjust'])
                 conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
                 conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)
                 conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)

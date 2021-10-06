@@ -1,88 +1,29 @@
 import numpy as np
 import torch
 from torch import Tensor
-from meter.utils import all_sum
-from meter.utils import Meter
+from torchmetrics.image import PSNR
 
 
-class SuperResolutionMeter(Meter):
-    """A meter to keep track of iou and dice scores throughout an epoch"""
+class PSNR_SHAVE(PSNR):
+    def __init__(self, scale, gray, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.scale = scale
+        self.gray = gray
 
-    def __init__(self, phase: str, workers, scale):
-        self._loss = []
-        self._meters = [PSNR(), PSNR_GRAY()]
-        self._records = {m.name: [] for m in self._meters}
-
-        self.phase = phase
-        self._scale = scale
-        self._workers = workers
-
-    def update(self, sr: Tensor, hr: Tensor, loss: Tensor):
-        with torch.no_grad():
-            sr = sr.data.cuda()
-            hr = hr.data.cuda()
-            loss = loss.data.cuda()
-
-            if self._workers != 1:
-                self._loss.append(all_sum(loss).cpu() / self._workers)
-                for m in self._meters:
-                    self._records[m.name].append(all_sum(m(sr, hr, self._scale)).cpu() / self._workers)
-            else:
-                self._loss.append(loss.cpu())
-                for m in self._meters:
-                    self._records[m.name].append(m(sr, hr, self._scale).cpu())
-
-    def log_metric(self) -> dict:
-        ret = {"loss": torch.mean(torch.stack(self._loss)),
-               **{key: torch.mean(torch.stack(values)) for key, values in self._records.items()}}
-
-        return {self.phase + "/" + key: value for key, value in ret.items()}
-
-    def reset(self):
-        self._loss = []
-        self._records = {m.name: [] for m in self._meters}
-
-
-# TODO: Implement this as the format of torchmetric
-class PSNR:
-    """Peak Signal to Noise Ratio
-    img1 and img2 have range [0, 255]"""
-
-    def __init__(self):
-        self.name = "PSNR"
-
-    @staticmethod
-    def __call__(img1, img2, scale):
-        diff = (img1 - img2) / 255
-
-        shave = scale + 6
-        valid = diff[..., shave:-shave, shave:-shave]
-        mse = valid.pow(2).mean() + 1e-10
-
-        assert mse > 0
-
-        return -10 * torch.log10(mse)
-
-
-class PSNR_GRAY:
-    def __init__(self):
-        self.name = "PSNR_GRAY"
-
-    @staticmethod
-    def __call__(img1, img2, scale):
-        diff = (img1 - img2) / 255
-
-        shave = scale
-        gray_coeffs = [65.738, 129.057, 25.064]
-        convert = diff.new_tensor(gray_coeffs).view(1, 3, 1, 1) / 256
-        diff = diff.mul(convert).sum(dim=1)
-
-        valid = diff[..., shave:-shave, shave:-shave]
-        if valid.size == 0:
-            return 0
-        mse = valid.pow(2).mean() + 1e-10
-
-        return -10 * torch.log10(mse)
+    def update(self, preds: Tensor, target: Tensor) -> None:  # type: ignore
+        shave = self.scale
+        if self.gray:
+            gray_coeffs = [65.738, 129.057, 25.064]
+            convert = preds.new_tensor(gray_coeffs).view(1, 3, 1, 1) / 256
+            preds = preds.mul(convert).sum(dim=1)
+            target = target.mul(convert).sum(dim=1)
+        else:
+            shave = self.scale + 6
+        preds = preds[..., shave:-shave, shave:-shave]
+        target = target[..., shave:-shave, shave:-shave]
+        if preds.nelement() == 0:
+            return
+        super().update(preds, target)
 
 
 class SSIM:

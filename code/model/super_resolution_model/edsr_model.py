@@ -28,12 +28,12 @@ def EDSR(pretrained=False, **hparams):
 
 
 class EDSR_Model(nn.Module):
-    def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, res_scale=1,
+    def __init__(self, n_resblocks=16, n_feats=64, scale=4, rgb_range=255, n_colors=3, res_scale=1,
                  conv=model.model_utils.default_conv, **kwargs):
         super(EDSR_Model, self).__init__()
 
         n_resblocks = n_resblocks
-        n_feats = n_feats if nf is None else nf
+        n_feats = n_feats
         kernel_size = 3
         act = nn.ReLU(True)
         url_name = 'r{}f{}x{}'.format(n_resblocks, n_feats, scale)

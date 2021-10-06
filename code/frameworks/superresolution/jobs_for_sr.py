@@ -178,16 +178,26 @@ def dense_model_train():
         'save_model': True,
         'backbone': {
             # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr'],
-            # 'arch': ['RCAN_sr', 'HAN_sr',],
+            'arch': ['RCAN_sr', 'EDSR_sr'],
             # 'arch': ['RDN_layerwise_sr', 'RDN_sr'],
-            'arch': ['edsr_layerwise_sr'],
-            'n_feats': [200],
+            # 'arch': ['RDN_layerwise_sr'],
+            # 'RDNconfig': 'A',
         },
-        'gpus': [1],
     }
 
-    return {**templates['DIV2K-b64-SRx4'], **params}
+    return {**templates['DIV2K-b32-SRx4'], **params}
     # return {**templates['DIV2K-b16-SRx4'], **params}
+
+
+def inference_test():
+    params = {
+        'project_name': 'inference_benchmark',
+        'num_epochs': 1,
+        'backbone': {
+            'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr', 'SRCNN_sr', 'FSRCNN_sr', 'CARN_sr', 'CARN_M_sr'],
+        },
+    }
+    return {**templates['DIV2K-b16-SRx4'], **params}
 
 
 def naiveBaseline():
@@ -202,16 +212,15 @@ def naiveBaseline():
 
 
 def directTrainPlain():
-    depth, width = random_params([(20, 87), (30, 71), (60, 50)])
+    depth, width = random_params([(20, 87), (10, 114), (14, 100)])
     params = {
-        'project_name': 'plain_SR_add_ori_interval_test',
+        'project_name': 'plain_SR_add_ori_verify',
         'num_epochs': 300,
         'backbone': {
             'arch': 'Plain_layerwise_sr',
             'num_modules': depth,
             'n_feats': width,
             'add_ori': 1,
-            'add_ori_interval': [1, 2, 3],
             'tail': ['easy'],
         },
     }
@@ -319,6 +328,7 @@ def params_for_SR():
     # params = PlainFlopsPSNRCurve()
     # params = square_test()
     # params = bn_test()
+    # params = inference_test()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:
