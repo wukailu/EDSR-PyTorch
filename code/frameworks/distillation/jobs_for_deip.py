@@ -258,9 +258,9 @@ def deip_CIFAR100_init_new_distill():
         'rank_eps': [0.05, 0.1],
         'max_lr': [0.05, 0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         'distill_coe': [0.3, 0.5],
+        'distill_alpha': [0.01, 0.001],
         'dist_method': {
             'name': 'BridgeDistill',
-            'distill_alpha': [0.01, 0.001],
             'distill_loss': ['MSE'],
         },
         'seed': 233,
@@ -342,11 +342,11 @@ def params_for_SR_new_init_distill():
         'rank_eps': [0.1],
         'ridge_alpha': 0,
         'max_lr': [2e-4],
-        'decompose_adjust': False,
-        'distill_coe': [0.3, 0],
+        'decompose_adjust': 1,
+        'distill_coe': [0.3],
+        'distill_alpha': [0.01],
         'dist_method': {
             'name': 'BridgeDistill',
-            'distill_alpha': [0.01],
             'distill_loss': ['MSE'],
         },
         'seed': [233, 234],
@@ -360,19 +360,20 @@ def params_for_SR_new_init_distill_new_coe():
         'project_name': 'deip_SRx4_distill_new_coe',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['RDNx4'],
+        'teacher_pretrain_path': pretrain_paths['EDSRx4'],
         'layer_type': ['normal_no_bn'],
         'distill_coe_mod': 'new',
         'distill_coe': [0.1, 1, 10],
-        'rank_eps': [0.2],
+        'distill_alpha': 1e-5,
+        'ridge_alpha': 0,
+        'rank_eps': [0.1],
         'max_lr': [2e-4],
         'dist_method': {
             'name': 'BridgeDistill',
-            'distill_alpha': 1e-5,
             'distill_loss': ['MSE'],
         },
         "fix_distill_module": 1,
-        'seed': [233],
+        'seed': [233, 234],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
