@@ -235,7 +235,6 @@ class DenseFeatureFusionSubModel(ConvertibleSubModel):
         self.n_feats = n_feats if isinstance(n_feats, (list, tuple)) else [n_feats] * len(model_list)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
-        # TODO: verify this code
         x = x[:, 1:]
         real_f_list = []
         f_list = []
@@ -435,21 +434,6 @@ def merge_1x1_and_3x3(layer1, layer3):
                      stride=conv3.stride, padding=conv3.padding, bias=False)
     conv.weight.data = kernel
     return ConvLayer.fromConv2D(conv, const_channel_0=True, act=act3)
-
-
-def merge_3x3_and_1x1(layer3: ConvertibleLayer, layer1: ConvertibleLayer):
-    # TODO: implement this
-    assert isinstance(layer1, ConvertibleLayer)
-    assert isinstance(layer3, ConvertibleLayer)
-    assert NotImplementedError()
-    pass
-
-
-def pinv_1x1(layer1: ConvLayer):
-    # TODO: implement this
-    assert isinstance(pinv_1x1, ConvLayer)
-    assert NotImplementedError()
-    pass
 
 
 class IdLayer(ConvertibleLayer):

@@ -38,7 +38,6 @@ if __name__ == "__main__":
         model = train_model(model, params, save_name='super_resolution', mode='max')
 
     if params['test_benchmark']:
-        # TODO: test this part
         from datasets import DataProvider
         benchmarks = ['Set5', 'Set14', 'B100', 'Urban100']
         for d in benchmarks:

@@ -12,8 +12,6 @@ from model.layerwise_model import ConvertibleLayer, ConvertibleModel, pad_const_
     merge_1x1_and_3x3
 
 
-# TODO: fix conflicts between add_ori and init_stu_with_teacher
-
 class DEIP_LightModel(LightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
@@ -66,7 +64,7 @@ class DEIP_LightModel(LightningModule):
         widths = [self.params['input_channel']] + self.calc_width(images=images)
 
         if self.params['task'] == 'super-resolution':
-            for i in range(1, len(widths)):  # TODO: fix this bug in a better way
+            for i in range(1, len(widths)):
                 widths[i] = min(widths[i - 1] * 9, widths[i])
 
         with torch.no_grad():
@@ -212,7 +210,6 @@ class DEIP_LightModel(LightningModule):
             new_layer = ConvLayer(in_channels, out_channels, kernel_size, bn=bn, act=act, stride=stride,
                                   SR_init=self.params['task'] == 'super-resolution')
         elif self.params['layer_type'] == 'repvgg':
-            # TODO: convert this to convertible layers
             from model.basic_cifar_models.repvgg import RepVGGBlock
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
@@ -366,7 +363,6 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
 
 def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False, fix_r=-1,
                   adjust=True):
-    # TODO: consider how can we align f to 1-var or 1-norm
     """
     Estimate the size of feature map to approximate this. The return matrix f' should be positive if possible
     :param fix_r: just fix the returned width as r = fix_r to get the decomposition results
@@ -441,7 +437,6 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
         return final_ret[1:]
 
 
-# TODO: 啥时候把蒸馏改成多继承
 class DEIP_Distillation(DEIP_LightModel):
     def __init__(self, hparams):
         super().__init__(hparams)

@@ -31,9 +31,8 @@ class _DenseLayer(nn.Module):
         bottleneck_output = self.conv1(self.relu1(self.norm1(concated_features)))  # noqa: T484
         return bottleneck_output
 
-    # todo: rewrite when torchscript supports any
     def any_requires_grad(self, input):
-        # type: (List[Tensor]) -> bool
+        # type: (List[any]) -> bool
         for tensor in input:
             if tensor.requires_grad:
                 return True
