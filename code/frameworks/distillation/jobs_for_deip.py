@@ -342,14 +342,13 @@ def params_for_SR_new_init_distill():
         'rank_eps': [0.1],
         'ridge_alpha': 0,
         'max_lr': [2e-4],
-        'decompose_adjust': 1,
-        'distill_coe': [0.3],
-        'distill_alpha': [0.01],
+        'decompose_adjust': [0, 1],
+        'distill_coe': [0.1, 0.3],
+        'distill_alpha': [1e-5],
         'dist_method': {
             'name': 'BridgeDistill',
             'distill_loss': ['MSE'],
         },
-        'seed': [233, 234],
     }
 
     return {**templates['DIV2K-SRx4'], **params}
@@ -360,12 +359,12 @@ def params_for_SR_new_init_distill_new_coe():
         'project_name': 'deip_SRx4_distill_new_coe',
         'method': 'DEIP_Init',
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSRx4'],
+        'teacher_pretrain_path': pretrain_paths['RDNx4'],
         'layer_type': ['normal_no_bn'],
         'distill_coe_mod': 'new',
         'distill_coe': [0.1, 1, 10],
         'distill_alpha': 1e-5,
-        'ridge_alpha': 0,
+        'ridge_alpha': 1e-2,
         'rank_eps': [0.1],
         'max_lr': [2e-4],
         'dist_method': {
@@ -413,8 +412,8 @@ def params_for_deip():
     # params = params_for_SR_baseline_with_add_ori()
     # params = params_for_SR_new_init()
     # params = params_for_SR_stable_test()
-    params = params_for_SR_new_init_distill()
-    # params = params_for_SR_new_init_distill_new_coe()
+    # params = params_for_SR_new_init_distill()
+    params = params_for_SR_new_init_distill_new_coe()
     # params = params_for_SR_new_conv_init()
     # params = params_for_SR_new_init_equal_width()
     # params = params_for_SR_new_init_std_align()

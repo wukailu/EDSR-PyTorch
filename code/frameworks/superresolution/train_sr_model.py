@@ -35,8 +35,7 @@ if __name__ == "__main__":
     model = load_model(params)
 
     if not params['skip_train']:
-        model = train_model(model, params, save_name='super_resolution', checkpoint_monitor='validation/psnr255',
-                            mode='max')
+        model = train_model(model, params, save_name='super_resolution', mode='max')
 
     if params['test_benchmark']:
         # TODO: test this part

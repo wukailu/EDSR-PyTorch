@@ -144,6 +144,30 @@ templates = {
         'test_benchmark': True,
         'ignore_exist': True,
     },
+    'DIV2Kx4-EXP': {
+        'max_lr': 2e-4,
+        'weight_decay': 0,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 1000,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 4,
+            'total_batch_size': 16,
+            'patch_size': 192,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+        'metric': 'psnr_gray_shave_x4',
+    },
 }
 
 
@@ -174,19 +198,19 @@ def test_x2_x2_to_x4():
 
 def dense_model_train():
     params = {
-        'project_name': 'DIV2Kx4_model',
+        'project_name': 'DIV2Kx4_EXP_Baseline',
         'save_model': True,
         'backbone': {
-            # 'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr'],
-            'arch': ['RCAN_sr', 'EDSR_sr'],
+            'arch': ['HAN_sr', 'RFDN_sr', 'RDN_sr', 'SRCNN_sr', 'FSRCNN_sr', 'CARN_sr', 'CARN_M_sr'],
+            # 'arch': ['IMDN_sr'],
+            # 'arch': ['EDSR_layerwise_sr', 'EDSR_sr'],
             # 'arch': ['RDN_layerwise_sr', 'RDN_sr'],
             # 'arch': ['RDN_layerwise_sr'],
             # 'RDNconfig': 'A',
         },
     }
 
-    return {**templates['DIV2K-b32-SRx4'], **params}
-    # return {**templates['DIV2K-b16-SRx4'], **params}
+    return {**templates['DIV2Kx4-EXP'], **params}
 
 
 def inference_test():

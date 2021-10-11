@@ -23,7 +23,8 @@ class DEIP_LightModel(LightningModule):
 
         self.plain_model = nn.ModuleList()
         self.fs_std = []
-        self.example_data = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
+        self.example_data = torch.stack(
+            [self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
 
         import time
         start_time = time.process_time()
@@ -38,7 +39,6 @@ class DEIP_LightModel(LightningModule):
             self.sub_mean = copy.deepcopy(self.teacher_plain_model.sequential_models[0].sub_mean)
         else:
             self.sub_mean = None
-
 
     def on_train_start(self):
         self.sync_plain_model()
@@ -364,7 +364,8 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
         return ret, error
 
 
-def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False, fix_r=-1, adjust=True):
+def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False, fix_r=-1,
+                  adjust=True):
     # TODO: consider how can we align f to 1-var or 1-norm
     """
     Estimate the size of feature map to approximate this. The return matrix f' should be positive if possible
@@ -401,7 +402,8 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
 
     if fix_r != -1:
         fix_r = min(fix_r, f.size(0))
-        return test_rank(fix_r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust, ret_err=False)[1:]
+        return test_rank(fix_r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust,
+                         ret_err=False)[1:]
 
     final_ret = []
     L, R = 0, f.size(0)  # 好吧，不得不写倍增 [ )
@@ -427,7 +429,8 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
         step = step // 2
 
     if len(final_ret) == 0:
-        final_ret, error = test_rank(R, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust, ret_err=True)
+        final_ret, error = test_rank(R, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust,
+                                     ret_err=True)
         print("rank estimation failed! feature shape is ", f.shape)
         print("max value and min value in feature is ", f.max(), f.min())
         print(f"rank estimation failed! The last error is {error}")
@@ -461,7 +464,7 @@ class DEIP_Distillation(DEIP_LightModel):
             'dist_method': 'FD_Conv1x1_MSE',
             'fix_distill_module': False,
             'distill_coe': 0,
-            'distill_alpha': 1,
+            'distill_alpha': 1e-5,
             'distill_coe_mod': 'old',
         }
         self.params = {**default_sr_list, **self.params}
@@ -526,6 +529,7 @@ class DEIP_Init(DEIP_Distillation):
             'dist_method': 'BridgeDistill',
             'ridge_alpha': 0,
             'decompose_adjust': True,
+            'init_distill': True,
         }
         self.params = {**default_sr_list, **self.params}
         DEIP_Distillation.complete_hparams(self)
@@ -554,7 +558,8 @@ class DEIP_Init(DEIP_Distillation):
 
                 # M*fs + bias \approx mat
                 M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
-                                               with_solution=True, use_NMF=False, fix_r=fix_r, adjust=self.params['decompose_adjust'])
+                                               with_solution=True, use_NMF=False, fix_r=fix_r,
+                                               adjust=self.params['decompose_adjust'])
                 conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
                 conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)
                 conv1x1.bias.data[:] = bias.reshape_as(conv1x1.bias)
@@ -567,7 +572,8 @@ class DEIP_Init(DEIP_Distillation):
                 print('ft_shape', f.shape, 'f_min', f.min(), 'f_mean', f.mean(), 'f_std', f.std())
                 print('fs_shape', fs.shape, 'fs_min', fs.min(), 'fs_mean', fs.mean(), 'fs_std', fs.std())
                 print('M_shape', M.shape, 'M_min', M.min(), 'M_mean', M.mean(), 'M_std', M.std())
-                print('bias_shape', bias.shape, 'bias_min', bias.min(), 'bias_mean', bias.mean(), 'bias_std', bias.std())
+                print('bias_shape', bias.shape, 'bias_min', bias.min(), 'bias_mean', bias.mean(), 'bias_std',
+                      bias.std())
 
                 self.bridges.append(ConvLayer.fromConv2D(conv1x1))
                 widths.append(r)
@@ -578,6 +584,19 @@ class DEIP_Init(DEIP_Distillation):
         self.bridges.append(IdLayer(teacher_width[-1]))
         print("calculated teacher width = ", [self.params['input_channel']] + teacher_width)
         print("calculated student width = ", widths)
+
+        if not self.params['init_distill']:
+            # reset the parameters in distill to random
+            new_bridge = nn.ModuleList()
+            for m in self.bridges:
+                if isinstance(m, IdLayer):
+                    new_bridge.append(ConvLayer(m.channel, m.channel, 1))
+                elif isinstance(m, ConvLayer):
+                    new_bridge.append(ConvLayer(m.conv.in_channels - 1, m.conv.out_channels, 1))
+                else:
+                    raise NotImplementedError()
+            self.bridges = new_bridge
+
         f_shapes = [self.example_data.shape[-2:]] + [f.shape[-2:] for f in f_list[:-1]]
         with torch.no_grad():
             for i in range(len(self.bridges) - 2):
@@ -620,7 +639,8 @@ class DEIP_Init(DEIP_Distillation):
                     print('X_mean', X.mean(), 'X_std', X.std(), 'X_max', X.max(), 'X_min', X.min())
 
                     conv.weight.data[:] = X.reshape_as(conv.weight)
-                    self.plain_model.append(ConvLayer.fromConv2D(conv, act=act, const_channel_0=True, version=self.params['layer_type']))
+                    self.plain_model.append(
+                        ConvLayer.fromConv2D(conv, act=act, const_channel_0=True, version=self.params['layer_type']))
                 else:
                     self.append_layer(widths[i], widths[i + 1], f_shapes[i], f_shapes[i + 1])
         self.append_tail(widths[-2], widths[-1])
