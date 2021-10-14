@@ -144,6 +144,54 @@ templates = {
         'test_benchmark': True,
         'ignore_exist': True,
     },
+    'DIV2Kx2-EXP': {
+        'max_lr': 2e-4,
+        'weight_decay': 0,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 1000,
+        'scale': 2,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 2,
+            'total_batch_size': 16,
+            'patch_size': 192,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+        'metric': 'psnr_gray_shave_x2',
+    },
+    'DIV2Kx3-EXP': {
+        'max_lr': 2e-4,
+        'weight_decay': 0,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 1000,
+        'scale': 3,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 3,
+            'total_batch_size': 16,
+            'patch_size': 192,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        'rgb_range': 255,
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+        'metric': 'psnr_gray_shave_x3',
+    },
     'DIV2Kx4-EXP': {
         'max_lr': 2e-4,
         'weight_decay': 0,
@@ -213,12 +261,64 @@ def dense_model_train():
     return {**templates['DIV2Kx4-EXP'], **params}
 
 
+def strong_EDSR_x2():
+    params = {
+        'project_name': 'DIV2Kx4_EXP_EDSRx2',
+        'save_model': True,
+        'init_from': None,
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': [64, 128],
+            'n_resblocks': 16,
+        },
+        'max_lr': [1e-4, 2e-4, 5e-4, 1e-3],
+        'seed': 233,
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
+def strong_EDSR_x3():
+    params = {
+        'project_name': 'DIV2Kx4_EXP_EDSRx3',
+        'save_model': True,
+        'init_from': None,
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': 64,
+            'n_resblocks': 16,
+        },
+        'max_lr': [1e-4, 2e-4, 5e-4],
+        'seed': 233,
+    }
+
+    return {**templates['DIV2Kx3-EXP'], **params}
+
+
+def strong_EDSR_x4():
+    params = {
+        'project_name': 'DIV2Kx4_EXP_EDSRx4',
+        'save_model': True,
+        'init_from': None,
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': 64,
+            'n_resblocks': 16,
+        },
+        'max_lr': [1e-4, 2e-4, 5e-4],
+        'seed': 233,
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
 def inference_test():
     params = {
         'project_name': 'inference_benchmark',
         'num_epochs': 1,
         'backbone': {
-            'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr', 'SRCNN_sr', 'FSRCNN_sr', 'CARN_sr', 'CARN_M_sr'],
+            'arch': ['EDSR_sr', 'RCAN_sr', 'HAN_sr', 'IMDN_sr', 'RFDN_sr', 'RDN_sr', 'SRCNN_sr', 'FSRCNN_sr', 'CARN_sr',
+                     'CARN_M_sr'],
         },
     }
     return {**templates['DIV2K-b16-SRx4'], **params}
@@ -347,12 +447,8 @@ def bn_test():
 
 def params_for_SR():
     # params = directTrainPlain()
-    params = dense_model_train()
-    # params = stack_out_test()
-    # params = PlainFlopsPSNRCurve()
-    # params = square_test()
-    # params = bn_test()
-    # params = inference_test()
+    # params = dense_model_train()
+    params = strong_EDSR_x2()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

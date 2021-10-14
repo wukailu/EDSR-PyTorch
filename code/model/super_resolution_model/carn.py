@@ -80,6 +80,7 @@ class Net(nn.Module):
     def __init__(self, Block, scale=4, n_colors=3, multi_scale=False, group=1, **kwargs):
         if scale == 0:
             multi_scale = True
+        self.scale = scale
         super(Net, self).__init__()
         self.sub_mean = ops.MeanShift((0.4488, 0.4371, 0.4040), sub=True)
         self.add_mean = ops.MeanShift((0.4488, 0.4371, 0.4040), sub=False)
@@ -98,7 +99,7 @@ class Net(nn.Module):
                                           group=group)
         self.exit = nn.Conv2d(64, n_colors, 3, 1, 1)
 
-    def forward(self, x, scale):
+    def forward(self, x):
         x = self.sub_mean(x)
         x = self.entry(x)
         c0 = o0 = x
@@ -115,7 +116,7 @@ class Net(nn.Module):
         c3 = torch.cat([c2, b3], dim=1)
         o3 = self.c3(c3)
 
-        out = self.upsample(o3, scale=scale)
+        out = self.upsample(o3, scale=self.scale)
 
         out = self.exit(out)
         out = self.add_mean(out)

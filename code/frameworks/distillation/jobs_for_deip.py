@@ -8,6 +8,7 @@ pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_e324f.ckpt",
+    "EDSR64x4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_40a59.ckpt",
     "EDSR_100x4": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5.ckpt",
     "EDSR_100x4_0bias": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5_0bias.ckpt",
     "EDSR_200x4": "/data/pretrained/lightning_models/layerwise_edsr200x4_div2k_ca503.ckpt",
@@ -184,7 +185,7 @@ def params_for_baseline():
         'init_stu_with_teacher': [0],
         # 'rank_eps': [0.01, 0.05, 0.1, 0.2],
         'rank_eps': [0.3, 0.4, 0.5],
-        'max_lr': [0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'max_lr': [0.2],  # 0.05 for plain, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
     }
 
     return {**templates['cifar100-classification'], **params}
@@ -242,7 +243,7 @@ def deip_CIFAR100_init_new():
         'init_stu_with_teacher': [0, 1],
         'layer_type': 'normal_no_bn',
         'rank_eps': [0.05, 0.1, 0.2, 0.3],
-        'max_lr': [0.05, 0.1, 0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'max_lr': [0.05, 0.1, 0.2],  # 0.05 for plain, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         'seed': 233,
     }
 
@@ -256,7 +257,7 @@ def deip_CIFAR100_init_new_distill():
         'init_stu_with_teacher': [1],
         'layer_type': ['normal_no_bn', 'normal'],
         'rank_eps': [0.05, 0.1],
-        'max_lr': [0.05, 0.2],  # 0.05 for plane, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'max_lr': [0.05, 0.2],  # 0.05 for plain, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         'distill_coe': [0.3, 0.5],
         'distill_alpha': [0.01, 0.001],
         'dist_method': {
@@ -342,7 +343,7 @@ def params_for_SR_new_init_distill():
         'rank_eps': [0.1],
         'ridge_alpha': 0,
         'max_lr': [2e-4],
-        'decompose_adjust': [0, 1],
+        'decompose_adjust': [0, 3],
         'distill_coe': [0.1, 0.3],
         'distill_alpha': [1e-5],
         'dist_method': {

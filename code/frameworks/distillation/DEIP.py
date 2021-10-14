@@ -30,7 +30,7 @@ class DEIP_LightModel(LightningModule):
         print("initialization student width used ", time.process_time() - start_time)
         if self.params['std_align']:
             std_alignment(self.plain_model, self.example_data, self.fs_std)
-            print("std alignment finished ")
+            print("std alignment finished")
 
         if self.params['add_ori'] and self.params['task'] == 'super-resolution':
             import copy
@@ -333,13 +333,13 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
     approx = torch.mm(app_M, app_f)
     error = torch.norm(f - approx, p=2) / torch.norm(f, p=2)
 
-    if with_bias and adjust:
+    if with_bias and adjust != 0:
         # adjust the app_f to most positive value
         neg = app_f.clone()
         neg[neg > 0] = 0
-        adjust = -neg.mean(dim=1, keepdim=True) * 3
-        app_f = app_f + adjust
-        bias -= app_M @ adjust
+        adj = -neg.mean(dim=1, keepdim=True) * adjust
+        app_f = app_f + adj
+        bias -= app_M @ adj
 
     # add relative eps
     # if error < eps * torch.max(torch.abs(f)) or error < eps:
@@ -361,10 +361,10 @@ def test_rank(r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, e
         return ret, error
 
 
-def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False, fix_r=-1,
-                  adjust=True):
+def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=False, use_NMF=False, fix_r=-1, adjust=3):
     """
     Estimate the size of feature map to approximate this. The return matrix f' should be positive if possible
+    :param adjust: 0, does not adjust fs, otherwise adjust it with adjust * mean
     :param fix_r: just fix the returned width as r = fix_r to get the decomposition results
     :param use_NMF: whether use NMF instead of SVD
     :param with_rank: shall we return rank of f'
@@ -523,7 +523,7 @@ class DEIP_Init(DEIP_Distillation):
         default_sr_list = {
             'dist_method': 'BridgeDistill',
             'ridge_alpha': 0,
-            'decompose_adjust': True,
+            'decompose_adjust': 3,
             'init_distill': True,
         }
         self.params = {**default_sr_list, **self.params}

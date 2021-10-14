@@ -11,12 +11,17 @@ class SR_LightModel(LightningModule):
         self.scale = self.params['scale']
         self.self_ensemble = self.params['self_ensemble']
         self.model = get_classifier(self.params["backbone"], self.params["dataset"])
+        if self.params['init_from'] is not None:
+            print('pretrain from ', self.params['init_from'], ' loaded')
+            init_model = SR_LightModel.load_from_checkpoint(self.params['init_from']).model
+            self.model.load_state_dict(init_model.state_dict())
 
     def complete_hparams(self):
         default_sr_list = {
             'loss': 'L1',
             'self_ensemble': False,
             'metric': 'psnr255',  # no shave to the boundary
+            'init_from': None,
         }
         self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)

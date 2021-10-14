@@ -28,20 +28,6 @@ def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=16, out_nc=3, scal
     model = Plain_layerwise_Model(widths=widths, input_transform=input_transform, **kwargs)
     model.append_tail(tailModule)
 
-    # align the variance for all layers
-    # 这块加了似乎变差
-    # add_ori 的 interval 一定要是1，间隔添加也会变差。
-    # with torch.no_grad():
-    #     x_test = torch.randint(0, 255, (2, 3, 24, 24)).float()
-    #     inp = x_test.clone()
-    #     for i in range(len(model)):
-    #         out = model(x_test, start_forward_from=i, until=i + 1, ori=inp)
-    #         scale = (x_test.var(unbiased=False) / out.var(unbiased=False)) ** 0.5
-    #         print('scale = ', scale)
-    #         for m in model.sequential_models[i].modules():
-    #             if isinstance(m, nn.Conv2d):
-    #                 m.weight.data *= scale
-    #         x_test = model(x_test, start_forward_from=i, until=i + 1, ori=inp)
     return model
 
 
