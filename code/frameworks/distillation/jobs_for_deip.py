@@ -14,6 +14,15 @@ pretrain_paths = {
     "EDSR_200x4": "/data/pretrained/lightning_models/layerwise_edsr200x4_div2k_ca503.ckpt",
     "RDNx4": "/data/pretrained/lightning_models/layerwise_rdnx4_div2k_03029.ckpt",
     "RDNx4_0bias": "/data/pretrained/lightning_models/layerwise_rdnx4_div2k_03029_0bias.ckpt",
+    "EDSR50x2": "to be filled",
+    "EDSR50x3": "to be filled",
+    "EDSR50x4": "to be filled",
+    "EDSR64x2": "to be filled",
+    "EDSR64x3": "to be filled",
+    # "EDSR64x4": "to be filled",
+    "EDSR128x2": "to be filled",
+    "EDSR128x3": "to be filled",
+    "EDSR128x4": "to be filled",
 }
 
 templates = {
@@ -55,6 +64,90 @@ templates = {
         "seed": [233, 234, 235, 236],
         'ignore_exist': True,
         'save_model': False,
+    },
+    'DIV2Kx4-EXP': {
+        'task': 'super-resolution',
+        'loss': 'L1',
+        'metric': 'psnr_gray_shave_x4',
+        'rgb_range': 255,
+        'gpus': 1,
+        'teacher_pretrain_path': pretrain_paths['EDSRx4'],
+        'max_lr': 2e-4,
+        'weight_decay': 0,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 1000,
+        'scale': 4,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 4,
+            'total_batch_size': 16,
+            'patch_size': 192,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+    },
+    'DIV2Kx3-EXP': {
+        'task': 'super-resolution',
+        'loss': 'L1',
+        'metric': 'psnr_gray_shave_x4',
+        'rgb_range': 255,
+        'gpus': 1,
+        'teacher_pretrain_path': pretrain_paths['EDSRx3'],
+        'max_lr': 2e-4,
+        'weight_decay': 0,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 1000,
+        'scale': 3,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 3,
+            'total_batch_size': 16,
+            'patch_size': 192,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
+    },
+    'DIV2Kx2-EXP': {
+        'task': 'super-resolution',
+        'loss': 'L1',
+        'metric': 'psnr_gray_shave_x4',
+        'rgb_range': 255,
+        'gpus': 1,
+        'teacher_pretrain_path': pretrain_paths['EDSRx2'],
+        'max_lr': 2e-4,
+        'weight_decay': 0,
+        'lr_scheduler': 'OneCycLR',
+        'optimizer': 'Adam',
+        'num_epochs': 1000,
+        'scale': 2,
+        "dataset": {
+            'name': "DIV2K",
+            'scale': 2,
+            'total_batch_size': 16,
+            'patch_size': 192,
+            'ext': 'sep',
+            'repeat': 20,
+            'test_bz': 1,
+        },
+        "seed": [233, 234, 235, 236],
+        'save_model': False,
+        'inference_statics': True,
+        'test_benchmark': True,
+        'ignore_exist': True,
     },
 }
 
@@ -395,29 +488,50 @@ def params_for_SR_new_conv_init():
     return {**templates['DIV2K-SRx4'], **params}
 
 
-def params_for_deip():
-    # params = params_for_baseline()
-    # params = params_for_deip_distillation()
-    # params = params_for_deip_progressive_distillation()
-    # params = deip_CIFAR100_init_new()
-    # params = deip_CIFAR100_init_new_distill()
+def params_for_SR_DEIP_Ablation():
+    params = {
+        'project_name': 'deip_SRx4_Ablation',
+        'method': 'DEIP_Init',
+        'init_stu_with_teacher': [0, 1],
+        'teacher_pretrain_path': pretrain_paths['EDSR50x4'],
+        'layer_type': ['normal_no_bn'],
+        'fix_r': 100,
+        'ridge_alpha': 0,
+        'decompose_adjust': [0, 3],
+        'distill_coe': [0, 0.3],
+        'distill_alpha': [1e-5],
+        'distill_init': [0, 1],
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_loss': ['MSE'],
+        },
+    }
 
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
+def params_for_Ablation_Distill():
+    params = {
+        'project_name': 'deip_SRx4_Ablation',
+        'method': 'Distillation',
+        'teacher_pretrain_path': pretrain_paths['EDSR50x4'],
+        'layer_type': ['normal_no_bn'],
+        'fix_r': 100,
+        'ridge_alpha': 0,
+        'distill_alpha': 1,
+        'distill_coe': 1,
+        'dist_method': {
+            'name': ['SRKD', 'FAKD'],
+            'distill_loss': ['L1'],
+        },
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+def params_for_deip():
     # params = params_for_SR_baseline()
-    # params = params_for_SR_baseline_small()
-    # params = params_for_SR_init()
-    # params = params_for_SR_structure()
-    # params = params_for_SR_progressive()
-    # params = params_for_SR_progressive_small()
-    # params = params_for_SR_real_progressive()
-    # params = params_for_SR_real_progressive_small()
-    # params = params_for_SR_baseline_with_add_ori()
-    # params = params_for_SR_new_init()
-    # params = params_for_SR_stable_test()
-    # params = params_for_SR_new_init_distill()
-    params = params_for_SR_new_init_distill_new_coe()
-    # params = params_for_SR_new_conv_init()
-    # params = params_for_SR_new_init_equal_width()
-    # params = params_for_SR_new_init_std_align()
+    params = params_for_SR_new_init_distill()
+    # params = params_for_Ablation_Distill()
 
     # params = params_for_unit_test()
     return random_params(params)

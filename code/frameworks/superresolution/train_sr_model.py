@@ -27,6 +27,23 @@ def prepare_params(params):
     return params
 
 
+def test_SR_benchmark(test_model):
+    from datasets import DataProvider
+    benchmarks = ['Set5', 'Set14', 'B100', 'Urban100']
+    for d in benchmarks:
+        dataset_params = {
+            'name': d,
+            'test_only': True,
+            'patch_size': test_model.params['dataset']['patch_size'],
+            'ext': 'sep',
+            'scale': test_model.params['scale'],
+            "batch_size": 1,
+        }
+        provider = DataProvider(dataset_params)
+        ret = test_model.trainer.test(test_dataloaders=provider.test_dl)
+        backend.log_metric(d + '_' + test_model.params['metric'], ret[0]['test/' + test_model.params['metric']])
+
+
 if __name__ == "__main__":
     params = get_params()
     params = prepare_params(params)
@@ -38,20 +55,7 @@ if __name__ == "__main__":
         model = train_model(model, params, save_name='super_resolution', mode='max')
 
     if params['test_benchmark']:
-        from datasets import DataProvider
-        benchmarks = ['Set5', 'Set14', 'B100', 'Urban100']
-        for d in benchmarks:
-            dataset_params = {
-                'name': d,
-                'test_only': True,
-                'patch_size': params['dataset']['patch_size'],
-                'ext': 'sep',
-                'scale': params['scale'],
-                "batch_size": 1,
-            }
-            provider = DataProvider(dataset_params)
-            ret = model.trainer.test(test_dataloaders=provider.test_dl)
-            backend.log_metric(d + '_' + model.params['metric'], ret[0]['test/' + model.params['metric']])
+        test_SR_benchmark(model)
 
     if params['inference_statics']:
         inference_statics(model, batch_size=1)
