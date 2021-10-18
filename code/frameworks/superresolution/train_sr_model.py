@@ -1,11 +1,15 @@
 import sys
 import os
 
-sys.path.append(os.getcwd())
+sys.path = [os.getcwd()] + sys.path
+print('current path is ', sys.path)
+import model
+print('path for model is ', os.path.realpath(sys.modules['model'].__file__))
 
 from frameworks.superresolution.SRModel import load_model
 from frameworks.classification.train_single_model import get_params, train_model, inference_statics
 import utils.backend as backend
+print('current backend is ', backend.name)
 
 
 def prepare_params(params):
