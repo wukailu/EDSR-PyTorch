@@ -3,7 +3,7 @@ base_config: 'frameworks/pisr/configs/plain/base.ram.yml'
 teacher_model:
   name: 'plainnet_teacher'
   params:
-    scale: 2
+    scale: 4
     n_colors: 3
     m: 4
     k: 1

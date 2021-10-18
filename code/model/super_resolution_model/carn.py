@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-import model.super_resolution_model.carn_ops as ops
 from .utils import register_model
+from . import carn_ops as ops
 
 
 @register_model

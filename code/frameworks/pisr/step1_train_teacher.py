@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append('/home/kailu/EDSR-PyTorch/code/')
 sys.path.append('/home/wukailu/EDSR-PyTorch/code/')
 
@@ -29,9 +30,11 @@ from frameworks.pisr.visualizers import get_visualizer
 device = None
 model_type = None
 
+
 def adjust_learning_rate(config, epoch):
     lr = config.optimizer.params.lr * (0.5 ** (epoch // config.scheduler.params.step_size))
     return lr
+
 
 def train_single_epoch(config, model, dataloader, criterion,
                        optimizer, epoch, writer,
@@ -102,8 +105,8 @@ def evaluate_single_epoch(config, model, dataloader, criterion,
 
             pred = quantize(pred_hr, config.data.rgb_range)
             total_psnr += get_psnr(pred, HR_img, config.data.scale,
-                                  config.data.rgb_range,
-                                  benchmark=eval_type=='test')
+                                   config.data.rgb_range,
+                                   benchmark=eval_type == 'test')
 
             f_epoch = epoch + i / total_step
             desc = '{:5s}'.format(eval_type)
@@ -114,12 +117,11 @@ def evaluate_single_epoch(config, model, dataloader, criterion,
             if writer is not None and eval_type == 'test':
                 fig = visualizer(LR_img, HR_img, pred_dict)
                 writer.add_figure('{}/{:04d}'.format(eval_type, i), fig,
-                                 global_step=epoch)
-
+                                  global_step=epoch)
 
         log_dict = {}
-        avg_loss = total_loss / (i+1)
-        avg_psnr = total_psnr / (i+1)
+        avg_loss = total_loss / (i + 1)
+        avg_psnr = total_psnr / (i + 1)
         log_dict['loss'] = avg_loss
         log_dict['psnr'] = avg_psnr
 
@@ -154,9 +156,8 @@ def train(config, model, dataloaders, criterion,
         elif config.scheduler.name != 'reduce_lr_on_plateau':
             scheduler.step()
 
-        save_checkpoint(config, model, optimizer, epoch, 0, model_type=model_type)
-
         if psnr > best_psnr:
+            save_checkpoint(config, model, optimizer, epoch, 0, model_type=model_type)
             best_psnr = psnr
             best_epoch = epoch
 
@@ -164,7 +165,6 @@ def train(config, model, dataloaders, criterion,
         train_single_epoch(config, model, dataloaders['train'],
                            criterion, optimizer, epoch, writer,
                            visualizer, postfix_dict)
-
 
     return {'best_psnr': best_psnr, 'best_epoch': best_epoch}
 
@@ -176,14 +176,14 @@ def count_parameters(model):
 def run(config):
     train_dir = config.train.dir
     model = get_model(config, model_type).to(device)
-    print('The nubmer of parameters : %d'%count_parameters(model))
+    print('The nubmer of parameters : %d' % count_parameters(model))
     criterion = get_loss(config)
     optimizer = get_optimizer(config, model)
 
     checkpoint = get_initial_checkpoint(config, model_type=model_type)
     if checkpoint is not None:
         last_epoch, step = load_checkpoint(model, optimizer,
-                                    checkpoint, model_type=model_type)
+                                           checkpoint, model_type=model_type)
     else:
         last_epoch, step = -1, -1
 
@@ -191,15 +191,15 @@ def run(config):
     scheduler = get_scheduler(config, optimizer, last_epoch)
 
     print(config.data)
-    dataloaders = {'train':get_train_dataloader(config),
-                   'val':get_valid_dataloader(config)}
+    dataloaders = {'train': get_train_dataloader(config),
+                   'val': get_valid_dataloader(config)}
 
     writer = SummaryWriter(config.train[model_type + '_dir'])
     visualizer = get_visualizer(config)
     result = train(config, model, dataloaders, criterion, optimizer, scheduler,
-          writer, visualizer, last_epoch+1)
-    
-    print('best psnr : %.3f, best epoch: %d'%(result['best_psnr'], result['best_epoch']))
+                   writer, visualizer, last_epoch + 1)
+
+    print('best psnr : %.3f, best epoch: %d' % (result['best_psnr'], result['best_epoch']))
 
 
 def parse_args():
@@ -217,14 +217,14 @@ def main():
     global model_type
     model_type = 'teacher'
 
-    print('train %s network'%model_type)
+    print('train %s network' % model_type)
     args = parse_args()
     if args.config_file is None:
         raise Exception('no configuration file')
 
     config = load(args.config_file)
 
-    os.environ["CUDA_VISIBLE_DEVICES"]= str(config.gpu)
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     pprint.PrettyPrinter(indent=2).pprint(config)
@@ -236,6 +236,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-

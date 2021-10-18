@@ -229,6 +229,7 @@ def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None,
             hyper_params['gpus'] = 1
 
         name = project_name if 'project_name' not in hyper_params else hyper_params['project_name']
+        print('ready to submit')
         import utils.backend as backend
         backend.submit(scheduler_config='scheduler', job_directory=job_directory, command=command, params=hyper_params,
                        stream_job_logs=False, num_gpus=hyper_params["gpus"], project_name=name)

@@ -1,5 +1,5 @@
 data:
-  scale: 2
+  scale: 4
   n_colors: 3
   rgb_range: 1
   num_workers: 3
@@ -38,6 +38,6 @@ data:
 
 
 train:
- dir: './results/plainnet/'
+ dir: '../PISR/results/plainnet/'
 
 

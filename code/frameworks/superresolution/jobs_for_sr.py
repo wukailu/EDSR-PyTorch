@@ -244,11 +244,9 @@ def strong_EDSR_x2():
         'init_from': None,
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
-            'n_feats': [64, 128],
+            'n_feats': [64, 100],
             'n_resblocks': 16,
         },
-        'max_lr': [1e-4, 2e-4, 5e-4, 1e-3],
-        'seed': 233,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
@@ -326,7 +324,6 @@ def params_for_SR():
     params = strong_EDSR_x2()
     # params = strong_EDSR_x3()
     # params = strong_EDSR_x4()
-
 
     params = random_params(params)
     if 'scale' not in params['backbone']:
