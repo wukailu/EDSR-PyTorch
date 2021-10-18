@@ -9,8 +9,6 @@ def get_distill_module(name):
     methods = {
         'KD': KD,
         'CKA': CKA,
-        'SRKD': SRKD,
-        'FAKD': FAKD,
         'CKA_on_logits': CKA_on_logits,
         'KA_on_channel': KA_on_channel,
         'L2Distillation': L2Distillation,
@@ -78,41 +76,6 @@ class L2Distillation(DistillationMethod):
         loss = []
         for fs, ft in zip(feat_s, feat_t):
             loss.append(torch.mean((fs - ft) ** 2))
-        return torch.mean(torch.stack(loss))
-
-
-class SRKD(DistillationMethod):
-    def __init__(self, eps=0.001, *args, **kwargs):
-        super().__init__()
-        self.eps = eps
-
-    def forward(self, feat_s, feat_t, epoch_ratio):
-        loss = []
-        for fs, ft in zip(feat_s, feat_t):
-            s = fs.mean() ** 2
-            t = ft.mean() ** 2
-            loss.append(((s - t) ** 2 + self.eps ** 2) ** 0.5)
-        return torch.mean(torch.stack(loss))
-
-
-class FAKD(DistillationMethod):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
-    @staticmethod
-    def _spatial_similarity(fm):
-        fm = fm.view(fm.size(0), fm.size(1), -1)
-        norm_fm = fm / (torch.sqrt(torch.sum(torch.pow(fm, 2), 1)).unsqueeze(1).expand(fm.shape) + 0.0000001)
-        s = norm_fm.transpose(1, 2).bmm(norm_fm)
-        s = s.unsqueeze(1)
-        return s
-
-    def forward(self, feat_s, feat_t, epoch_ratio):
-        loss = []
-        for fs, ft in zip(feat_s, feat_t):
-            s = self._spatial_similarity(fs)
-            t = self._spatial_similarity(ft)
-            loss.append((t-s).abs().mean())
         return torch.mean(torch.stack(loss))
 
 
