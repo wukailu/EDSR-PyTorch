@@ -16,15 +16,15 @@ teacher_model:
 student_model:
   name: 'plainnet_student'
   params:
-    scale: 2
-    n_colors: 1
+    scale: 4
+    n_colors: 3
     initialize_from:
       - '../PISR/results/plainnet/plainnet_teacher/checkpoint/'
     modules_to_initialize:
       - - 'feature_extraction'
         - 'last_layer'
     vid_info:
-      - 'expanding:None'
+      - 'feature_extraction:None'
 
 
 train:
