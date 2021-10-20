@@ -4,6 +4,7 @@ sys.path.append('/home/kailu/EDSR-PyTorch/code/')
 sys.path.append('/home/wukailu/EDSR-PyTorch/code/')
 
 from utils.tools import submit_jobs, random_params
+from frameworks.distillation.jobs_for_deip import pretrain_paths
 
 templates = {
     'DIV2K-b16-SRx4': {
@@ -280,14 +281,13 @@ def strong_EDSR_x3():
     params = {
         'project_name': 'DIV2Kx4_EXP_EDSRx3',
         'save_model': True,
-        'init_from': None,
+        'init_from': pretrain_paths['EDSR64x2'],
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': 64,
             'n_resblocks': 16,
         },
-        'max_lr': [1e-4, 2e-4, 5e-4],
-        'seed': 233,
+        'max_lr': 2e-4,
     }
 
     return {**templates['DIV2Kx3-EXP'], **params}
@@ -297,14 +297,13 @@ def strong_EDSR_x4():
     params = {
         'project_name': 'DIV2Kx4_EXP_EDSRx4',
         'save_model': True,
-        'init_from': None,
+        'init_from': pretrain_paths['EDSR64x2'],
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': 64,
             'n_resblocks': 16,
         },
-        'max_lr': [1e-4, 2e-4, 5e-4],
-        'seed': 233,
+        'max_lr': 2e-4,
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -446,9 +445,9 @@ def bn_test():
 def params_for_SR():
     # params = directTrainPlain()
     # params = dense_model_train()
-    params = strong_EDSR_x2()
+    # params = strong_EDSR_x2()
     # params = strong_EDSR_x3()
-    # params = strong_EDSR_x4()
+    params = strong_EDSR_x4()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

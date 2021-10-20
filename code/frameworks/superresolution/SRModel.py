@@ -14,7 +14,8 @@ class SR_LightModel(LightningModule):
         if self.params['init_from'] is not None:
             print('pretrain from ', self.params['init_from'], ' loaded')
             init_model = SR_LightModel.load_from_checkpoint(self.params['init_from']).model
-            self.model.load_state_dict(init_model.state_dict())
+            init_model.sequential_models = init_model.sequential_models[:-1]
+            self.model.load_state_dict(init_model.state_dict(), strict=False)
 
     def complete_hparams(self):
         default_sr_list = {

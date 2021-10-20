@@ -7,8 +7,8 @@ from utils.tools import submit_jobs, random_params
 pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
+    "EDSR64x2": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_fa9af.ckpt",  # 1000 epoch
     "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_e324f.ckpt",
-    "EDSR64x4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_40a59.ckpt",
     "EDSR_100x4": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5.ckpt",
     "EDSR_100x4_0bias": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5_0bias.ckpt",
     "EDSR_200x4": "/data/pretrained/lightning_models/layerwise_edsr200x4_div2k_ca503.ckpt",
