@@ -43,10 +43,10 @@ def log(*info):
 
 
 def submit(job_directory, command, params, num_gpus, **kwargs):
-    default_params = {
-        'auto_select_gpus': True,
-    }
-    params = {**default_params, **params}
+    # default_params = {
+    #     'auto_select_gpus': True,
+    # }
+    # params = {**default_params, **params}
 
     runner_params = {
         'job_directory': job_directory,

@@ -294,6 +294,24 @@ def strong_EDSR_x3():
     return {**templates['DIV2Kx3-EXP'], **params}
 
 
+def EDSR_new_tail():
+    params = {
+        'project_name': 'DIV2Kx4_EDSR_newtail',
+        'save_model': True,
+        'init_from': None,
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': 64,
+            'n_resblocks': 16,
+            'simple_tail': 1,
+        },
+        'max_lr': 2e-4,
+        'seed': [233, 234],
+    }
+
+    return {**templates['DIV2K-b32-SRx4'], **params}
+
+
 def strong_EDSR_x4():
     params = {
         'project_name': 'DIV2Kx4_EXP_EDSRx4',
@@ -458,11 +476,11 @@ def EDSRx2x2_to_x4():
 
 
 def params_for_SR():
-    # params = EDSRx2x2_to_x4()
+    params = EDSR_new_tail()  # submitted to 45
 
     # params = directTrainPlain()
     # params = dense_model_train()
-    params = strong_EDSR_x2()
+    # params = strong_EDSR_x2()
     # params = strong_EDSR_x3()
     # params = strong_EDSR_x4()
 

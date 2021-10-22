@@ -201,6 +201,10 @@ def get_trainer_params(params) -> dict:
     for key in params:
         if key in name_mapping:
             ret[name_mapping[key]] = params[key]
+
+    if ret['gpus'] != 0 and isinstance(ret['gpus'], int):
+        ret['gpus'] = find_best_gpus(ret['gpus'])
+        print('using gpu ', ret['gpus'])
     return ret
 
 
@@ -280,6 +284,19 @@ def cnt_all_combinations(obj):
             else:
                 comb *= cnt_all_combinations(values)
     return comb
+
+
+def find_best_gpus(num_gpu_needs=1):
+    import subprocess as sp
+    gpu_ids = []
+    command = "nvidia-smi --query-gpu=memory.free --format=csv"
+    memory_free_info = sp.check_output(command.split()).decode('ascii').split('\n')[:-1][1:]
+    memory_free_values = [(int(x.split()[0]), i) for i, x in enumerate(memory_free_info) if i not in gpu_ids]
+    print('memories left ', memory_free_values)
+    memory_free_values = sorted(memory_free_values)[::-1]
+    gpu_ids = [k for m, k in memory_free_values[:num_gpu_needs]]
+    return gpu_ids
+
 
 # def summarize_result(exp_filter):
 #     targets = get_targets(exp_filter)

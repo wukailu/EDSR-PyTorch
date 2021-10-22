@@ -9,9 +9,9 @@ pretrain_paths = {
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSR64x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_fa9af.ckpt",  # 1000 epoch
     "EDSR100x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_1c96e.ckpt",  # 1000 epoch
+    "EDSR64x4": "/data/pretrained/lightning_models/layerwise_edsr64x4_div2k_cbe41.ckpt",  # 1000 epoch
     "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_e324f.ckpt",
     "EDSR_100x4": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5.ckpt",
-    "EDSR_100x4_0bias": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5_0bias.ckpt",
     "EDSR_200x4": "/data/pretrained/lightning_models/layerwise_edsr200x4_div2k_ca503.ckpt",
     "RDNx4": "/data/pretrained/lightning_models/layerwise_rdnx4_div2k_03029.ckpt",
     "RDNx4_0bias": "/data/pretrained/lightning_models/layerwise_rdnx4_div2k_03029_0bias.ckpt",
@@ -485,7 +485,7 @@ def params_for_EXP_main_x2():
         'method': 'DEIP_Init',
         'rank_eps': [0.1],
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR64x2'],
+        'teacher_pretrain_path': pretrain_paths['EDSR100x2'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -499,8 +499,73 @@ def params_for_EXP_main_x2():
     return {**templates['DIV2Kx2-EXP'], **params}
 
 
+def params_for_EXP_main_x3():
+    params = {
+        'project_name': 'CVPR_EXP_MAIN_x3',
+        'method': 'DEIP_Init',
+        'rank_eps': [0.1],
+        'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': 'to be filled',
+        'layer_type': 'normal_no_bn',
+        'ridge_alpha': 0,
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_loss': 'MSE',
+        },
+    }
+
+    return {**templates['DIV2Kx3-EXP'], **params}
+
+
+def params_for_EXP_main_x4():
+    params = {
+        'project_name': 'CVPR_EXP_MAIN_x4',
+        'method': 'DEIP_Init',
+        'rank_eps': [0.1],
+        'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': pretrain_paths['EDSR64x4'],
+        'layer_type': 'normal_no_bn',
+        'ridge_alpha': 0,
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_loss': 'MSE',
+        },
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
+def params_for_EXP_ablation_x4():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_x4',
+        'method': 'DEIP_Init',
+        'fix_r': '',
+        'init_stu_with_teacher': [0, 1],
+        'teacher_pretrain_path': pretrain_paths['EDSR64x4'],
+        'layer_type': 'normal_no_bn',
+        'ridge_alpha': 0,
+        'distill_coe': [0, 0.3],
+        'init_distill': [0, 1],
+        'decompose_adjust': [0, 3],
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_loss': 'MSE',
+        },
+        'seed': 233,
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
 def params_for_deip():
-    params = params_for_EXP_main_x2()
+    # params = params_for_EXP_main_x2()
+    # params = params_for_EXP_main_x3()
+    # params = params_for_EXP_main_x4()
+    params = params_for_EXP_ablation_x4()
 
     return random_params(params)
 

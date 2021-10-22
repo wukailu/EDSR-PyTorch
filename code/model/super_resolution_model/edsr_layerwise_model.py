@@ -43,6 +43,32 @@ def resBlock(n_feats, kernel_size, act, skip_bias):
     return SkipConnectionSubModel([conv1, conv2], n_feats, skip_connection_bias=skip_bias)
 
 
+class EDSREasyTail(InitializableLayer):
+    def __init__(self, scale, n_feats, n_colors, kernel_size, rgb_range, remove_const_channel=True):
+        super().__init__()
+        self.remove_const_channel = remove_const_channel
+        self.conv = model.model_utils.default_conv(n_feats, n_colors * (scale**2), 1)
+        self.tail = nn.PixelShuffle(scale)
+        self.add_mean = common.MeanShift(rgb_range, sign=1)
+
+    def forward(self, x):
+        if self.remove_const_channel:
+            x = x[:, 1:]
+        return self.add_mean(self.tail(self.conv(x)))
+
+    def init_student(self, conv_s, M):
+        assert isinstance(conv_s, type(self))
+
+        import copy
+        conv_s.tail = copy.deepcopy(self.tail)
+        teacher_conv = ConvLayer.fromConv2D(self.conv)
+        student_conv = copy.deepcopy(teacher_conv)
+        teacher_conv.init_student(student_conv, M)
+        conv_s.conv = student_conv.conv
+        conv_s.remove_const_channel = False
+        return torch.eye(self.n_colors)
+
+
 class EDSRTail(InitializableLayer):
     def __init__(self, scale, n_feats, n_colors, kernel_size, rgb_range, remove_const_channel=True):
         super().__init__()
@@ -85,7 +111,8 @@ class EDSRTail(InitializableLayer):
 
 
 class EDSR_layerwise_Model(ConvertibleModel):
-    def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, skip_bias=1000, **kwargs):
+    def __init__(self, n_resblocks=16, n_feats=64, nf=None, scale=4, rgb_range=255, n_colors=3, skip_bias=1000,
+                 simple_tail=False, **kwargs):
         super(EDSR_layerwise_Model, self).__init__()
 
         n_resblocks = n_resblocks
@@ -103,4 +130,7 @@ class EDSR_layerwise_Model(ConvertibleModel):
         self.append(SkipConnectionSubModel(body, n_feats, skip_connection_bias=skip_bias))
 
         # define tail module
-        self.append(EDSRTail(scale, n_feats, n_colors, kernel_size, rgb_range))
+        if simple_tail:
+            self.append(EDSREasyTail(scale, n_feats, n_colors, kernel_size, rgb_range))
+        else:
+            self.append(EDSRTail(scale, n_feats, n_colors, kernel_size, rgb_range))

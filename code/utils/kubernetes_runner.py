@@ -91,7 +91,7 @@ def run_job(kube_job_id, yaml_data):
                 atlas_backend.log("%s" % resp.read_stdout())
             if resp.peek_stderr():
                 ret = resp.read_stderr()
-                if "out of memory" in ret:
+                if "out of memory" in ret or 'No GPUs available.' in ret:
                     cuda_mem_error = True
                 if "CUDNN_STATUS_INTERNAL_ERROR" in ret:
                     cudnn_error = True

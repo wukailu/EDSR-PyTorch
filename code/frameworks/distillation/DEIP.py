@@ -234,11 +234,14 @@ class DEIP_LightModel(LightningModule):
         if self.params['task'] == 'classification':
             self.plain_model.append(LastLinearLayer(last_channel, output_channel))
         elif self.params['task'] == 'super-resolution':
-            from model.super_resolution_model.edsr_layerwise_model import EDSRTail
+            from model.super_resolution_model.edsr_layerwise_model import EDSRTail, EDSREasyTail
             from model.super_resolution_model.rdn_layerwise_model import RDN_Tail
             if isinstance(self.teacher_plain_model.sequential_models[-1], EDSRTail):
                 self.plain_model.append(
                     EDSRTail(self.params['scale'], last_channel, output_channel, 3, self.params['rgb_range']))
+            elif isinstance(self.teacher_plain_model.sequential_models[-1], EDSREasyTail):
+                self.plain_model.append(
+                    EDSREasyTail(self.params['scale'], last_channel, output_channel, 3, self.params['rgb_range']))
             elif isinstance(self.teacher_plain_model.sequential_models[-1], RDN_Tail):
                 self.plain_model.append(
                     RDN_Tail(last_channel, self.params['scale'], 3, 3, last_channel, remove_const_channel=True)
