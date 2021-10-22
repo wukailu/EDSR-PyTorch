@@ -163,7 +163,7 @@ templates = {
         },
         'rgb_range': 255,
         "seed": [233, 234, 235, 236],
-        'save_model': False,
+        'save_model': True,
         'inference_statics': True,
         'test_benchmark': True,
         'ignore_exist': True,
@@ -187,7 +187,7 @@ templates = {
         },
         'rgb_range': 255,
         "seed": [233, 234, 235, 236],
-        'save_model': False,
+        'save_model': True,
         'inference_statics': True,
         'test_benchmark': True,
         'ignore_exist': True,
@@ -211,7 +211,7 @@ templates = {
         },
         'rgb_range': 255,
         "seed": [233, 234, 235, 236],
-        'save_model': False,
+        'save_model': True,
         'inference_statics': True,
         'test_benchmark': True,
         'ignore_exist': True,
@@ -442,12 +442,28 @@ def bn_test():
     return {**templates['DIV2K-b32-SRx4'], **params}
 
 
+def EDSRx2x2_to_x4():
+    params = {
+        'project_name': 'EDSRx2x2=x4',
+        'method': 'TwoStageSR',
+        'two_stage_no_freeze': True,
+        'num_epochs': 300,
+        'pretrained_from': pretrain_paths['EDSR64x2'],
+        'backbone': {},
+        "seed": 233,
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
 def params_for_SR():
+    params = EDSRx2x2_to_x4()
+
     # params = directTrainPlain()
     # params = dense_model_train()
     # params = strong_EDSR_x2()
     # params = strong_EDSR_x3()
-    params = strong_EDSR_x4()
+    # params = strong_EDSR_x4()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

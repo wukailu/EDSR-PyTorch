@@ -106,8 +106,8 @@ class TwoStageSR(SR_LightModel):
         self.scale = self.params['scale']
         self.self_ensemble = self.params['self_ensemble']
 
-        self.model_pretrained = SR_LightModel.load_from_checkpoint(checkpoint_path=self.params['pretrained_from']).sequential_models
-        self.model = SR_LightModel.load_from_checkpoint(checkpoint_path=self.params['pretrained_from']).sequential_models
+        self.model_pretrained = SR_LightModel.load_from_checkpoint(checkpoint_path=self.params['pretrained_from']).model
+        self.model = SR_LightModel.load_from_checkpoint(checkpoint_path=self.params['pretrained_from']).model
         if 'two_stage_no_freeze' not in self.params or not self.params['two_stage_no_freeze']:
             from model.model_utils import freeze
             freeze(self.model_pretrained)
