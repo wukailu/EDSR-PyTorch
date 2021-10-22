@@ -7,8 +7,8 @@ from utils.tools import submit_jobs, random_params
 pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
-    "EDSR64x2": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_fa9af.ckpt",  # 1000 epoch
-    "EDSR100x2": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_1c96e.ckpt",  # 1000 epoch
+    "EDSR64x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_fa9af.ckpt",  # 1000 epoch
+    "EDSR100x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_1c96e.ckpt",  # 1000 epoch
     "EDSRx4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_e324f.ckpt",
     "EDSR_100x4": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5.ckpt",
     "EDSR_100x4_0bias": "/data/pretrained/lightning_models/layerwise_edsr100x4_div2k_8b9b5_0bias.ckpt",
@@ -464,7 +464,6 @@ def params_for_SR_new_init_distill_new_coe():
     return {**templates['DIV2K-SRx4'], **params}
 
 
-
 def params_for_SR_new_conv_init():
     params = {
         'project_name': 'deip_SRx4_init_new_conv_init',
@@ -480,31 +479,29 @@ def params_for_SR_new_conv_init():
     return {**templates['DIV2K-SRx4'], **params}
 
 
+def params_for_EXP_main_x2():
+    params = {
+        'project_name': 'CVPR_EXP_MAIN_x2',
+        'method': 'DEIP_Init',
+        'rank_eps': [0.1],
+        'init_stu_with_teacher': 1,
+        'teacher_pretrain_path': pretrain_paths['EDSR64x2'],
+        'layer_type': 'normal_no_bn',
+        'ridge_alpha': 0,
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_loss': 'MSE',
+        },
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
 def params_for_deip():
-    # params = params_for_baseline()
-    # params = params_for_deip_distillation()
-    # params = params_for_deip_progressive_distillation()
-    # params = deip_CIFAR100_init_new()
-    # params = deip_CIFAR100_init_new_distill()
+    params = params_for_EXP_main_x2()
 
-    # params = params_for_SR_baseline()
-    # params = params_for_SR_baseline_small()
-    # params = params_for_SR_init()
-    # params = params_for_SR_structure()
-    # params = params_for_SR_progressive()
-    # params = params_for_SR_progressive_small()
-    # params = params_for_SR_real_progressive()
-    # params = params_for_SR_real_progressive_small()
-    # params = params_for_SR_baseline_with_add_ori()
-    # params = params_for_SR_new_init()
-    # params = params_for_SR_stable_test()
-    # params = params_for_SR_new_init_distill()
-    params = params_for_SR_new_init_distill_new_coe()
-    # params = params_for_SR_new_conv_init()
-    # params = params_for_SR_new_init_equal_width()
-    # params = params_for_SR_new_init_std_align()
-
-    # params = params_for_unit_test()
     return random_params(params)
 
 

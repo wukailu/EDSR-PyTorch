@@ -264,13 +264,14 @@ def dense_model_train():
 
 def strong_EDSR_x2():
     params = {
-        'project_name': 'DIV2Kx4_EXP_EDSRx2',
+        'project_name': 'DIV2Kx4_EXP_EDSRx2_shortmodel',
         'save_model': True,
         'init_from': None,
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': [64, 100],
-            'n_resblocks': 16,
+            # 'n_resblocks': 16,
+            'n_resblocks': 8,
         },
     }
 
@@ -457,11 +458,11 @@ def EDSRx2x2_to_x4():
 
 
 def params_for_SR():
-    params = EDSRx2x2_to_x4()
+    # params = EDSRx2x2_to_x4()
 
     # params = directTrainPlain()
     # params = dense_model_train()
-    # params = strong_EDSR_x2()
+    params = strong_EDSR_x2()
     # params = strong_EDSR_x3()
     # params = strong_EDSR_x4()
 
