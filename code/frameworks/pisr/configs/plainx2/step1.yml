@@ -1,15 +1,15 @@
-base_config: 'frameworks/pisr/configs/plain/base.ram.yml'
+base_config: 'frameworks/pisr/configs/plainx2/base.ram.yml'
 
 teacher_model:
   name: 'plainnet_teacher'
   params:
-    scale: 4
+    scale: 2
     n_colors: 3
     m: 4
     k: 1
     encoder: lcscc
-    n_feats: 50
-    num_modules: 16
+    n_feats: 64
+    num_modules: 35
 
 train:
   batch_size: 16
@@ -45,5 +45,5 @@ visualizer:
   name: 'step1'
 
 
-gpu: 6
+gpu: 0
 

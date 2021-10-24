@@ -301,15 +301,54 @@ def EDSR_new_tail():
         'init_from': None,
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
-            'n_feats': 64,
+            # 'n_feats': [64],
+            'n_feats': [100],
             'n_resblocks': 16,
             'simple_tail': 1,
         },
         'max_lr': 2e-4,
-        'seed': [233, 234],
+        'seed': [233],
+        'gpus': 4,
     }
 
     return {**templates['DIV2K-b32-SRx4'], **params}
+
+
+def EDSR_new_tailx2():
+    params = {
+        'project_name': 'EDSR_newtail',
+        'save_model': True,
+        'init_from': None,
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': [64],
+            # 'n_feats': [100],
+            'n_resblocks': 16,
+            'simple_tail': 1,
+        },
+        'seed': [233],
+        'gpus': 2,
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
+def EDSR_new_tailx3():
+    params = {
+        'project_name': 'EDSR_newtail',
+        'save_model': True,
+        'init_from': pretrain_paths["EDSR100_newtail_x2"],
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': 100,
+            'n_resblocks': 16,
+            'simple_tail': 1,
+        },
+        'seed': [233],
+        'gpus': 4,
+    }
+
+    return {**templates['DIV2Kx3-EXP'], **params}
 
 
 def strong_EDSR_x4():
@@ -475,14 +514,78 @@ def EDSRx2x2_to_x4():
     return {**templates['DIV2Kx4-EXP'], **params}
 
 
+def Short_EDSR_new_tailx2():
+    params = {
+        'project_name': 'EDSR_newtail',
+        'save_model': True,
+        'init_from': None,
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': 64,
+            'n_resblocks': 8,
+            'simple_tail': 1,
+        },
+        'seed': [233],
+        'gpus': 4,
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
+def Short_EDSR_new_tailx4():
+    params = {
+        'project_name': 'EDSR_newtail',
+        'save_model': True,
+        'init_from': None,
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': 64,
+            'n_resblocks': 8,
+            'simple_tail': 1,
+        },
+        'seed': [233],
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
+def test_model():
+    params = {
+        'project_name': 'EDSR_newtail',
+        'save_model': False,
+        'skip_train': True,
+        'init_from': pretrain_paths['EDSR100_newtail_x2'],
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': 100,
+            'n_resblocks': 16,
+            'simple_tail': 1,
+        },
+        'seed': [233],
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
+
 def params_for_SR():
-    params = EDSR_new_tail()  # submitted to 45
+    # 所有实验基础模型, 64 宽度一版 100 宽度一版
+    # params = EDSR_new_tailx2()  # finished
+    # params = EDSR_new_tailx2()  # submitted to 236 with 8 cards and width 64 and width 100
+    # params = EDSR_new_tailx3()  # submitted to 233 with width 64, to 45 with width 100
+    # params = EDSR_new_tailx4()
+
+    # 与 PISR, RepVGG 等比较使用的模型
+    # params = Short_EDSR_new_tailx2()  # submitted to 233 with 50 and 64
+    # params = Short_EDSR_new_tailx4()  #
 
     # params = directTrainPlain()
     # params = dense_model_train()
     # params = strong_EDSR_x2()
     # params = strong_EDSR_x3()
     # params = strong_EDSR_x4()
+
+    # params = test_model()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

@@ -7,6 +7,14 @@ from utils.tools import submit_jobs, random_params
 pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
+    "EDSR50_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_3fa19.ckpt",  # 1000 epoch
+    "EDSR64_newtail_short_x2": "",  # 1000 epoch
+    "EDSR64_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_537c4.ckpt",  # 1000 epoch
+    "EDSR64_newtail_x3": "",  # 1000 epoch
+    "EDSR64_newtail_x4": "",  # 1000 epoch
+    "EDSR100_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_b00e1.ckpt",  # 1000 epoch
+    "EDSR100_newtail_x3": "",  # 1000 epoch
+    "EDSR100_newtail_x4": "",  # 1000 epoch
     "EDSR64x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_fa9af.ckpt",  # 1000 epoch
     "EDSR100x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_1c96e.ckpt",  # 1000 epoch
     "EDSR64x4": "/data/pretrained/lightning_models/layerwise_edsr64x4_div2k_cbe41.ckpt",  # 1000 epoch
@@ -270,7 +278,7 @@ def params_for_baseline():
         'init_stu_with_teacher': [0],
         # 'rank_eps': [0.01, 0.05, 0.1, 0.2],
         'rank_eps': [0.3, 0.4, 0.5],
-        'max_lr': [0.2],  # 0.05 for plain, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'max_lr': [0.2],  # 0.05 for plainx4, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
     }
 
     return {**templates['cifar100-classification'], **params}
@@ -328,7 +336,7 @@ def deip_CIFAR100_init_new():
         'init_stu_with_teacher': [0, 1],
         'layer_type': 'normal_no_bn',
         'rank_eps': [0.05, 0.1, 0.2, 0.3],
-        'max_lr': [0.05, 0.1, 0.2],  # 0.05 for plain, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'max_lr': [0.05, 0.1, 0.2],  # 0.05 for plainx4, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         'seed': 233,
     }
 
@@ -342,7 +350,7 @@ def deip_CIFAR100_init_new_distill():
         'init_stu_with_teacher': [1],
         'layer_type': ['normal_no_bn', 'normal'],
         'rank_eps': [0.05, 0.1],
-        'max_lr': [0.05, 0.2],  # 0.05 for plain, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
+        'max_lr': [0.05, 0.2],  # 0.05 for plainx4, 0.5 for repvgg on 0.05, 0.2 for repvgg on 0.2, 0.3, 0.5
         'distill_coe': [0.3, 0.5],
         'distill_alpha': [0.01, 0.001],
         'dist_method': {
@@ -483,9 +491,11 @@ def params_for_EXP_main_x2():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x2',
         'method': 'DEIP_Init',
-        'rank_eps': [0.1],
+        'fix_r': [64, 75, 90],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
+        # 'fix_r': [50, 64, 70, 75, 80, 90, 100, 110, 120, 150],
+        # 'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x2'],
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR100x2'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -494,6 +504,8 @@ def params_for_EXP_main_x2():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
+        'seed': 233,
+        'gpus': 2,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
@@ -561,11 +573,27 @@ def params_for_EXP_ablation_x4():
 
     return {**templates['DIV2Kx4-EXP'], **params}
 
+
+def params_for_EXP_cmp_init():
+    params = {
+        'project_name': 'CVPR_EXP_MAIN_x2',
+        'method': 'DirectTrain',
+        'fix_r': [64, 75, 90],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
+        'init_stu_with_teacher': 0,
+        'layer_type': ['normal_no_bn', 'repvgg'],
+        'seed': 233,
+        'gpus': 2,
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
 def params_for_deip():
-    # params = params_for_EXP_main_x2()
+    params = params_for_EXP_main_x2()  # submitted to 19 with width 64, 75, 90 from 64 width teacher, 100,
     # params = params_for_EXP_main_x3()
     # params = params_for_EXP_main_x4()
-    params = params_for_EXP_ablation_x4()
+    # params = params_for_EXP_ablation_x4()
 
     return random_params(params)
 

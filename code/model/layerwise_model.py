@@ -75,7 +75,7 @@ class ConvertibleModel(LayerWiseModel):
             if isinstance(m, (InitializableLayer, ConvertibleSubModel)):
                 ret += m.to_convertible_layers()
             else:
-                raise TypeError("Model can not be converted to plain model!")
+                raise TypeError("Model can not be converted to plainx4 model!")
         return simplify_sequential_model(ret)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
@@ -136,7 +136,7 @@ class ConvertibleModel(LayerWiseModel):
             elif isinstance(m, ConvertibleModel):
                 ret += len(m)
             else:
-                raise TypeError("Model can not be converted to plain model!")
+                raise TypeError("Model can not be converted to plainx4 model!")
         return ret
 
     def generate_inference_model(self):

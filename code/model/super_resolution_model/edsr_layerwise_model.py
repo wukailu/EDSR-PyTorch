@@ -50,6 +50,7 @@ class EDSREasyTail(InitializableLayer):
         self.conv = model.model_utils.default_conv(n_feats, n_colors * (scale**2), 1)
         self.tail = nn.PixelShuffle(scale)
         self.add_mean = common.MeanShift(rgb_range, sign=1)
+        self.n_colors = n_colors
 
     def forward(self, x):
         if self.remove_const_channel:

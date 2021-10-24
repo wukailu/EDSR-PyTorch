@@ -12,7 +12,6 @@ def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     return result
 
 
-# TODO: convert this to convertible layers
 class RepVGGBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,

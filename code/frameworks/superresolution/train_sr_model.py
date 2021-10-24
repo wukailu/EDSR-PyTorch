@@ -42,6 +42,12 @@ if __name__ == "__main__":
         model = train_model(model, params, save_name='super_resolution', mode='max')
 
     if params['test_benchmark']:
+        if model.trainer is None:
+            from pytorch_lightning import Trainer
+            trainer = Trainer(gpus=1)
+        else:
+            trainer = model.trainer
+
         from datasets import DataProvider
         benchmarks = ['Set5', 'Set14', 'B100', 'Urban100']
         for d in benchmarks:
@@ -54,7 +60,7 @@ if __name__ == "__main__":
                 "batch_size": 1,
             }
             provider = DataProvider(dataset_params)
-            ret = model.trainer.test(test_dataloaders=provider.test_dl)
+            ret = trainer.test(test_dataloaders=provider.test_dl, model=model)
             backend.log_metric(d + '_' + model.params['metric'], ret[0]['test/' + model.params['metric']])
 
     if params['inference_statics']:

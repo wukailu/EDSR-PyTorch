@@ -1,25 +1,25 @@
-base_config: 'frameworks/pisr/configs/plain/base.ram.yml'
+base_config: 'frameworks/pisr/configs/plainx3/base.ram.yml'
 
 
 teacher_model:
   name: 'plainnet_teacher'
   params:
-    scale: 4
+    scale: 3
     n_colors: 3
     m: 4
     k: 1
     encoder: lcscc
-    n_feats: 50
-    num_modules: 16
+    n_feats: 64
+    num_modules: 35
 
 
 student_model:
   name: 'plainnet_student'
   params:
-    scale: 4
+    scale: 3
     n_colors: 3
     initialize_from:
-      - '../PISR/results/plainnet/plainnet_teacher/checkpoint/'
+      - '../PISR/results/plainnetx3/plainnet_teacher/checkpoint/'
     modules_to_initialize:
       - - 'feature_extraction'
         - 'last_layer'
@@ -64,6 +64,6 @@ visualizer:
   name: 'step2'
 
 
-gpu: 0
+gpu: 6
 
 

@@ -140,7 +140,12 @@ def parse_params(params: dict):
     }
     params = {**defaults, **params}
     if "backend" not in params:
-        params["backend"] = "ddp" if params["gpus"] > 1 else None
+        if params["gpus"] == 1:
+            params["backend"] = None
+        else:
+            params["backend"] = "ddp"
+            # from pytorch_lightning.plugins import DDPPlugin
+            # params["plugins"] = DDPPlugin(find_unused_parameters=False)
 
     # Process backbone
     backbone_list = ['vgg11_bn', 'vgg13_bn', 'vgg16_bn', 'vgg19_bn', 'resnet18',
@@ -187,6 +192,7 @@ def get_trainer_params(params) -> dict:
     name_mapping = {
         "gpus": "gpus",
         "backend": "accelerator",
+        "plugins": "plugins",
         "accumulate": "accumulate_grad_batches",
         "auto_scale_batch_size": "auto_scale_batch_size",
         "auto_select_gpus": "auto_select_gpus",

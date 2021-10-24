@@ -14,8 +14,11 @@ class SR_LightModel(LightningModule):
         if self.params['init_from'] is not None:
             print('pretrain from ', self.params['init_from'], ' loaded')
             init_model = SR_LightModel.load_from_checkpoint(self.params['init_from']).model
-            init_model.sequential_models = init_model.sequential_models[:-1]
-            self.model.load_state_dict(init_model.state_dict(), strict=False)
+            try:
+                self.model.load_state_dict(init_model.state_dict())
+            except RuntimeError:
+                init_model.sequential_models = init_model.sequential_models[:-1]
+                self.model.load_state_dict(init_model.state_dict(), strict=False)
 
     def complete_hparams(self):
         default_sr_list = {
@@ -162,9 +165,10 @@ class SRDistillation(SR_LightModel):
             else:
                 feat_t, out_t = self.teacher(lr, with_feature=True)
                 if self.current_epoch < self.params['start_distill'] and self.params['pretrain_distill']:
-                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], [ft.detach() for ft in feat_t], self.current_epoch/self.params['num_epochs'])
+                    dist_loss = self.dist_method([fs.detach() for fs in feat_s], [ft.detach() for ft in feat_t],
+                                                 self.current_epoch / self.params['num_epochs'])
                 else:
-                    dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch/self.params['num_epochs'])
+                    dist_loss = self.dist_method(feat_s, feat_t, self.current_epoch / self.params['num_epochs'])
                 self.log('train/dist_loss', dist_loss)
                 loss = task_loss + dist_loss * self.params['distill_coe']
 

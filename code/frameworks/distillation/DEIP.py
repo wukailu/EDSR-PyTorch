@@ -32,12 +32,6 @@ class DEIP_LightModel(LightningModule):
             std_alignment(self.plain_model, self.example_data, self.fs_std)
             print("std alignment finished")
 
-        if self.params['add_ori'] and self.params['task'] == 'super-resolution':
-            import copy
-            self.sub_mean = copy.deepcopy(self.teacher_plain_model.sequential_models[0].sub_mean)
-        else:
-            self.sub_mean = None
-
     def on_train_start(self):
         self.sync_plain_model()
 
@@ -59,7 +53,6 @@ class DEIP_LightModel(LightningModule):
         return ConvertibleModel(teacher.to_convertible_layers()), teacher
 
     def init_student(self):
-        # First version, no progressive learning
         images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
         widths = [self.params['input_channel']] + self.calc_width(images=images)
 
@@ -76,24 +69,17 @@ class DEIP_LightModel(LightningModule):
 
         if self.params['init_stu_with_teacher']:
             print("init student with teacher!")
-            # teacher and student has different #input_channel and #out_channel
-            # Method 1: ignore the relu layer, then student can be initialized at start
-            # Method 1, branch 2: merge bias into conv by adding a constant channel to feature map
-            # Method 2: Feature map mapping is kept by layer distillation, use the matrix from distillation, but this
-            # need to be calculated on-the-fly.
-            # Method 3: Feature map is sampled from teacher, and use decomposition technic to determined width and mapping,
-            # generate student kernel with mapping and teacher kernel each layer.
-            # Note 1: Pay attention to gradient vanishing after initialization.
-
             assert len(self.plain_model) == len(self.teacher_plain_model.sequential_models)
-            # Implement Method 1:
+            # Old version initialization, does not work due to high errors
             M = torch.eye(3)
             for layer_s, layer_t in zip(self.plain_model[:-1], self.teacher_plain_model.sequential_models[:-1]):
                 M = self.init_layer(layer_s, layer_t, M)
                 self.M_maps.append(M.detach())
-
             # LastFCLayer
             self.teacher_plain_model.sequential_models[-1].init_student(self.plain_model[-1], M)
+        else:
+            from model import model_init
+            model_init(self.plain_model, method=self.params['conv_init'])
 
     def init_layer(self, layer_s, layer_t, M):  # M is of shape C_t x C_s
         assert isinstance(layer_t, ConvertibleLayer)
@@ -108,7 +94,7 @@ class DEIP_LightModel(LightningModule):
                 for i in range(layer_s.conv.out_channels):
                     layer_s.conv.weight.data[i, i, k // 2, k // 2] -= 1
             return M
-        elif self.params['layer_type'] == 'repvgg':
+        elif 'repvgg' in self.params['layer_type']:
             from model.basic_cifar_models.repvgg import RepVGGBlock
             assert isinstance(layer_s, RepVGGBlock)
             conv_s: nn.Conv2d = layer_s.rbr_dense.conv
@@ -141,30 +127,21 @@ class DEIP_LightModel(LightningModule):
             'init_with_teacher_param': False,
             'rank_eps': 5e-2,
             'use_bn': True,
-            'add_ori': False,
             'layer_type': 'normal',
             'init_stu_with_teacher': False,
             'teacher_pretrain_path': None,
             'init_tail': False,
             'std_align': False,
+            'fix_r': -1,
+            'conv_init': "kaiming_normal",
         }
         self.params = {**default_sr_list, **self.params}
         LightningModule.complete_hparams(self)
 
     def forward(self, x, with_feature=False, start_forward_from=0, until=None):
         f_list = []
-        if self.params['add_ori'] and self.hparams['task'] == 'classification':
-            ori = x
-        elif self.params['add_ori'] and self.hparams['task'] == 'super-resolution':
-            ori = self.sub_mean(x)
-        elif self.params['add_ori']:
-            raise NotImplementedError()
-        else:
-            ori = None
 
         for m in self.plain_model[start_forward_from: until]:
-            if self.params['add_ori']:
-                x = torch.cat([x, ori], dim=1)
             x = m(pad_const_channel(x))
             if with_feature:
                 f_list.append(x)
@@ -190,8 +167,6 @@ class DEIP_LightModel(LightningModule):
     def append_layer(self, in_channels, out_channels, previous_f_size, current_f_size, kernel_size=3):
         assert len(previous_f_size) == 2
         assert len(current_f_size) == 2
-        if self.params['add_ori']:
-            in_channels += 3
         if self.params['layer_type'].startswith('normal'):
             if 'prelu' in self.params['layer_type']:
                 act = nn.PReLU()
@@ -216,7 +191,6 @@ class DEIP_LightModel(LightningModule):
             new_layer = RepVGGBlock(in_channels, out_channels, kernel_size, stride=(stride_w, stride_h),
                                     padding=kernel_size // 2)
         elif self.params['layer_type'].startswith('plain_sr'):
-            # TODO: convert this to convertible layers
             from frameworks.distillation.exp_network import Plain_SR_Block
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
@@ -260,11 +234,11 @@ class DEIP_LightModel(LightningModule):
                 for m in self.teacher_plain_model[:-2]:
                     assert isinstance(m, ConvertibleLayer)
                     mat = m.simplify_layer()[0].weight.detach().flatten(start_dim=1)
-                    ret.append(rank_estimate(mat, eps=self.params['rank_eps']))
+                    ret.append(rank_estimate(mat, eps=self.params['rank_eps'], fix_r=self.params['fix_r']))
             else:
                 for f in f_list[:-2]:
                     mat = f.transpose(0, 1).flatten(start_dim=1)
-                    ret.append(rank_estimate(mat, eps=self.params['rank_eps']))
+                    ret.append(rank_estimate(mat, eps=self.params['rank_eps'], fix_r=self.params['fix_r']))
         ret.append(teacher_width[-2])
         ret.append(teacher_width[-1])  # num classes
         print("calculated teacher width = ", teacher_width)
@@ -278,7 +252,6 @@ class DEIP_Dropout_Init(DEIP_LightModel):
     """
 
     def init_student(self):
-        assert not self.params['add_ori']
         images = self.unpack_batch(next(iter(self.dataProvider.train_dl)))[0]
         widths = [self.params['input_channel']]
         with torch.no_grad():
@@ -539,7 +512,6 @@ class DEIP_Init(DEIP_Distillation):
         return BridgeDistill(self.bridges[1:], **distill_config)
 
     def init_student(self):
-        assert not self.params['add_ori']
         widths = [self.params['input_channel']]
         self.bridges = nn.ModuleList([IdLayer(self.params['input_channel'])])
 
@@ -552,11 +524,10 @@ class DEIP_Init(DEIP_Distillation):
             teacher_width = [f.size(1) for f in f_list]
             for f in f_list[:-2]:
                 mat = f.transpose(0, 1).flatten(start_dim=1)
-                fix_r = self.params['fix_r'] if 'fix_r' in self.params else -1
 
                 # M*fs + bias \approx mat
                 M, fs, bias, r = rank_estimate(mat, eps=self.params['rank_eps'], with_bias=True, with_rank=True,
-                                               with_solution=True, use_NMF=False, fix_r=fix_r,
+                                               with_solution=True, use_NMF=False, fix_r=self.params['fix_r'],
                                                adjust=self.params['decompose_adjust'])
                 conv1x1 = nn.Conv2d(fs.size(0), mat.size(0), kernel_size=1, bias=True)
                 conv1x1.weight.data[:] = M.reshape_as(conv1x1.weight)
