@@ -1,7 +1,9 @@
+from typing import Tuple
+
 import torch.nn as nn
 import numpy as np
 import torch
-
+from model.layerwise_model import ConvertibleLayer
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
@@ -135,7 +137,10 @@ class RepVGGBlock(nn.Module):
     def get_equivalent_kernel_bias(self):
         kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
         kernel1x1, bias1x1 = self._fuse_bn_tensor(self.rbr_1x1)
-        kernelid, biasid = self._fuse_bn_tensor(self.rbr_identity)
+        if hasattr(self, 'rbr_identity'):
+            kernelid, biasid = self._fuse_bn_tensor(self.rbr_identity)
+        else:
+            kernelid, biasid = 0, 0
         return kernel3x3 + self._pad_1x1_to_3x3_tensor(kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
 
     def _pad_1x1_to_3x3_tensor(self, kernel1x1):
@@ -174,7 +179,38 @@ class RepVGGBlock(nn.Module):
 
     def repvgg_convert(self):
         kernel, bias = self.get_equivalent_kernel_bias()
-        return kernel.detach().cpu().numpy(), bias.detach().cpu().numpy(),
+        return kernel.detach().cpu().numpy(), bias.detach().cpu().numpy()
+
+
+class LayerwiseRepBlock(ConvertibleLayer, RepVGGBlock):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', **kwargs):
+        super(ConvertibleLayer, self).__init__()
+        self.groups = groups
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.stride = stride
+        self.nonlinearity = nn.ReLU()
+
+        if out_channels == in_channels and stride == 1:
+            self.rbr_identity = nn.BatchNorm2d(num_features=in_channels)
+        self.rbr_dense = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
+                                 stride=stride, padding=padding, groups=groups)
+        self.rbr_1x1 = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride,
+                               padding=padding - kernel_size // 2, groups=groups)
+
+    def forward(self, inputs):
+        outputs = self.rbr_1x1(inputs) + self.rbr_dense(inputs)
+        if hasattr(self, 'rbr_identity'):
+            outputs += self.rbr_identity(inputs)
+        return self.nonlinearity(outputs)
+
+    def simplify_layer(self) -> Tuple[nn.Conv2d, nn.Module]:
+        kernel, bias = self.get_equivalent_kernel_bias()
+        import copy
+        conv = copy.deepcopy(self.rbr_dense.conv)
+        conv.weight.data = kernel
+        conv.bias.data = bias
+        return conv, self.nonlinearity
 
 
 class RepVGG(nn.Module):

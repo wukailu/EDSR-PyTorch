@@ -3,6 +3,7 @@ import os
 
 sys.path.append(os.getcwd())
 
+from frameworks.superresolution.train_sr_model import test_SR_benchmark
 from model.layerwise_model import ConvertibleModel
 from frameworks.distillation.DEIP import load_model
 from frameworks.classification.train_single_model import get_params, prepare_params, train_model, inference_statics
@@ -23,3 +24,6 @@ if __name__ == "__main__":
             inference_statics(model, batch_size=256)
         else:
             inference_statics(model, batch_size=1)
+
+    if params['test_benchmark']:
+        test_SR_benchmark(model)

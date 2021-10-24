@@ -95,8 +95,8 @@ class DEIP_LightModel(LightningModule):
                     layer_s.conv.weight.data[i, i, k // 2, k // 2] -= 1
             return M
         elif 'repvgg' in self.params['layer_type']:
-            from model.basic_cifar_models.repvgg import RepVGGBlock
-            assert isinstance(layer_s, RepVGGBlock)
+            from model.basic_cifar_models.repvgg import LayerwiseRepBlock
+            assert isinstance(layer_s, LayerwiseRepBlock)
             conv_s: nn.Conv2d = layer_s.rbr_dense.conv
             conv = nn.Conv2d(in_channels=conv_s.in_channels, out_channels=conv_s.out_channels,
                              kernel_size=conv_s.kernel_size, stride=conv_s.stride, padding=conv_s.padding,
@@ -185,11 +185,11 @@ class DEIP_LightModel(LightningModule):
             new_layer = ConvLayer(in_channels, out_channels, kernel_size, bn=bn, act=act, stride=stride,
                                   SR_init=self.params['task'] == 'super-resolution')
         elif self.params['layer_type'] == 'repvgg':
-            from model.basic_cifar_models.repvgg import RepVGGBlock
+            from model.basic_cifar_models.repvgg import LayerwiseRepBlock
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
-            new_layer = RepVGGBlock(in_channels, out_channels, kernel_size, stride=(stride_w, stride_h),
-                                    padding=kernel_size // 2)
+            new_layer = LayerwiseRepBlock(in_channels, out_channels, kernel_size, stride=(stride_w, stride_h),
+                                          padding=kernel_size // 2)
         elif self.params['layer_type'].startswith('plain_sr'):
             from frameworks.distillation.exp_network import Plain_SR_Block
             stride_w = previous_f_size[0] // current_f_size[0]
@@ -500,7 +500,7 @@ class DEIP_Init(DEIP_Distillation):
             'dist_method': 'BridgeDistill',
             'ridge_alpha': 0,
             'decompose_adjust': 3,
-            'init_distill': True,
+            'distill_init': True,
         }
         self.params = {**default_sr_list, **self.params}
         DEIP_Distillation.complete_hparams(self)
@@ -554,7 +554,7 @@ class DEIP_Init(DEIP_Distillation):
         print("calculated teacher width = ", [self.params['input_channel']] + teacher_width)
         print("calculated student width = ", widths)
 
-        if not self.params['init_distill']:
+        if not self.params['distill_init']:
             # reset the parameters in distill to random
             new_bridge = nn.ModuleList()
             for m in self.bridges:
