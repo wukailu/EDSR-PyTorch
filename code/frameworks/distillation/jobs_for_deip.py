@@ -8,12 +8,12 @@ pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSR50_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_3fa19.ckpt",  # 1000 epoch
-    "EDSR64_newtail_short_x2": "",  # 1000 epoch
+    "EDSR64_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_9b790.ckpt",  # 1000 epoch
     "EDSR64_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_537c4.ckpt",  # 1000 epoch
     "EDSR64_newtail_x3": "",  # 1000 epoch
     "EDSR64_newtail_x4": "",  # 1000 epoch
     "EDSR100_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_b00e1.ckpt",  # 1000 epoch
-    "EDSR100_newtail_x3": "",  # 1000 epoch
+    "EDSR100_newtail_x3": "/data/pretrained/lightning_models/layerwise_edsrx3_div2k_613be.ckpt",  # 1000 epoch
     "EDSR100_newtail_x4": "",  # 1000 epoch
     "EDSR64x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_fa9af.ckpt",  # 1000 epoch
     "EDSR100x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_1c96e.ckpt",  # 1000 epoch
@@ -582,18 +582,21 @@ def params_for_EXP_cmp_init():
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
         'init_stu_with_teacher': 0,
         'layer_type': ['normal_no_bn', 'repvgg'],
+        # 'conv_init': ['kaiming_normal', 'kaiming_uniform', 'xavier_uniform', 'xavier_normal'],
         'seed': 233,
-        'gpus': 2,
+        'gpus': 1,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
 
 
 def params_for_deip():
-    params = params_for_EXP_main_x2()  # submitted to 19 with width 64, 75, 90 from 64 width teacher, 100,
+    # params = params_for_EXP_main_x2()  # submitted to 19 with width 64, 75, 90 from 64 width teacher, 100,
     # params = params_for_EXP_main_x3()
     # params = params_for_EXP_main_x4()
     # params = params_for_EXP_ablation_x4()
+
+    params = params_for_EXP_cmp_init()  # submitted to 20 with [64, 75, 90] x ['normal_no_bn', 'repvgg']
 
     return random_params(params)
 

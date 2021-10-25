@@ -5,12 +5,14 @@ import numpy as np
 import torch
 from model.layerwise_model import ConvertibleLayer
 
-def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
+
+def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1, bn=True):
     result = nn.Sequential()
     result.add_module('conv', nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
                                         kernel_size=kernel_size, stride=stride, padding=padding, groups=groups,
-                                        bias=False))
-    result.add_module('bn', nn.BatchNorm2d(num_features=out_channels))
+                                        bias=not bn))
+    if bn:
+        result.add_module('bn', nn.BatchNorm2d(num_features=out_channels))
     return result
 
 
@@ -183,7 +185,8 @@ class RepVGGBlock(nn.Module):
 
 
 class LayerwiseRepBlock(ConvertibleLayer, RepVGGBlock):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', **kwargs):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
+                 padding_mode='zeros', use_bn=True, **kwargs):
         super(ConvertibleLayer, self).__init__()
         self.groups = groups
         self.in_channels = in_channels
@@ -194,9 +197,9 @@ class LayerwiseRepBlock(ConvertibleLayer, RepVGGBlock):
         if out_channels == in_channels and stride == 1:
             self.rbr_identity = nn.BatchNorm2d(num_features=in_channels)
         self.rbr_dense = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
-                                 stride=stride, padding=padding, groups=groups)
+                                 stride=stride, padding=padding, groups=groups, bn=use_bn)
         self.rbr_1x1 = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride,
-                               padding=padding - kernel_size // 2, groups=groups)
+                               padding=padding - kernel_size // 2, groups=groups, bn=use_bn)
 
     def forward(self, inputs):
         outputs = self.rbr_1x1(inputs) + self.rbr_dense(inputs)
@@ -245,7 +248,8 @@ class RepVGG(nn.Module):
         for stride in strides:
             cur_groups = self.override_groups_map.get(self.cur_layer_idx, 1)
             blocks.append(RepVGGBlock(in_channels=self.in_planes, out_channels=planes, kernel_size=3,
-                                      stride=stride, padding=1, groups=cur_groups, deploy=self.deploy, version=self.version))
+                                      stride=stride, padding=1, groups=cur_groups, deploy=self.deploy,
+                                      version=self.version))
             self.in_planes = planes
             self.cur_layer_idx += 1
         return nn.Sequential(*blocks)

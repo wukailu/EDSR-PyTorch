@@ -113,7 +113,10 @@ class DEIP_LightModel(LightningModule):
                 for i in range(conv.out_channels):
                     conv.weight.data[i, i, k // 2, k // 2] -= 1
 
-            layer_s.rbr_dense.bn.bias.data = conv.bias  # maybe we should average this into three part of bn
+            if 'no_bn' in self.params['layer_type']:
+                layer_s.rbr_dense.conv.bias.data = conv.bias
+            else:
+                layer_s.rbr_dense.bn.bias.data = conv.bias  # maybe we should average this into three part of bn
             layer_s.rbr_dense.conv.weight.data = conv.weight
             return M
         else:
@@ -184,12 +187,12 @@ class DEIP_LightModel(LightningModule):
 
             new_layer = ConvLayer(in_channels, out_channels, kernel_size, bn=bn, act=act, stride=stride,
                                   SR_init=self.params['task'] == 'super-resolution')
-        elif self.params['layer_type'] == 'repvgg':
+        elif 'repvgg' in self.params['layer_type']:
             from model.basic_cifar_models.repvgg import LayerwiseRepBlock
             stride_w = previous_f_size[0] // current_f_size[0]
             stride_h = previous_f_size[1] // current_f_size[1]
             new_layer = LayerwiseRepBlock(in_channels, out_channels, kernel_size, stride=(stride_w, stride_h),
-                                          padding=kernel_size // 2)
+                                          padding=kernel_size // 2, use_bn='no_bn' not in self.params['layer_type'])
         elif self.params['layer_type'].startswith('plain_sr'):
             from frameworks.distillation.exp_network import Plain_SR_Block
             stride_w = previous_f_size[0] // current_f_size[0]
