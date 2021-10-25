@@ -556,7 +556,7 @@ def test_model():
         'project_name': 'EDSR_newtail',
         'save_model': False,
         'skip_train': True,
-        'init_from': pretrain_paths['EDSR100_newtail_x2'],
+        'init_from': pretrain_paths['EDSR100_newtail_x3'],
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': 100,
@@ -566,7 +566,7 @@ def test_model():
         'seed': [233],
     }
 
-    return {**templates['DIV2Kx2-EXP'], **params}
+    return {**templates['DIV2Kx3-EXP'], **params}
 
 
 
@@ -582,11 +582,8 @@ def params_for_SR():
 
     # params = directTrainPlain()
     # params = dense_model_train()
-    # params = strong_EDSR_x2()
-    # params = strong_EDSR_x3()
-    # params = strong_EDSR_x4()
 
-    # params = test_model()
+    params = test_model()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

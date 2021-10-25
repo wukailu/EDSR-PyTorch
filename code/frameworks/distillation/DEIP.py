@@ -376,39 +376,33 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
         M, f2 = None, None
 
     if fix_r != -1:
-        fix_r = min(fix_r, f.size(0))
-        return test_rank(fix_r, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust,
-                         ret_err=False)[1:]
-
-    final_ret = []
-    L, R = 0, f.size(0)  # 好吧，不得不写倍增 [ )
-    step = 1
-    while L + step < R:
-        ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust)
-        if ret[0]:
-            R = L + step
-            final_ret = ret
-            break
-        else:
-            step *= 2
-    L = step // 2
-    step = step // 2
-    while step != 0:
-        if L + step < R:
+        R = min(fix_r, f.size(0))
+    else:
+        L, R = 0, f.size(0)  # 好吧，不得不写倍增 [ )
+        step = 1
+        while L + step < R:
             ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust)
-            if not ret[0]:
-                L = L + step
-            else:
+            if ret[0]:
                 R = L + step
-                final_ret = ret
+                break
+            else:
+                step *= 2
+        L = step // 2
         step = step // 2
+        while step != 0:
+            if L + step < R:
+                ret = test_rank(L + step, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust)
+                if not ret[0]:
+                    L = L + step
+                else:
+                    R = L + step
+            step = step // 2
 
-    if len(final_ret) == 0:
-        final_ret, error = test_rank(R, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust,
-                                     ret_err=True)
-        print("rank estimation failed! feature shape is ", f.shape)
-        print("max value and min value in feature is ", f.max(), f.min())
-        print(f"rank estimation failed! The last error is {error}")
+    final_ret, error = test_rank(R, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust,
+                                 ret_err=True)
+    print("rank estimation failed! feature shape is ", f.shape)
+    print("max value and min value in feature is ", f.max(), f.min())
+    print(f"rank estimation failed! The last error is {error}")
 
     if len(final_ret) == 2:
         return final_ret[1]

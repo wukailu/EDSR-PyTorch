@@ -18,6 +18,8 @@ student_model:
   params:
     scale: 4
     n_colors: 3
+    n_feats: 64
+    num_modules: 35
     initialize_from:
       - '../PISR/results/plainnetx4/plainnet_teacher/checkpoint/'
     modules_to_initialize:

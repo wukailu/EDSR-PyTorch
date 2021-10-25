@@ -10,7 +10,7 @@ pretrain_paths = {
     "EDSR50_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_3fa19.ckpt",  # 1000 epoch
     "EDSR64_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_9b790.ckpt",  # 1000 epoch
     "EDSR64_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_537c4.ckpt",  # 1000 epoch
-    "EDSR64_newtail_x3": "",  # 1000 epoch
+    "EDSR64_newtail_x3": "/data/pretrained/lightning_models/layerwise_edsrx3_div2k_fe594.ckpt",  # 1000 epoch
     "EDSR64_newtail_x4": "",  # 1000 epoch
     "EDSR100_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_b00e1.ckpt",  # 1000 epoch
     "EDSR100_newtail_x3": "/data/pretrained/lightning_models/layerwise_edsrx3_div2k_613be.ckpt",  # 1000 epoch
@@ -515,9 +515,9 @@ def params_for_EXP_main_x3():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x3',
         'method': 'DEIP_Init',
-        'rank_eps': [0.1],
+        'fix_r': [64, 75, 90],
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': 'to be filled',
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -535,9 +535,9 @@ def params_for_EXP_main_x4():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x4',
         'method': 'DEIP_Init',
-        'rank_eps': [0.1],
+        'fix_r': [64, 75, 90],
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR64x4'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -576,7 +576,7 @@ def params_for_EXP_ablation_x4():
 
 def params_for_EXP_cmp_init():
     params = {
-        'project_name': 'CVPR_EXP_MAIN_x2',
+        'project_name': 'CVPR_EXP_Ablation_RepVGG_x2',
         'method': 'DirectTrain',
         'fix_r': [64, 75, 90],
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
@@ -592,11 +592,11 @@ def params_for_EXP_cmp_init():
 
 def params_for_deip():
     # params = params_for_EXP_main_x2()  # submitted to 19 with width 64, 75, 90 from 64 width teacher, 100,
-    # params = params_for_EXP_main_x3()
+    params = params_for_EXP_main_x3()  # submitted to 20 with [64, 75, 90] + 64 width teacher
     # params = params_for_EXP_main_x4()
     # params = params_for_EXP_ablation_x4()
 
-    params = params_for_EXP_cmp_init()  # submitted to 20 with [64, 75, 90] x ['normal_no_bn', 'repvgg']
+    # params = params_for_EXP_cmp_init()  # submitted to 20 with [64, 75, 90] x ['normal_no_bn', 'repvgg']
 
     return random_params(params)
 
