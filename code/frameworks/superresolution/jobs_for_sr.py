@@ -534,11 +534,29 @@ def Short_EDSR_new_tailx2():
     return {**templates['DIV2Kx2-EXP'], **params}
 
 
+def Short_EDSR_new_tailx3():
+    params = {
+        'project_name': 'EDSR_newtail',
+        'save_model': True,
+        'init_from': pretrain_paths['EDSR64_newtail_short_x2'],
+        'backbone': {
+            'arch': ['EDSR_layerwise_sr'],
+            'n_feats': 64,
+            'n_resblocks': 8,
+            'simple_tail': 1,
+        },
+        'seed': [233],
+        'gpus': 8,
+    }
+
+    return {**templates['DIV2Kx3-EXP'], **params}
+
+
 def Short_EDSR_new_tailx4():
     params = {
         'project_name': 'EDSR_newtail',
         'save_model': True,
-        'init_from': None,
+        'init_from': pretrain_paths['EDSR64_newtail_short_x2'],
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': 64,
@@ -556,7 +574,7 @@ def test_model():
         'project_name': 'EDSR_newtail',
         'save_model': False,
         'skip_train': True,
-        'init_from': pretrain_paths['EDSR100_newtail_x3'],
+        'init_from': "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_8610d.ckpt",
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': 100,
@@ -566,7 +584,7 @@ def test_model():
         'seed': [233],
     }
 
-    return {**templates['DIV2Kx3-EXP'], **params}
+    return {**templates['DIV2Kx2-EXP'], **params}
 
 
 
@@ -578,6 +596,7 @@ def params_for_SR():
 
     # 与 PISR, RepVGG 等比较使用的模型
     # params = Short_EDSR_new_tailx2()  # finished
+    # params = Short_EDSR_new_tailx3()  # submitted to 236 with width 64
     # params = Short_EDSR_new_tailx4()  #
 
     # params = directTrainPlain()

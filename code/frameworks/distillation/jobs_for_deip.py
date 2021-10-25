@@ -9,6 +9,8 @@ pretrain_paths = {
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSR50_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_3fa19.ckpt",  # 1000 epoch
     "EDSR64_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_9b790.ckpt",  # 1000 epoch
+    "EDSR64_newtail_short_x3": "",  # 1000 epoch
+    "EDSR64_newtail_short_x4": "",  # 1000 epoch
     "EDSR64_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_537c4.ckpt",  # 1000 epoch
     "EDSR64_newtail_x3": "/data/pretrained/lightning_models/layerwise_edsrx3_div2k_fe594.ckpt",  # 1000 epoch
     "EDSR64_newtail_x4": "",  # 1000 epoch
