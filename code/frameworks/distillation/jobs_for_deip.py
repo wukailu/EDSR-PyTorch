@@ -85,8 +85,8 @@ templates = {
         "dataset": {
             'name': "DIV2K",
             'scale': 4,
-            'total_batch_size': 16,
-            'patch_size': 192,
+                'total_batch_size': 16,
+                'patch_size': 192,
             'ext': 'sep',
             'repeat': 20,
             'test_bz': 1,
@@ -523,9 +523,9 @@ def params_for_EXP_main_x3():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x3',
         'method': 'DEIP_Init',
-        'fix_r': [64, 75, 90],
+        'fix_r': 64,
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
+        'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x3'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -607,7 +607,7 @@ def test_model():
         'skip_train': True,
         'test_benchmark': True,
         'inference_statics': True,
-        'load_from': '/data/tmp/test1.ckpt',
+        'load_from': ['/data/tmp/test64.ckpt', '/data/tmp/test75.ckpt', '/data/tmp/test90.ckpt'],
         'seed': 233,
     }
 
@@ -615,14 +615,14 @@ def test_model():
 
 
 def params_for_deip():
-    params = params_for_EXP_main_x2()  # submitted to 233 with 64 width and 2e-4,5e-4 lr and 100 epoch small test
-    # params = params_for_EXP_main_x3()  # submitted to 20 with [64, 75, 90] + 64 width teacher
+    # params = params_for_EXP_main_x2()  # submitted to 233 with 64 width and 2e-4,5e-4 lr and 100 epoch small test
+    # params = params_for_EXP_main_x3()
     # params = params_for_EXP_main_x4()
     # params = params_for_EXP_ablation_x4()  # submitted to 13, 17, 30, 236 with seed 233, 234 and width 75, 64
 
     # params = params_for_EXP_cmp_init()
 
-    # params = test_model()
+    params = test_model()
     return random_params(params)
 
 

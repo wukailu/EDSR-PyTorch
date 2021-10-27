@@ -10,7 +10,7 @@ class PSNR_SHAVE(PSNR):
         self.scale = scale
         self.gray = gray
 
-    def update(self, preds: Tensor, target: Tensor) -> None:  # type: ignore
+    def update(self, preds: Tensor, target: Tensor) -> None:
         shave = self.scale
         if self.gray:
             gray_coeffs = [65.738, 129.057, 25.064]
