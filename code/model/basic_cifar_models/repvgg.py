@@ -187,7 +187,7 @@ class RepVGGBlock(nn.Module):
 class LayerwiseRepBlock(ConvertibleLayer, RepVGGBlock):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
                  padding_mode='zeros', use_bn=True, **kwargs):
-        super(ConvertibleLayer, self).__init__()
+        ConvertibleLayer.__init__(self)
         self.groups = groups
         self.in_channels = in_channels
         self.out_channels = out_channels

@@ -1,3 +1,6 @@
+import sys, os
+sys.path = [os.getcwd()] + sys.path
+
 from frameworks.classification.train_single_model import inference_statics
 from model import get_classifier
 from model.layerwise_model import ConvertibleLayer, pad_const_channel, ConvertibleModel, DenseFeatureFusionSubModel, \
@@ -7,12 +10,21 @@ import torch
 from model.super_resolution_model import RDB_Layerwise
 
 if __name__ == '__main__':
+    # params = {
+    #     'arch': 'Plain_layerwise_sr',
+    #     'n_feats': 90,
+    #     'num_modules': 19,
+    # }
     params = {
-        'arch': 'edsr_layerwise_sr',
-        'n_feats': 50,
+        'arch': 'Plain_layerwise_sr',
+        'n_feats': 64,
+        'num_modules': 35,
     }
+    # params = {
+    #     'arch': 'IMDN_sr',
+    # }
     model = get_classifier(params, "DIV2K")
-    x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()
+    # x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()
 
     # params = {
     #     'arch': 'resnet20x4_layerwise',
@@ -20,19 +32,19 @@ if __name__ == '__main__':
     # model = get_classifier(params, "cifar100")
     # x_test = torch.randn((1, 3, 32, 32))
 
-    with torch.no_grad():
-        f_list, _ = model(x_test, with_feature=True)
-        for idx, f in enumerate(f_list):
-            print(idx, ': f.shape', f.shape, 'f.mean', f.mean(), 'f.std', f.std(), 'f.min', f.min(), 'f.max', f.max())
-
-        model = ConvertibleModel(model.to_convertible_layers())
-        f_list_2, _ = model(x_test, with_feature=True)
-        for idx, f in enumerate(f_list_2):
-            print(idx, ': f.shape', f.shape, 'f.mean', f.mean(), 'f.std', f.std(), 'f.min', f.min(), 'f.max', f.max())
-
-        for f1, f2 in zip(f_list, f_list_2):
-            f = f1 - f2
-            print('diff : f.shape', f.shape, 'f.mean', f.mean(), 'f.std', f.std(), 'f.min', f.min(), 'f.max', f.max())
+    # with torch.no_grad():
+    #     f_list, _ = model(x_test, with_feature=True)
+    #     for idx, f in enumerate(f_list):
+    #         print(idx, ': f.shape', f.shape, 'f.mean', f.mean(), 'f.std', f.std(), 'f.min', f.min(), 'f.max', f.max())
+    #
+    #     model = ConvertibleModel(model.to_convertible_layers())
+    #     f_list_2, _ = model(x_test, with_feature=True)
+    #     for idx, f in enumerate(f_list_2):
+    #         print(idx, ': f.shape', f.shape, 'f.mean', f.mean(), 'f.std', f.std(), 'f.min', f.min(), 'f.max', f.max())
+    #
+    #     for f1, f2 in zip(f_list, f_list_2):
+    #         f = f1 - f2
+    #         print('diff : f.shape', f.shape, 'f.mean', f.mean(), 'f.std', f.std(), 'f.min', f.min(), 'f.max', f.max())
 
     # ans = x_test.detach()
     # out = x_test.detach()
@@ -69,8 +81,8 @@ if __name__ == '__main__':
         # print([(out-out2)[:, i].max() for i in range(out.size(1))])
 
     print(type(model))
-    # x_test = torch.randint(0, 255, (3, 256, 256)).float()
-    # inference_statics(model, x_test=x_test, batch_size=1)
+    x_test = torch.randint(0, 255, (3, 339, 510)).float()
+    inference_statics(model, x_test=x_test, batch_size=1)
 
 ### layerwise_rdn
 # --------------> Inference_Time(us) = 3.6313236449603683 <-------------

@@ -4,19 +4,23 @@ sys.path.append('/home/kailu/EDSR-PyTorch/code/')
 sys.path.append('/home/wukailu/EDSR-PyTorch/code/')
 from utils.tools import submit_jobs, random_params
 
+# Plain-S 64 width 8 resblock
+# Plain-M 64 width 16 resblock
+# Plain-L 100 width 16 resblock
+
 pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSR50_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_3fa19.ckpt",  # 1000 epoch
     "EDSR64_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_9b790.ckpt",  # 1000 epoch
-    "EDSR64_newtail_short_x3": "",  # 1000 epoch
+    "EDSR64_newtail_short_x3": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_27695.ckpt",  # 1000 epoch
     "EDSR64_newtail_short_x4": "",  # 1000 epoch
     "EDSR64_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_537c4.ckpt",  # 1000 epoch
     "EDSR64_newtail_x3": "/data/pretrained/lightning_models/layerwise_edsrx3_div2k_fe594.ckpt",  # 1000 epoch
-    "EDSR64_newtail_x4": "",  # 1000 epoch
+    "EDSR64_newtail_x4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_69068.ckpt",  # 1000 epoch
     "EDSR100_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_b00e1.ckpt",  # 1000 epoch
     "EDSR100_newtail_x3": "/data/pretrained/lightning_models/layerwise_edsrx3_div2k_613be.ckpt",  # 1000 epoch
-    "EDSR100_newtail_x4": "",  # 1000 epoch
+    "EDSR100_newtail_x4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_5e9dd.ckpt",  # 1000 epoch
     "EDSR64x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_fa9af.ckpt",  # 1000 epoch
     "EDSR100x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_1c96e.ckpt",  # 1000 epoch
     "EDSR64x4": "/data/pretrained/lightning_models/layerwise_edsr64x4_div2k_cbe41.ckpt",  # 1000 epoch
@@ -491,11 +495,12 @@ def params_for_SR_new_conv_init():
 
 def params_for_EXP_main_x2():
     params = {
-        'project_name': 'CVPR_EXP_MAIN_x2',
+        'project_name': 'CVPR_EXP_MAIN_x2_pre',
         'method': 'DEIP_Init',
-        'fix_r': [64, 75, 90],
+        'fix_r': 64,
+        'max_lr': [2e-4, 5e-4, 8e-4, 1e-3],
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
-        # 'fix_r': [50, 64, 70, 75, 80, 90, 100, 110, 120, 150],
+        # 'fix_r': [64, 90, 100, 120],
         # 'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x2'],
         'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
@@ -507,6 +512,7 @@ def params_for_EXP_main_x2():
             'distill_loss': 'MSE',
         },
         'seed': 233,
+        'num_epochs': 100,
         'gpus': 2,
     }
 
@@ -557,9 +563,9 @@ def params_for_EXP_ablation_x4():
     params = {
         'project_name': 'CVPR_EXP_Ablation_x4',
         'method': 'DEIP_Init',
-        'fix_r': '',
+        'fix_r': 64,
         'init_stu_with_teacher': [0, 1],
-        'teacher_pretrain_path': pretrain_paths['EDSR64x4'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': [0, 0.3],
@@ -571,6 +577,7 @@ def params_for_EXP_ablation_x4():
             'distill_loss': 'MSE',
         },
         'seed': 233,
+        'save_model': False,
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -578,31 +585,46 @@ def params_for_EXP_ablation_x4():
 
 def params_for_EXP_cmp_init():
     params = {
-        'project_name': 'CVPR_EXP_Ablation_RepVGG_x2',
+        'project_name': 'CVPR_EXP_Ablation_Init_x2',
         'method': 'DirectTrain',
-        'fix_r': [64, 75, 90],
+        'fix_r': 64,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
         'init_stu_with_teacher': 0,
-        'layer_type': ['normal_no_bn', 'repvgg'],
-        # 'conv_init': ['kaiming_normal', 'kaiming_uniform', 'xavier_uniform', 'xavier_normal'],
-        'seed': 233,
+        # 'layer_type': 'repvgg',
+        'layer_type': 'normal_no_bn',
+        'conv_init': ['kaiming_normal', 'kaiming_uniform', 'xavier_uniform', 'xavier_normal'],
         'gpus': 1,
+        'save_model': False,
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
+def test_model():
+    params = {
+        'project_name': 'model_test',
+        'save_model': False,
+        'skip_train': True,
+        'test_benchmark': True,
+        'inference_statics': True,
+        'load_from': '/data/tmp/test1.ckpt',
+        'seed': 233,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
 
 
 def params_for_deip():
-    # params = params_for_EXP_main_x2()  # submitted to 19 with width 64, 75, 90 from 64 width teacher, 100,
-    params = params_for_EXP_main_x3()  # submitted to 20 with [64, 75, 90] + 64 width teacher
+    params = params_for_EXP_main_x2()  # submitted to 233 with 64 width and 2e-4,5e-4 lr and 100 epoch small test
+    # params = params_for_EXP_main_x3()  # submitted to 20 with [64, 75, 90] + 64 width teacher
     # params = params_for_EXP_main_x4()
-    # params = params_for_EXP_ablation_x4()
+    # params = params_for_EXP_ablation_x4()  # submitted to 13, 17, 30, 236 with seed 233, 234 and width 75, 64
 
-    # params = params_for_EXP_cmp_init()  # submitted to 20 with [64, 75, 90] x ['normal_no_bn', 'repvgg']
+    # params = params_for_EXP_cmp_init()
 
+    # params = test_model()
     return random_params(params)
 
 
 if __name__ == "__main__":
     submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=100, job_directory='.')
-    # submit_jobs(params_for_deip, 'frameworks/distillation/unit_test.py', number_jobs=1, job_directory='.')

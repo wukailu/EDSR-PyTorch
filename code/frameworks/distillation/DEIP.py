@@ -56,9 +56,9 @@ class DEIP_LightModel(LightningModule):
         images = torch.stack([self.unpack_batch(self.dataProvider.train_dl.dataset[i])[0] for i in range(16)], dim=0)
         widths = [self.params['input_channel']] + self.calc_width(images=images)
 
-        if self.params['task'] == 'super-resolution':
-            for i in range(1, len(widths)):
-                widths[i] = min(widths[i - 1] * 9, widths[i])
+        # if self.params['task'] == 'super-resolution':
+        #     for i in range(1, len(widths)):
+        #         widths[i] = min(widths[i - 1] * 9, widths[i])
 
         with torch.no_grad():
             f_list, _ = self.teacher(images, with_feature=True)
@@ -400,9 +400,7 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
 
     final_ret, error = test_rank(R, use_NMF, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust,
                                  ret_err=True)
-    print("rank estimation failed! feature shape is ", f.shape)
-    print("max value and min value in feature is ", f.max(), f.min())
-    print(f"rank estimation failed! The last error is {error}")
+    print(f"Last rank estimation error is {error}")
 
     if len(final_ret) == 2:
         return final_ret[1]
@@ -740,6 +738,9 @@ class DEIP_Full_Progressive(DEIP_Progressive_Distillation):
 
 
 def load_model(params):
+    if 'load_from' in params:
+        return DEIP_LightModel.load_from_checkpoint(params['load_from'], strict=False)
+
     params = {'method': 'DirectTrain', **params}
     methods = {
         'DirectTrain': DEIP_LightModel,

@@ -355,15 +355,15 @@ def EDSR_new_tailx4():
     params = {
         'project_name': 'EDSR_newtail',
         'save_model': True,
-        'init_from': pretrain_paths["EDSR100_newtail_x2"],
+        'init_from': pretrain_paths["EDSR64_newtail_x2"],
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
-            'n_feats': 100,
+            'n_feats': 64,
             'n_resblocks': 16,
             'simple_tail': 1,
         },
         'seed': [233],
-        'gpus': 4,
+        'gpus': 1,
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -574,7 +574,7 @@ def test_model():
         'project_name': 'EDSR_newtail',
         'save_model': False,
         'skip_train': True,
-        'init_from': "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_8610d.ckpt",
+        'init_from': pretrain_paths['EDSR100_newtail_x4'],
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
             'n_feats': 100,
@@ -584,15 +584,15 @@ def test_model():
         'seed': [233],
     }
 
-    return {**templates['DIV2Kx2-EXP'], **params}
+    return {**templates['DIV2Kx4-EXP'], **params}
 
 
 
 def params_for_SR():
     # 所有实验基础模型, 64 宽度一版 100 宽度一版
     # params = EDSR_new_tailx2()  # finished
-    # params = EDSR_new_tailx3()  # submitted to 233 with width 64
-    # params = EDSR_new_tailx4()  # 45 with width 64, 233 with width 100
+    # params = EDSR_new_tailx3()  # finished
+    # params = EDSR_new_tailx4()  # finished
 
     # 与 PISR, RepVGG 等比较使用的模型
     # params = Short_EDSR_new_tailx2()  # finished
