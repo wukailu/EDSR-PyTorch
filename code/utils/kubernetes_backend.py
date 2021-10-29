@@ -82,4 +82,5 @@ kubectl exec --stdin --tty <pod-name> -- /bin/bash
 kubectl cp /tmp/foo <some-namespace>/<some-pod>:/tmp/bar
 pod 到本地
 kubectl cp -c <container> <some-namespace>/<some-pod>:/tmp/bar /temp/foo
+kubectl delete --all deployments --namespace=wuvin
 """

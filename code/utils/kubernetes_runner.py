@@ -86,7 +86,7 @@ def run_job(kube_job_id, yaml_data):
                       _preload_content=False)
 
         while resp.is_open():
-            resp.update(timeout=100)
+            resp.update(timeout=10000)
             if resp.peek_stdout():
                 atlas_backend.log("%s" % resp.read_stdout())
             if resp.peek_stderr():
@@ -99,6 +99,7 @@ def run_job(kube_job_id, yaml_data):
                     atlas_backend.log("STDERR: %s" % ret)  # 总有一些奇怪的信息走这里出来，明明该走上面的
             time.sleep(1)
         resp.close()
+        print('connection close...')
 
         if not (cuda_mem_error or cudnn_error):
             print('program running finished! copying back results...')

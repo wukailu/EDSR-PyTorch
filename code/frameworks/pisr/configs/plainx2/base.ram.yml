@@ -41,3 +41,5 @@ train:
  dir: '../PISR/results/plainnetx2/'
 
 
+gpu: 0
+

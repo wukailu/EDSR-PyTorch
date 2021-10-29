@@ -202,6 +202,7 @@ class LayerwiseRepBlock(ConvertibleLayer, RepVGGBlock):
                                padding=padding - kernel_size // 2, groups=groups, bn=use_bn)
 
     def forward(self, inputs):
+        inputs = inputs[:, 1:]
         outputs = self.rbr_1x1(inputs) + self.rbr_dense(inputs)
         if hasattr(self, 'rbr_identity'):
             outputs += self.rbr_identity(inputs)

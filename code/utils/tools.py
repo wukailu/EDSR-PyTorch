@@ -228,6 +228,8 @@ def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None,
             if 'ignore_exist' in hyper_params:
                 ignore = hyper_params['ignore_exist']
                 hyper_params.pop('ignore_exist')
+                check_params = {**hyper_params}
+                # check_params.pop('')
             if (hyper_params not in submitted_jobs) and (
                     (not ignore) or len(get_targets(dict_filter(hyper_params))) == 0):
                 break

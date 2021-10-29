@@ -40,5 +40,5 @@ data:
 train:
  dir: '../PISR/results/splainnetx3/'
 
-gpu: 5
+gpu: 4
 

@@ -12,9 +12,10 @@ pretrain_paths = {
     'resnet20x4': "/data/pretrained/lightning_models/layerwise_resnet20x4_cifar100_b8242.ckpt",
     'resnet20': "/data/pretrained/lightning_models/layerwise_resnet20_cifar100_400ba.ckpt",
     "EDSR50_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_3fa19.ckpt",  # 1000 epoch
+    "EDSR50_newtail_short_x4": "",  # 1000 epoch
     "EDSR64_newtail_short_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_9b790.ckpt",  # 1000 epoch
     "EDSR64_newtail_short_x3": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_27695.ckpt",  # 1000 epoch
-    "EDSR64_newtail_short_x4": "",  # 1000 epoch
+    "EDSR64_newtail_short_x4": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_1980c.ckpt",  # 1000 epoch
     "EDSR64_newtail_x2": "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_537c4.ckpt",  # 1000 epoch
     "EDSR64_newtail_x3": "/data/pretrained/lightning_models/layerwise_edsrx3_div2k_fe594.ckpt",  # 1000 epoch
     "EDSR64_newtail_x4": "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_69068.ckpt",  # 1000 epoch
@@ -85,8 +86,8 @@ templates = {
         "dataset": {
             'name': "DIV2K",
             'scale': 4,
-                'total_batch_size': 16,
-                'patch_size': 192,
+            'total_batch_size': 16,
+            'patch_size': 192,
             'ext': 'sep',
             'repeat': 20,
             'test_bz': 1,
@@ -125,7 +126,7 @@ templates = {
         'inference_statics': True,
         'test_benchmark': True,
         'ignore_exist': True,
-        'metric': 'psnr_gray_shave_x4',
+        'metric': 'psnr_gray_shave_x3',
     },
     'DIV2Kx2-EXP': {
         'task': 'super-resolution',
@@ -153,7 +154,7 @@ templates = {
         'inference_statics': True,
         'test_benchmark': True,
         'ignore_exist': True,
-        'metric': 'psnr_gray_shave_x4',
+        'metric': 'psnr_gray_shave_x2',
     },
 }
 
@@ -498,7 +499,7 @@ def params_for_EXP_main_x2():
         'project_name': 'CVPR_EXP_MAIN_x2_pre',
         'method': 'DEIP_Init',
         'fix_r': 64,
-        'max_lr': [2e-4, 5e-4, 8e-4, 1e-3],
+        'max_lr': [1e-4, 2e-4, 5e-4],
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
         # 'fix_r': [64, 90, 100, 120],
         # 'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x2'],
@@ -513,7 +514,6 @@ def params_for_EXP_main_x2():
         },
         'seed': 233,
         'num_epochs': 100,
-        'gpus': 2,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
@@ -524,8 +524,9 @@ def params_for_EXP_main_x3():
         'project_name': 'CVPR_EXP_MAIN_x3',
         'method': 'DEIP_Init',
         'fix_r': 64,
+        # 'eps': [0.13, 0.12],
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x3'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -534,6 +535,7 @@ def params_for_EXP_main_x3():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
+        # 'seed': 233,
     }
 
     return {**templates['DIV2Kx3-EXP'], **params}
@@ -543,7 +545,8 @@ def params_for_EXP_main_x4():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x4',
         'method': 'DEIP_Init',
-        'fix_r': [64, 75, 90],
+        'fix_r': 64,
+        # 'eps': 0.13,
         'init_stu_with_teacher': 1,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'layer_type': 'normal_no_bn',
@@ -577,7 +580,6 @@ def params_for_EXP_ablation_x4():
             'distill_loss': 'MSE',
         },
         'seed': 233,
-        'save_model': False,
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -594,11 +596,166 @@ def params_for_EXP_cmp_init():
         'layer_type': 'normal_no_bn',
         'conv_init': ['kaiming_normal', 'kaiming_uniform', 'xavier_uniform', 'xavier_normal'],
         'gpus': 1,
-        'save_model': False,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
 
+
+def params_for_EXP_cmp_repvggx4():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_repvgg_x4',
+        'method': 'DirectTrain',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_short_x4'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'repvgg',
+        'gpus': 1,
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
+def params_for_EXP_cmp_repvggx3():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_repvgg_x3',
+        'method': 'DirectTrain',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'repvgg',
+        'gpus': 1,
+    }
+
+    return {**templates['DIV2Kx3-EXP'], **params}
+
+
+def params_for_EXP_cmp_repvggx2():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_repvgg_x2',
+        'method': 'DirectTrain',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'repvgg',
+        'gpus': 1,
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
+def params_for_EXP_cmp_fakdx4():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_FAKD_x4',
+        'method': 'Distillation',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'normal_no_bn',
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'FAKD',
+            'position': (0, 16, 33),
+        },
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
+def params_for_EXP_cmp_fakdx3():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_FAKD_x3',
+        'method': 'Distillation',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'normal_no_bn',
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'FAKD',
+            'position': (0, 16, 33),
+        },
+        'gpus': 2,
+    }
+
+    return {**templates['DIV2Kx3-EXP'], **params}
+
+
+def params_for_EXP_cmp_fakdx2():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_FAKD_x2',
+        'method': 'Distillation',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'normal_no_bn',
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'FAKD',
+            'position': (0, 16, 33),
+        },
+        'gpus': 2,
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
+
+
+def params_for_EXP_cmp_srkdx4():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_FAKD_x4',
+        'method': 'Distillation',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'normal_no_bn',
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'SRKD',
+        },
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
+def params_for_EXP_cmp_srkdx3():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_FAKD_x3',
+        'method': 'Distillation',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'normal_no_bn',
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'SRKD',
+        },
+        'gpus': 1,
+    }
+
+    return {**templates['DIV2Kx3-EXP'], **params}
+
+
+def params_for_EXP_cmp_srkdx2():
+    params = {
+        'project_name': 'CVPR_EXP_Ablation_FAKD_x2',
+        'method': 'Distillation',
+        'fix_r': 64,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
+        'init_stu_with_teacher': 0,
+        'layer_type': 'normal_no_bn',
+        'distill_coe': 0.3,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'SRKD',
+        },
+        'gpus': 1,
+    }
+
+    return {**templates['DIV2Kx2-EXP'], **params}
 
 def test_model():
     params = {
@@ -607,22 +764,32 @@ def test_model():
         'skip_train': True,
         'test_benchmark': True,
         'inference_statics': True,
-        'load_from': ['/data/tmp/test64.ckpt', '/data/tmp/test75.ckpt', '/data/tmp/test90.ckpt'],
+        'load_from': ['/data/tmp/testx3_75_234.ckpt', '/data/tmp/testx3_75_235.ckpt', '/data/tmp/testx3_75_236.ckpt'],
+        'width': 75,
         'seed': 233,
     }
 
-    return {**templates['DIV2Kx2-EXP'], **params}
+    return {**templates['DIV2Kx3-EXP'], **params}
 
 
 def params_for_deip():
     # params = params_for_EXP_main_x2()  # submitted to 233 with 64 width and 2e-4,5e-4 lr and 100 epoch small test
-    # params = params_for_EXP_main_x3()
-    # params = params_for_EXP_main_x4()
+    # params = params_for_EXP_main_x3()  # submitted to 46 with width 100 and eps0.12, 0.13 and to 13 with width 64 and eps 0.13,0.12
+    # params = params_for_EXP_main_x4()  # submitted to 236 with width 64 and eps 0.13
     # params = params_for_EXP_ablation_x4()  # submitted to 13, 17, 30, 236 with seed 233, 234 and width 75, 64
 
-    # params = params_for_EXP_cmp_init()
+    params = params_for_EXP_cmp_init()
 
-    params = test_model()
+    # params = params_for_EXP_cmp_fakdx4()
+    # params = params_for_EXP_cmp_fakdx3()
+
+    # params = params_for_EXP_cmp_repvggx2()
+    # params = params_for_EXP_cmp_repvggx3()
+    # params = params_for_EXP_cmp_repvggx4()
+
+    # params = params_for_EXP_cmp_srkdx4()
+
+    # params = test_model()
     return random_params(params)
 
 

@@ -41,4 +41,4 @@ train:
  dir: '../PISR/results/splainnetx2/'
 
 
-gpu: 4
+gpu: 3

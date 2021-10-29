@@ -32,11 +32,8 @@ def prepare_params(params):
 
 
 def test_SR_benchmark(test_model):
-    if test_model.trainer is None:
-        from pytorch_lightning import Trainer
-        trainer = Trainer(gpus=1)
-    else:
-        trainer = test_model.trainer
+    from pytorch_lightning import Trainer
+    trainer = Trainer(gpus=1)
     from datasets import DataProvider
     benchmarks = ['Set5', 'Set14', 'B100', 'Urban100']
     for d in benchmarks:

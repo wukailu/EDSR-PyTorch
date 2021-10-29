@@ -96,8 +96,9 @@ class SRKD(DistillationMethod):
 
 
 class FAKD(DistillationMethod):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, position=-1, **kwargs):
         super().__init__()
+        self.position = position
 
     @staticmethod
     def _spatial_similarity(fm):
@@ -109,10 +110,11 @@ class FAKD(DistillationMethod):
 
     def forward(self, feat_s, feat_t, epoch_ratio):
         loss = []
-        for fs, ft in zip(feat_s, feat_t):
-            s = self._spatial_similarity(fs)
-            t = self._spatial_similarity(ft)
-            loss.append((t-s).abs().mean())
+        for idx, (fs, ft) in enumerate(zip(feat_s, feat_t)):
+            if self.position == -1 or idx in self.position:
+                s = self._spatial_similarity(fs)
+                t = self._spatial_similarity(ft)
+                loss.append((t-s).abs().mean())
         return torch.mean(torch.stack(loss))
 
 

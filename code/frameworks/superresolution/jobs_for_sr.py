@@ -556,10 +556,10 @@ def Short_EDSR_new_tailx4():
     params = {
         'project_name': 'EDSR_newtail',
         'save_model': True,
-        'init_from': pretrain_paths['EDSR64_newtail_short_x2'],
+        'init_from': pretrain_paths['EDSR50_newtail_short_x2'],
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
-            'n_feats': 64,
+            'n_feats': 50,
             'n_resblocks': 8,
             'simple_tail': 1,
         },
@@ -596,13 +596,13 @@ def params_for_SR():
 
     # 与 PISR, RepVGG 等比较使用的模型
     # params = Short_EDSR_new_tailx2()  # finished
-    # params = Short_EDSR_new_tailx3()  # submitted to 236 with width 64
-    # params = Short_EDSR_new_tailx4()  #
+    # params = Short_EDSR_new_tailx3()  # finished
+    params = Short_EDSR_new_tailx4()  # submitted to 13 with width 50
 
     # params = directTrainPlain()
     # params = dense_model_train()
 
-    params = test_model()
+    # params = test_model()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

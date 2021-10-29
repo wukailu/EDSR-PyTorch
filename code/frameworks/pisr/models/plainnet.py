@@ -20,6 +20,8 @@ class PlainNet(nn.Module):
                 ('feature_extraction', nn.Sequential(*model.sequential_models[:-1])),
                 ('last_layer', nn.Sequential(*model.sequential_models[-1:])),
             ]))
+        from model import model_init
+        model_init(self.network)
 
     def forward(self, x):
         return self.network(x)

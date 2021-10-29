@@ -1,5 +1,8 @@
-import torch
+import sys, os
+sys.path = [os.getcwd()] + sys.path
+os.environ['LOCAL_BACKEND'] = '1'
 
+import torch
 from frameworks.distillation.DEIP import load_model
 from frameworks.classification.train_single_model import prepare_params, inference_statics
 from model import matmul_on_first_two_dim
@@ -21,7 +24,7 @@ def super_resolution_test():
         'weight_decay': 0,
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'Adam',
-        'teacher_pretrain_path': "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_a0131.ckpt",
+        'teacher_pretrain_path': "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_69068.ckpt",
         "dataset": {
             'name': "DIV2K",
             'batch_size': 32,
@@ -35,10 +38,10 @@ def super_resolution_test():
         'ignore_exist': True,
         'save_model': False,
         'project_name': 'deip_SRx4_baseline',
-        'add_ori': 0,
         'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
-        'rank_eps': 0.1,  # 0.05, 0.6, 1, 2
+        'rank_eps': 0.13,  # 0.05, 0.6, 1, 2
+        # 'fix_r': 64,
         'seed': 0,
         'num_epochs': 1,
         'max_lr': 5e-4,
@@ -53,43 +56,43 @@ def super_resolution_test():
     # inference_statics(model)
 
     # ======= teacher student difference ========
-    x_test = model.val_dataloader().dataset[0][0]
-    x_test = torch.stack([x_test], dim=0)
+    # x_test = model.val_dataloader().dataset[0][0]
+    # x_test = torch.stack([x_test], dim=0)
     # xs = x_test.detach()
     # xt = x_test.detach()
     # cnt=0
-    with torch.no_grad():
-        # for layer_s, layer_t, M in zip(model.plain_model[:-1], model.teacher_model[:-1], model.bridges[1:]):
-        #     conv_s, act_s = layer_s.simplify_layer()
-        #     conv_t, act_t = layer_t.simplify_layer()
-        #
-        #     xs = conv_s(pad_const_channel(xs))
-        #     xt = conv_t(pad_const_channel(xt))
-        #
-        #     xs = act_s(xs)
-        #     xt = act_t(xt)
-        #
-        #     pt = M(pad_const_channel(xs))  # approximation of teacher feature map from student feature map
-        #
-        #     print('---------layer ', cnt, '--------')
-        #     cnt += 1
-        #     tensor_static(xs, 'student')
-        #     tensor_static(xt, 'teacher')
-        #     tensor_static(pt, 'p_teacher')
-        #     tensor_static(xt - pt, 'diff')
-        #
-        # xs = model.plain_model[-1](pad_const_channel(xs))
-        # xt = model.teacher_model.sequential_models[-1](pad_const_channel(xt))
-        # tensor_static(xs, 'final_student')
-        # tensor_static(xt, 'final_teacher')
-        # tensor_static(xt - xt, 'diff')
-
-        print("---------full test--------")
-        ps = model(x_test, until=-1)
-        pt = model.teacher_plain_model(x_test, until=-1)
-        tensor_static(ps, 'final_student')
-        tensor_static(pt, 'final_teacher')
-        tensor_static(ps - pt, 'diff')
+    # with torch.no_grad():
+    #     # for layer_s, layer_t, M in zip(model.plain_model[:-1], model.teacher_model[:-1], model.bridges[1:]):
+    #     #     conv_s, act_s = layer_s.simplify_layer()
+    #     #     conv_t, act_t = layer_t.simplify_layer()
+    #     #
+    #     #     xs = conv_s(pad_const_channel(xs))
+    #     #     xt = conv_t(pad_const_channel(xt))
+    #     #
+    #     #     xs = act_s(xs)
+    #     #     xt = act_t(xt)
+    #     #
+    #     #     pt = M(pad_const_channel(xs))  # approximation of teacher feature map from student feature map
+    #     #
+    #     #     print('---------layer ', cnt, '--------')
+    #     #     cnt += 1
+    #     #     tensor_static(xs, 'student')
+    #     #     tensor_static(xt, 'teacher')
+    #     #     tensor_static(pt, 'p_teacher')
+    #     #     tensor_static(xt - pt, 'diff')
+    #     #
+    #     # xs = model.plain_model[-1](pad_const_channel(xs))
+    #     # xt = model.teacher_model.sequential_models[-1](pad_const_channel(xt))
+    #     # tensor_static(xs, 'final_student')
+    #     # tensor_static(xt, 'final_teacher')
+    #     # tensor_static(xt - xt, 'diff')
+    #
+    #     print("---------full test--------")
+    #     ps = model(x_test, until=-1)
+    #     pt = model.teacher_plain_model(x_test, until=-1)
+    #     tensor_static(ps, 'final_student')
+    #     tensor_static(pt, 'final_teacher')
+    #     tensor_static(ps - pt, 'diff')
 
 
 def classification_test():
@@ -169,5 +172,5 @@ def classification_test():
 if __name__ == '__main__':
     import random
     random.seed(0)
-    classification_test()
-    # super_resolution_test()
+    # classification_test()
+    super_resolution_test()
