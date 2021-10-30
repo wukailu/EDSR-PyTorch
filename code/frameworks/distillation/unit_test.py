@@ -24,7 +24,7 @@ def super_resolution_test():
         'weight_decay': 0,
         'lr_scheduler': 'OneCycLR',
         'optimizer': 'Adam',
-        'teacher_pretrain_path': "/data/pretrained/lightning_models/layerwise_edsrx4_div2k_69068.ckpt",
+        'teacher_pretrain_path': "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_537c4.ckpt",
         "dataset": {
             'name': "DIV2K",
             'batch_size': 32,
@@ -32,15 +32,15 @@ def super_resolution_test():
             'ext': 'sep',
             'repeat': 20,
             "test_bz": 1,
-            'scale': 4,
+            'scale': 2,
         },
-        'scale': 4,
+        'scale': 2,
         'ignore_exist': True,
         'save_model': False,
         'project_name': 'deip_SRx4_baseline',
         'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
-        'rank_eps': 0.13,  # 0.05, 0.6, 1, 2
+        'rank_eps': 0.1,  # 0.13 for x4, 0.1 for x2
         # 'fix_r': 64,
         'seed': 0,
         'num_epochs': 1,

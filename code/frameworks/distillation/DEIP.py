@@ -469,7 +469,7 @@ class DEIP_Distillation(DEIP_LightModel):
         else:
             predictions = self.forward(images)
             loss = self.criterion(predictions, labels)
-            if self.params['distill_coe'] != 0:
+            if self.params['distill_coe'] != 0 and self.teacher is not None:
                 teacher_pred = self.teacher(images)
                 metric = self.metric(teacher_pred, labels)
                 self.log(phase + '/' + 'teacher_' + self.params['metric'], metric, sync_dist=True)
