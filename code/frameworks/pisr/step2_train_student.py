@@ -225,7 +225,8 @@ def run(config):
     dataloaders = {'train':get_train_dataloader(config, get_transform(config)),
                    'val':get_valid_dataloader(config)}
                    #'test':get_test_dataloader(config)}
-    writer = SummaryWriter(config.train['student' + '_dir'])
+    # writer = SummaryWriter(config.train['student' + '_dir'])
+    writer = None
     visualizer = get_visualizer(config)
     result = train(config, student_model, teacher_model, dataloaders,
           criterion, optimizer_s, scheduler_s, writer,

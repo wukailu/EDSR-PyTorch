@@ -67,7 +67,7 @@ def get_valid_dataloader(config, transform=None):
                               batch_size=batch_size,
                               drop_last=False,
                               num_workers=num_workers,
-                              pin_memory=True)
+                              pin_memory=False)
     return valid_dataloader
 
 
@@ -96,7 +96,7 @@ def get_test_dataloader(config, transform=None):
                                       shuffle=False,
                                       batch_size=1,
                                       drop_last=False,
-                                      pin_memory=True,
+                                      pin_memory=False,
                                       num_workers=num_workers)
     return test_dataloader_dict
 
