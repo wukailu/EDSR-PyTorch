@@ -738,10 +738,6 @@ class DEIP_Full_Progressive(DEIP_Progressive_Distillation):
 
 
 def load_model(params):
-    if 'load_from' in params:
-        return DEIP_LightModel.load_from_checkpoint(params['load_from'], strict=False)
-
-    params = {'method': 'DirectTrain', **params}
     methods = {
         'DirectTrain': DEIP_LightModel,
         'Distillation': DEIP_Distillation,
@@ -750,6 +746,12 @@ def load_model(params):
         'DEIP_Init': DEIP_Init,
         'DEIP_Dropout_Init': DEIP_Dropout_Init,
     }
+
+    if 'load_from' in params:
+        method = torch.load(params['load_from'])['hyper_parameters']['method']
+        return methods[method].load_from_checkpoint(params['load_from'], strict=False)
+
+    params = {'method': 'DirectTrain', **params}
     print("using method ", params['method'])
     model = methods[params['method']](params)
     return model

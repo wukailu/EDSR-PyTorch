@@ -137,10 +137,21 @@ class RepVGGBlock(nn.Module):
     #   for example, apply some penalties or constraints during training, just like you do to the other models.
     #   May be useful for quantization or pruning.
     def get_equivalent_kernel_bias(self):
-        kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
-        kernel1x1, bias1x1 = self._fuse_bn_tensor(self.rbr_1x1)
-        if hasattr(self, 'rbr_identity'):
+        if hasattr(self.rbr_dense, 'bn'):
+            kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
+        else:
+            kernel3x3, bias3x3 = self.rbr_dense.conv.weight, self.rbr_dense.conv.bias
+
+        if hasattr(self.rbr_1x1, 'bn'):
+            kernel1x1, bias1x1 = self._fuse_bn_tensor(self.rbr_1x1)
+        else:
+            kernel1x1, bias1x1 = self.rbr_1x1.conv.weight, self.rbr_1x1.conv.bias
+
+        if hasattr(self, 'rbr_identity') and isinstance(self.rbr_identity, nn.BatchNorm2d):
             kernelid, biasid = self._fuse_bn_tensor(self.rbr_identity)
+        elif hasattr(self, 'rbr_identity') and isinstance(self.rbr_identity, nn.Identity):
+            kernelid, biasid = torch.zeros_like(kernel3x3), 0
+            kernelid[:, :, 1, 1] = torch.eye(kernel3x3.size(0))
         else:
             kernelid, biasid = 0, 0
         return kernel3x3 + self._pad_1x1_to_3x3_tensor(kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
@@ -185,7 +196,7 @@ class RepVGGBlock(nn.Module):
 
 
 class LayerwiseRepBlock(ConvertibleLayer, RepVGGBlock):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1, dilation=1, groups=1,
                  padding_mode='zeros', use_bn=True, **kwargs):
         ConvertibleLayer.__init__(self)
         self.groups = groups
@@ -195,7 +206,10 @@ class LayerwiseRepBlock(ConvertibleLayer, RepVGGBlock):
         self.nonlinearity = nn.ReLU()
 
         if out_channels == in_channels and stride == 1:
-            self.rbr_identity = nn.BatchNorm2d(num_features=in_channels)
+            if use_bn:
+                self.rbr_identity = nn.BatchNorm2d(num_features=in_channels)
+            else:
+                self.rbr_identity = nn.Identity()
         self.rbr_dense = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
                                  stride=stride, padding=padding, groups=groups, bn=use_bn)
         self.rbr_1x1 = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride,
@@ -210,10 +224,13 @@ class LayerwiseRepBlock(ConvertibleLayer, RepVGGBlock):
 
     def simplify_layer(self) -> Tuple[nn.Conv2d, nn.Module]:
         kernel, bias = self.get_equivalent_kernel_bias()
-        import copy
-        conv = copy.deepcopy(self.rbr_dense.conv)
-        conv.weight.data = kernel
-        conv.bias.data = bias
+        dense = self.rbr_dense.conv
+        conv = nn.Conv2d(in_channels=self.in_channels+1, out_channels=self.out_channels, kernel_size=dense.kernel_size,
+                         stride=dense.stride, padding=dense.padding, groups=dense.groups, bias=False)
+        mid = dense.kernel_size[0] // 2
+        conv.weight.data[:, 1:] = kernel
+        conv.weight.data[:, 0] = 0
+        conv.weight.data[:, 0, mid, mid] = bias
         return conv, self.nonlinearity
 
 

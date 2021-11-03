@@ -24,16 +24,6 @@ def update_dirs():
     hparams_cache = {}
 
 
-def show_img(results: np.ndarray, vmin=None, vmax=None):
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(72, 8))
-    plt.matshow(results, vmin=vmin, vmax=vmax)
-    plt.colorbar()
-
-    plt.title("relation map")
-    plt.show()
-
-
 def get_hparams(folder):
     if folder in hparams_cache:
         return hparams_cache[folder]
@@ -51,18 +41,17 @@ def get_hparams(folder):
     return {'project_name': 'no_project'}
 
 
-def get_artifacts(folder, name_or_idx):
+def get_artifacts(folder, name):
+    from fnmatch import fnmatch
     prefix = os.path.join(folder, "user_artifacts")
-    if isinstance(name_or_idx, int):
-        return os.path.join(prefix, os.listdir(prefix)[name_or_idx])
-    elif isinstance(name_or_idx, str):
-        return os.path.join(prefix, name_or_idx)
-    else:
-        raise NotImplementedError()
+    items = [i for i in os.listdir(prefix) if fnmatch(i, name)]
+    if len(items) > 1:
+        print("Warning! Multiple matched artifacts, the first is selected: ", ";".join(items))
+    return os.path.join(prefix, items[0])
 
 
-def pkl_load_artifacts(folder, name_or_idx="test_result.pkl", sub_item='test/result'):
-    with open(get_artifacts(folder, name_or_idx), 'rb') as f:
+def pkl_load_artifacts(folder, name="test_result.pkl", sub_item='test/result'):
+    with open(get_artifacts(folder, name), 'rb') as f:
         ret = pickle.load(f)
         if sub_item is not None:
             return ret[sub_item]
@@ -76,23 +65,8 @@ def get_targets(param_filter, hole_range=None):
     return [base_dir + d for d in hole_range if param_filter(get_hparams(base_dir + d))]
 
 
-def merge_results(param_filter):
-    return {50000 // get_hparams(t)['dataset_params']['total']: pkl_load_artifacts(t) for t in
-            get_targets(param_filter)}
-
-
 def mean_results(param_filter):
     return np.mean([pkl_load_artifacts(t) for t in get_targets(param_filter)], axis=0)
-
-
-def view_img(results, with_orig=False):
-    ret = np.concatenate([results[k] for k in sorted(results.keys())], axis=1)
-    if np.min(ret) < 0:
-        show_img(ret, vmin=-1)
-    else:
-        show_img(ret, vmin=0)
-    if with_orig:
-        show_img(ret)
 
 
 def get_model_weight_hash(model):
@@ -121,10 +95,6 @@ def dict_filter(filter_dict, net_name=None):
         return True
 
     return myfilter
-
-
-def show_all(filter_dict, net_name=None):
-    view_img(merge_results(dict_filter(filter_dict, net_name)), True)
 
 
 def parse_params(params: dict):

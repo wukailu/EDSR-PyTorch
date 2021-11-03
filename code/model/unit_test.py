@@ -1,5 +1,6 @@
 import sys, os
 sys.path = [os.getcwd()] + sys.path
+os.environ['LOCAL_BACKEND'] = '1'
 
 from frameworks.classification.train_single_model import inference_statics
 from model import get_classifier
@@ -15,14 +16,15 @@ if __name__ == '__main__':
     #     'n_feats': 90,
     #     'num_modules': 19,
     # }
-    params = {
-        'arch': 'Plain_layerwise_sr',
-        'n_feats': 64,
-        'num_modules': 35,
-    }
     # params = {
-    #     'arch': 'IMDN_sr',
+    #     'arch': 'Plain_layerwise_sr',
+    #     'n_feats': 64,
+    #     'num_modules': 35,
     # }
+    params = {
+        'arch': 'IMDN_sr',
+        'scale': 3,
+    }
     model = get_classifier(params, "DIV2K")
     # x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()
 
@@ -81,7 +83,8 @@ if __name__ == '__main__':
         # print([(out-out2)[:, i].max() for i in range(out.size(1))])
 
     print(type(model))
-    x_test = torch.randint(0, 255, (3, 339, 510)).float()
+    # x_test = torch.randint(0, 255, (3, 339, 510)).float()
+    x_test = torch.randint(0, 255, (3, 452, 680)).float()
     inference_statics(model, x_test=x_test, batch_size=1)
 
 ### layerwise_rdn

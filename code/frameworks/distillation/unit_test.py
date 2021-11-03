@@ -27,22 +27,25 @@ def super_resolution_test():
         'teacher_pretrain_path': "/data/pretrained/lightning_models/layerwise_edsrx2_div2k_537c4.ckpt",
         "dataset": {
             'name': "DIV2K",
-            'batch_size': 32,
+            'batch_size': 16,
             'patch_size': 96,
             'ext': 'sep',
             'repeat': 20,
             "test_bz": 1,
             'scale': 2,
+            'workers': 4,
         },
         'scale': 2,
         'ignore_exist': True,
         'save_model': False,
+        'deterministic': True,
+        'benchmark': True,
         'project_name': 'deip_SRx4_baseline',
         'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
-        'rank_eps': 0.1,  # 0.13 for x4, 0.1 for x2
+        'rank_eps': 0.13,  # 0.13 for x4, 0.13 for x3, 0.1 for x2
         # 'fix_r': 64,
-        'seed': 0,
+        'seed': 234,
         'num_epochs': 1,
         'max_lr': 5e-4,
         'init_with_teacher_param': 1,
@@ -51,9 +54,10 @@ def super_resolution_test():
     model = load_model(params)
 
     # ======= speed statistics ===========
+    model.teacher = None
     inference_statics(model, batch_size=1)
     # model.plain_model = ConvertibleModel.from_convertible_models(model.plain_model).generate_inference_model()
-    # inference_statics(model)
+    # inference_statics(model, batch_size=1)
 
     # ======= teacher student difference ========
     # x_test = model.val_dataloader().dataset[0][0]

@@ -82,16 +82,19 @@ class L2Distillation(DistillationMethod):
 
 
 class SRKD(DistillationMethod):
-    def __init__(self, eps=0.001, *args, **kwargs):
+    def __init__(self, *args, eps=0.001, position=-1, **kwargs):
         super().__init__()
         self.eps = eps
+        self.position = position
 
     def forward(self, feat_s, feat_t, epoch_ratio):
         loss = []
-        for fs, ft in zip(feat_s, feat_t):
-            s = fs.mean() ** 2
-            t = ft.mean() ** 2
-            loss.append(((s - t) ** 2 + self.eps ** 2) ** 0.5)
+        for idx, (fs, ft) in enumerate(zip(feat_s, feat_t)):
+            if self.position == -1 or idx in self.position:
+                s = fs.mean() ** 2
+                t = ft.mean() ** 2
+                print('fs shape', fs.shape, 's shape', s.shape)
+                loss.append(((s - t) ** 2 + self.eps ** 2) ** 0.5)
         return torch.mean(torch.stack(loss))
 
 

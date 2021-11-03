@@ -1,7 +1,6 @@
-import sys
+import sys, os
+sys.path = [os.getcwd()] + sys.path
 
-sys.path.append('/home/kailu/EDSR-PyTorch/code/')
-sys.path.append('/home/wukailu/EDSR-PyTorch/code/')
 from utils.tools import submit_jobs, random_params
 
 # Plain-S 64 width 8 resblock
@@ -498,8 +497,8 @@ def params_for_EXP_main_x2():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x2',
         'method': 'DEIP_Init',
-        # 'fix_r': 64,
-        'eps': 0.1,
+        # 'fix_r': [100, 110, 120, 130],
+        'eps': 0.13,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
         # 'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x2'],
         'init_stu_with_teacher': 1,
@@ -511,6 +510,7 @@ def params_for_EXP_main_x2():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
+        'gpus': 2,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
@@ -645,14 +645,16 @@ def params_for_EXP_cmp_fakdx4():
         'project_name': 'CVPR_EXP_Ablation_FAKD_x4',
         'method': 'Distillation',
         'fix_r': 64,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
+        # 'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_short_x4'],
         'init_stu_with_teacher': 0,
         'layer_type': 'normal_no_bn',
         'distill_coe': 0.3,
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'FAKD',
-            'position': (0, 16, 33),
+            # 'position': (0, 16, 33),
+            'position': (0, 8, 17),  # for plain-s
         },
     }
 
@@ -664,14 +666,16 @@ def params_for_EXP_cmp_fakdx3():
         'project_name': 'CVPR_EXP_Ablation_FAKD_x3',
         'method': 'Distillation',
         'fix_r': 64,
-        'teacher_pretrain_path': [pretrain_paths['EDSR64_newtail_x3'], pretrain_paths['EDSR64_newtail_short_x3']],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
+        # 'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_short_x3'],
         'init_stu_with_teacher': 0,
         'layer_type': 'normal_no_bn',
         'distill_coe': 0.3,
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'FAKD',
-            'position': (0, 16, 33),
+            'position': (0, 16, 33),  # for plain-m, plain-L
+            # 'position': (0, 8, 17),  # for plain-s
         },
         'gpus': 2,
     }
@@ -684,15 +688,18 @@ def params_for_EXP_cmp_fakdx2():
         'project_name': 'CVPR_EXP_Ablation_FAKD_x2',
         'method': 'Distillation',
         'fix_r': 64,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
+        # 'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_short_x2'],
         'init_stu_with_teacher': 0,
         'layer_type': 'normal_no_bn',
         'distill_coe': 0.3,
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'FAKD',
-            'position': (0, 16, 33),
+            # 'position': (0, 33),
+            'position': (0, 17),  # for plain-s
         },
+        'gpus': 2,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
@@ -700,7 +707,7 @@ def params_for_EXP_cmp_fakdx2():
 
 def params_for_EXP_cmp_srkdx4():
     params = {
-        'project_name': 'CVPR_EXP_Ablation_FAKD_x4',
+        'project_name': 'CVPR_EXP_Ablation_SRKD_x4',
         'method': 'Distillation',
         'fix_r': 64,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
@@ -710,7 +717,9 @@ def params_for_EXP_cmp_srkdx4():
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'SRKD',
+            'position': (0, 16, 33),
         },
+        'gpus': 1,
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -718,7 +727,7 @@ def params_for_EXP_cmp_srkdx4():
 
 def params_for_EXP_cmp_srkdx3():
     params = {
-        'project_name': 'CVPR_EXP_Ablation_FAKD_x3',
+        'project_name': 'CVPR_EXP_Ablation_SRKD_x3',
         'method': 'Distillation',
         'fix_r': 64,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
@@ -728,8 +737,9 @@ def params_for_EXP_cmp_srkdx3():
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'SRKD',
+            'position': (0, 16, 33),
         },
-        'gpus': 1,
+        'gpus': 2,
     }
 
     return {**templates['DIV2Kx3-EXP'], **params}
@@ -737,7 +747,7 @@ def params_for_EXP_cmp_srkdx3():
 
 def params_for_EXP_cmp_srkdx2():
     params = {
-        'project_name': 'CVPR_EXP_Ablation_FAKD_x2',
+        'project_name': 'CVPR_EXP_Ablation_SRKD_x2',
         'method': 'Distillation',
         'fix_r': 64,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
@@ -747,8 +757,9 @@ def params_for_EXP_cmp_srkdx2():
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'SRKD',
+            'position': (0, 16, 33),
         },
-        'gpus': 1,
+        'gpus': 2,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
@@ -761,16 +772,35 @@ def test_model():
         'skip_train': True,
         'test_benchmark': True,
         'inference_statics': True,
-        'load_from': ['/data/tmp/plainmx4_233.ckpt',
-                      '/data/tmp/plainmx4_234.ckpt',
-                      '/data/tmp/plainmx4_235.ckpt',
-                      '/data/tmp/plainmx4_236.ckpt', ],
-        'width': 64,
+        # 'load_from': ['/data/tmp/plainmx3_012.ckpt',
+        #               '/data/tmp/plainmx3_013.ckpt', ],
+        'load_from': ['/data/tmp/fakdx4_233.ckpt', ],
+        'width': 0,
         'seed': 233,
     }
 
-    return {**templates['DIV2Kx4-EXP'], **params}
+    return {**templates['DIV2Kx3-EXP'], **params}
 
+
+def reassess_jobs():
+    import torch
+    from utils import tools
+    job_filter = {
+        "project_name": 'CVPR_EXP_Ablation_x4',
+    }
+    targets = tools.get_targets((tools.dict_filter(job_filter)))
+    print('len targets = ', len(targets))
+    for t in targets:
+        ckpt = tools.get_artifacts(t, name='epoch*.ckpt')
+        old_params = torch.load(ckpt, map_location=torch.device('cpu'))['hyper_parameters']
+        new_params = {**old_params,
+                      'save_model': False,
+                      'skip_train': True,
+                      'test_benchmark': True,
+                      'inference_statics': True,
+                      'load_from': ckpt,
+                      }
+        yield new_params
 
 def params_for_deip():
     # params = params_for_EXP_main_x2()  # submitted to 233 with 64 width and 2e-4,5e-4 lr and 100 epoch small test
@@ -781,16 +811,19 @@ def params_for_deip():
     # params = params_for_EXP_cmp_init()
 
     # params = params_for_EXP_cmp_fakdx4()
-    params = params_for_EXP_cmp_fakdx3()
+    # params = params_for_EXP_cmp_fakdx3()
     # params = params_for_EXP_cmp_fakdx2()
 
     # params = params_for_EXP_cmp_repvggx2()
     # params = params_for_EXP_cmp_repvggx3()
-    # params = params_for_EXP_cmp_repvggx4()
+    params = params_for_EXP_cmp_repvggx4()
 
     # params = params_for_EXP_cmp_srkdx4()
+    # params = params_for_EXP_cmp_srkdx3()
+    # params = params_for_EXP_cmp_srkdx2()
 
     # params = test_model()
+    # params = reassess_jobs()
     return random_params(params)
 
 

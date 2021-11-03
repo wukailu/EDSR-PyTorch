@@ -58,6 +58,10 @@ def submit(job_directory, command, params, num_gpus, **kwargs):
     with open('kube_runner_param.yaml', 'w') as f:
         yaml.dump(runner_params, f)
 
+    with open('kube_runner_param.yaml', 'r') as f:
+        verify = yaml.safe_load(f)
+        assert verify == runner_params
+
     if 'num_gpus' in kwargs:
         kwargs.pop('num_gpus')
 
