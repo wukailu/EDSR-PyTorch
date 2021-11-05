@@ -748,7 +748,7 @@ def load_model(params):
     }
 
     if 'load_from' in params:
-        method = torch.load(params['load_from'])['hyper_parameters']['method']
+        method = torch.load(params['load_from'], map_location=torch.device('cpu'))['hyper_parameters']['method']
         return methods[method].load_from_checkpoint(params['load_from'], strict=False)
 
     params = {'method': 'DirectTrain', **params}

@@ -93,7 +93,6 @@ class SRKD(DistillationMethod):
             if self.position == -1 or idx in self.position:
                 s = fs.mean() ** 2
                 t = ft.mean() ** 2
-                print('fs shape', fs.shape, 's shape', s.shape)
                 loss.append(((s - t) ** 2 + self.eps ** 2) ** 0.5)
         return torch.mean(torch.stack(loss))
 

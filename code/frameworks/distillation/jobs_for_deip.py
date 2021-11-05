@@ -520,9 +520,9 @@ def params_for_EXP_main_x3():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x3',
         'method': 'DEIP_Init',
-        'fix_r': 100,
+        'eps': 0.13,
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x3'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -540,9 +540,9 @@ def params_for_EXP_main_x4():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x4',
         'method': 'DEIP_Init',
-        'fix_r': 100,
+        'eps': 0.13,
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x4'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -551,7 +551,6 @@ def params_for_EXP_main_x4():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
-        'gpus': 2,
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -601,9 +600,9 @@ def params_for_EXP_cmp_repvggx4():
         'project_name': 'CVPR_EXP_Ablation_repvgg_x4',
         'method': 'DirectTrain',
         'fix_r': 64,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_short_x4'],
         'init_stu_with_teacher': 0,
-        'layer_type': 'repvgg',
+        'layer_type': 'repvgg_no_bn',
         'gpus': 1,
     }
 
@@ -708,14 +707,15 @@ def params_for_EXP_cmp_srkdx4():
         'project_name': 'CVPR_EXP_Ablation_SRKD_x4',
         'method': 'Distillation',
         'fix_r': 64,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_short_x4'],
         'init_stu_with_teacher': 0,
         'layer_type': 'normal_no_bn',
         'distill_coe': 0.3,
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'SRKD',
-            'position': (0, 16, 33),
+            'position': (0, 8, 17),
+            # 'position': (0, 16, 33),
         },
         'gpus': 1,
     }
@@ -728,16 +728,16 @@ def params_for_EXP_cmp_srkdx3():
         'project_name': 'CVPR_EXP_Ablation_SRKD_x3',
         'method': 'Distillation',
         'fix_r': 64,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_short_x3'],
         'init_stu_with_teacher': 0,
         'layer_type': 'normal_no_bn',
         'distill_coe': 0.3,
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'SRKD',
-            'position': (0, 16, 33),
+            'position': (0, 8, 17),
+            # 'position': (0, 16, 33),
         },
-        'gpus': 2,
     }
 
     return {**templates['DIV2Kx3-EXP'], **params}
@@ -770,9 +770,9 @@ def test_model():
         'skip_train': True,
         'test_benchmark': True,
         'inference_statics': True,
-        # 'load_from': ['/data/tmp/plainmx3_012.ckpt',
-        #               '/data/tmp/plainmx3_013.ckpt', ],
-        'load_from': ['/data/tmp/fakdx4_233.ckpt', ],
+        'load_from': ['/data/tmp/testx3_90_233.ckpt',
+                      '/data/tmp/testx3_90_235.ckpt',
+                      '/data/tmp/testx3_90_236.ckpt',],
         'width': 0,
         'seed': 233,
     }
@@ -785,8 +785,8 @@ def reassess_jobs():
     from utils import tools
     import random
     job_filter = {
-        "project_name": 'CVPR_EXP_Ablation_x4',
-        'seed': 233,
+        "project_name": 'CVPR_EXP_Ablation_repvgg_x4',
+        # 'seed': 233,
     }
     targets = tools.get_targets((tools.dict_filter(job_filter)))
     print('len targets = ', len(targets))
@@ -805,10 +805,10 @@ def reassess_jobs():
     return new_params
 
 def params_for_deip():
-    # params = params_for_EXP_main_x2()  # submitted to 233 with 64 width and 2e-4,5e-4 lr and 100 epoch small test
-    # params = params_for_EXP_main_x3()  # submitted to 46 with width 100 and eps0.12, 0.13 and to 13 with width 64 and eps 0.13,0.12
-    # params = params_for_EXP_main_x4()  # submitted to 236 with width 64 and eps 0.13
-    # params = params_for_EXP_ablation_x4()  # submitted to 13, 17, 30, 236 with seed 233, 234 and width 75, 64
+    # params = params_for_EXP_main_x2()
+    # params = params_for_EXP_main_x3()
+    params = params_for_EXP_main_x4()
+    # params = params_for_EXP_ablation_x4()
 
     # params = params_for_EXP_cmp_init()
 
@@ -825,7 +825,7 @@ def params_for_deip():
     # params = params_for_EXP_cmp_srkdx2()
 
     # params = test_model()
-    params = reassess_jobs()
+    # params = reassess_jobs()
     return random_params(params)
 
 
