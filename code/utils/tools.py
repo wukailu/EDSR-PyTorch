@@ -248,6 +248,28 @@ def random_params(val):
     return ret
 
 
+def tuples_to_lists(val):
+    if isinstance(val, list):
+        idx = np.random.randint(len(val))  # np.random.choice can't random rows
+        ret = tuples_to_lists(val[idx])
+    elif isinstance(val, tuple):
+        ret = [tuples_to_lists(i) for i in val]
+    elif isinstance(val, dict):
+        ret = {}
+        for key, values in val.items():
+            if isinstance(values, list) and key.endswith("_no_choice"):
+                ret[key[:-10]] = values  # please use tuple to avoid be random selected
+            else:
+                ret[key] = tuples_to_lists(values)
+    elif isinstance(val, np.int64):
+        ret = int(val)
+    elif isinstance(val, np.float64):
+        ret = float(val)
+    else:
+        ret = val
+    return ret
+
+
 def cnt_all_combinations(obj):
     comb = 1
     if isinstance(obj, list):

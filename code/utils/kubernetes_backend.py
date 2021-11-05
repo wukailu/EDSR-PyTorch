@@ -54,6 +54,8 @@ def submit(job_directory, command, params, num_gpus, **kwargs):
         'params': params,
         'num_gpus': num_gpus
     }
+    from utils.tools import tuples_to_lists
+    runner_params = tuples_to_lists(runner_params)
     import yaml
     with open('kube_runner_param.yaml', 'w') as f:
         yaml.dump(runner_params, f)

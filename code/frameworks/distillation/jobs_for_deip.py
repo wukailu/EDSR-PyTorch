@@ -497,10 +497,10 @@ def params_for_EXP_main_x2():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x2',
         'method': 'DEIP_Init',
-        # 'fix_r': [100, 110, 120, 130],
-        'eps': 0.13,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
-        # 'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x2'],
+        'fix_r': 100,
+        # 'eps': 0.13,
+        # 'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
+        'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x2'],
         'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
@@ -510,7 +510,7 @@ def params_for_EXP_main_x2():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
-        'gpus': 2,
+        # 'gpus': 2,
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
@@ -520,10 +520,10 @@ def params_for_EXP_main_x3():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x3',
         'method': 'DEIP_Init',
-        'fix_r': 64,
+        'fix_r': 100,
         # 'eps': [0.13, 0.12],
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
+        'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x3'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -532,7 +532,8 @@ def params_for_EXP_main_x3():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
-        # 'seed': 233,
+        'gpus': 2,
+        'seed': [233, 234, 235]
     }
 
     return {**templates['DIV2Kx3-EXP'], **params}
@@ -542,10 +543,9 @@ def params_for_EXP_main_x4():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x4',
         'method': 'DEIP_Init',
-        'fix_r': 64,
-        # 'eps': 0.13,
+        'fix_r': 100,
         'init_stu_with_teacher': 1,
-        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_short_x4'],
+        'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x4'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
         'distill_coe': 0.3,
@@ -785,22 +785,24 @@ def test_model():
 def reassess_jobs():
     import torch
     from utils import tools
+    import random
     job_filter = {
         "project_name": 'CVPR_EXP_Ablation_x4',
     }
     targets = tools.get_targets((tools.dict_filter(job_filter)))
     print('len targets = ', len(targets))
-    for t in targets:
-        ckpt = tools.get_artifacts(t, name='epoch*.ckpt')
-        old_params = torch.load(ckpt, map_location=torch.device('cpu'))['hyper_parameters']
-        new_params = {**old_params,
-                      'save_model': False,
-                      'skip_train': True,
-                      'test_benchmark': True,
-                      'inference_statics': True,
-                      'load_from': ckpt,
-                      }
-        yield new_params
+    random.shuffle(targets)
+    t = targets[0]
+    ckpt = tools.get_artifacts(t, name='epoch*.ckpt')
+    old_params = torch.load(ckpt, map_location=torch.device('cpu'))['hyper_parameters']
+    new_params = {**old_params,
+                  'save_model': False,
+                  'skip_train': True,
+                  'test_benchmark': True,
+                  'inference_statics': True,
+                  'load_from': ckpt,
+                  }
+    return new_params
 
 def params_for_deip():
     # params = params_for_EXP_main_x2()  # submitted to 233 with 64 width and 2e-4,5e-4 lr and 100 epoch small test
@@ -816,9 +818,9 @@ def params_for_deip():
 
     # params = params_for_EXP_cmp_repvggx2()
     # params = params_for_EXP_cmp_repvggx3()
-    params = params_for_EXP_cmp_repvggx4()
+    # params = params_for_EXP_cmp_repvggx4()
 
-    # params = params_for_EXP_cmp_srkdx4()
+    params = params_for_EXP_cmp_srkdx4()
     # params = params_for_EXP_cmp_srkdx3()
     # params = params_for_EXP_cmp_srkdx2()
 
