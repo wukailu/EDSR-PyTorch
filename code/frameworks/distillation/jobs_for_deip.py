@@ -1,7 +1,7 @@
 import sys, os
 sys.path = [os.getcwd()] + sys.path
 
-from utils.tools import submit_jobs, random_params
+from utils.tools import submit_jobs, random_params, lists_to_tuples
 
 # Plain-S 64 width 8 resblock
 # Plain-M 64 width 16 resblock
@@ -521,7 +521,6 @@ def params_for_EXP_main_x3():
         'project_name': 'CVPR_EXP_MAIN_x3',
         'method': 'DEIP_Init',
         'fix_r': 100,
-        # 'eps': [0.13, 0.12],
         'init_stu_with_teacher': 1,
         'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x3'],
         'layer_type': 'normal_no_bn',
@@ -532,8 +531,6 @@ def params_for_EXP_main_x3():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
-        'gpus': 2,
-        'seed': [233, 234, 235]
     }
 
     return {**templates['DIV2Kx3-EXP'], **params}
@@ -554,6 +551,7 @@ def params_for_EXP_main_x4():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
+        'gpus': 2,
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -605,7 +603,7 @@ def params_for_EXP_cmp_repvggx4():
         'fix_r': 64,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'init_stu_with_teacher': 0,
-        'layer_type': 'repvgg_no_bn',
+        'layer_type': 'repvgg',
         'gpus': 1,
     }
 
@@ -788,6 +786,7 @@ def reassess_jobs():
     import random
     job_filter = {
         "project_name": 'CVPR_EXP_Ablation_x4',
+        'seed': 233,
     }
     targets = tools.get_targets((tools.dict_filter(job_filter)))
     print('len targets = ', len(targets))
@@ -795,6 +794,7 @@ def reassess_jobs():
     t = targets[0]
     ckpt = tools.get_artifacts(t, name='epoch*.ckpt')
     old_params = torch.load(ckpt, map_location=torch.device('cpu'))['hyper_parameters']
+    old_params = lists_to_tuples(old_params)
     new_params = {**old_params,
                   'save_model': False,
                   'skip_train': True,
@@ -820,12 +820,12 @@ def params_for_deip():
     # params = params_for_EXP_cmp_repvggx3()
     # params = params_for_EXP_cmp_repvggx4()
 
-    params = params_for_EXP_cmp_srkdx4()
+    # params = params_for_EXP_cmp_srkdx4()
     # params = params_for_EXP_cmp_srkdx3()
     # params = params_for_EXP_cmp_srkdx2()
 
     # params = test_model()
-    # params = reassess_jobs()
+    params = reassess_jobs()
     return random_params(params)
 
 

@@ -250,17 +250,31 @@ def random_params(val):
 
 def tuples_to_lists(val):
     if isinstance(val, list):
-        idx = np.random.randint(len(val))  # np.random.choice can't random rows
-        ret = tuples_to_lists(val[idx])
+        ret = [tuples_to_lists(v) for v in val]
     elif isinstance(val, tuple):
         ret = [tuples_to_lists(i) for i in val]
     elif isinstance(val, dict):
         ret = {}
         for key, values in val.items():
-            if isinstance(values, list) and key.endswith("_no_choice"):
-                ret[key[:-10]] = values  # please use tuple to avoid be random selected
-            else:
-                ret[key] = tuples_to_lists(values)
+            ret[key] = tuples_to_lists(values)
+    elif isinstance(val, np.int64):
+        ret = int(val)
+    elif isinstance(val, np.float64):
+        ret = float(val)
+    else:
+        ret = val
+    return ret
+
+
+def lists_to_tuples(val):
+    if isinstance(val, list):
+        ret = tuple([lists_to_tuples(v) for v in val])
+    elif isinstance(val, tuple):
+        ret = tuple([lists_to_tuples(i) for i in val])
+    elif isinstance(val, dict):
+        ret = {}
+        for key, values in val.items():
+            ret[key] = lists_to_tuples(values)
     elif isinstance(val, np.int64):
         ret = int(val)
     elif isinstance(val, np.float64):
