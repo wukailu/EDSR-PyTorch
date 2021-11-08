@@ -806,8 +806,8 @@ def reassess_jobs():
 
 def params_for_deip():
     # params = params_for_EXP_main_x2()
-    # params = params_for_EXP_main_x3()
-    params = params_for_EXP_main_x4()
+    params = params_for_EXP_main_x3()
+    # params = params_for_EXP_main_x4()
     # params = params_for_EXP_ablation_x4()
 
     # params = params_for_EXP_cmp_init()
