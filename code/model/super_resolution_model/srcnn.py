@@ -10,7 +10,7 @@ def SRCNN(**kwargs):
 
 
 class SRCNN_Model(nn.Module):
-    def __init__(self, n_colors=1, scale=4, **kwargs):
+    def __init__(self, n_colors=3, scale=4, **kwargs):
         super(SRCNN_Model, self).__init__()
         self.scale = scale
         self.conv1 = nn.Conv2d(n_colors, 64, kernel_size=9, padding=9 // 2)

@@ -36,6 +36,7 @@ class LightningModule(pl.LightningModule, ABC):
             'psnr_gray_shave_x3': PSNR_SHAVE(scale=3, gray=True, data_range=255),
             'psnr_shave_x2': PSNR_SHAVE(scale=2, gray=False, data_range=255),
             'psnr_gray_shave_x2': PSNR_SHAVE(scale=2, gray=True, data_range=255),
+            'ssim': torchmetrics.image.SSIM(),
         }
         return metric_map[self.params['metric'].lower()]
 

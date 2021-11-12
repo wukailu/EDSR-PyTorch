@@ -11,6 +11,9 @@ import torch
 from model.super_resolution_model import RDB_Layerwise
 
 if __name__ == '__main__':
+    target_size = (1920, 1080)
+    # target_size = (960, 540)
+
     # params = {
     #     'arch': 'Plain_layerwise_sr',
     #     'n_feats': 90,
@@ -19,14 +22,36 @@ if __name__ == '__main__':
     # params = {
     #     'arch': 'Plain_layerwise_sr',
     #     'n_feats': 64,
-    #     'num_modules': 35,
+    #     'num_modules': 34,
+    #     'scale': 2,
+    #     'n_colors': 3,
     # }
     params = {
-        'arch': 'IMDN_sr',
-        'scale': 3,
+        # 'arch': 'srcnn_sr',
+        # 'arch': 'fsrcnn_sr',
+        # 'arch': 'VDSR_sr',
+        # 'arch': 'drrn_sr',
+        # 'arch': 'memnet_sr',
+        # 'arch': 'carn_sr',
+        # 'arch': 'idn_sr',
+        # 'arch': 'SRFBN_sr',
+        # 'arch': 'IMDN_sr',
+        # 'arch': 'EDSR_sr',
+        'arch': 'EDSR_layerwise_sr',
+        'simple_tail': True,
+        'multi_scale': True,
+        'scale': 2,
+        'n_colors': 3,
     }
+    print(params['arch'])
     model = get_classifier(params, "DIV2K")
-    # x_test = torch.randint(0, 255, (16, 3, 24, 24)).float()
+    x_test = torch.randint(0, 255, (2, params['n_colors'], 24, 24)).float()
+
+    model = model.cuda()
+    x_test = x_test.cuda()
+    with torch.no_grad():
+        out = model(x_test)
+        assert out.shape == (2, params['n_colors'], 24 * params['scale'], 24 * params['scale'])
 
     # params = {
     #     'arch': 'resnet20x4_layerwise',
@@ -82,10 +107,9 @@ if __name__ == '__main__':
         # print('diff out out2 = ', (out-out2).abs().max(), 'out_max = ', out.abs().max(), 'out2 max = ', out2.abs().max())
         # print([(out-out2)[:, i].max() for i in range(out.size(1))])
 
-    print(type(model))
-    # x_test = torch.randint(0, 255, (3, 339, 510)).float()
-    x_test = torch.randint(0, 255, (3, 452, 680)).float()
-    inference_statics(model, x_test=x_test, batch_size=1)
+    # print(type(model))
+    x_test = torch.randint(0, 255, (params['n_colors'], target_size[0]//params['scale'], target_size[1]//params['scale'])).float()
+    inference_statics(model, x_test=x_test, batch_size=1, averaged=False)
 
 ### layerwise_rdn
 # --------------> Inference_Time(us) = 3.6313236449603683 <-------------

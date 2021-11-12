@@ -1,43 +1,51 @@
 import model.model_utils
 from model.super_resolution_model import common
-from .utils import register_model, unpack_feature, pack_feature
+from .utils import register_model
 import torch.nn as nn
+import torch
+import torch.nn.functional as F
 
 
 @register_model
 def VDSR(**hparams):
-    return VDSR_Model(**hparams)
+    return Net(**hparams)
 
 
-class VDSR_Model(nn.Module):
-    def __init__(self, n_resblocks=16, n_feats=64, rgb_range=255, n_colors=3, conv=model.model_utils.default_conv, **kwargs):
-        super(VDSR_Model, self).__init__()
-
-        n_resblocks = n_resblocks
-        n_feats = n_feats
-        kernel_size = 3
-        self.sub_mean = common.MeanShift(rgb_range)
-        self.add_mean = common.MeanShift(rgb_range, sign=1)
-
-        def basic_block(in_channels, out_channels, act):
-            return common.BasicBlock(
-                conv, in_channels, out_channels, kernel_size,
-                bias=True, bn=False, act=act
-            )
-
-        # define body module
-        m_body = []
-        m_body.append(basic_block(n_colors, n_feats, nn.ReLU(True)))
-        for _ in range(n_resblocks - 2):
-            m_body.append(basic_block(n_feats, n_feats, nn.ReLU(True)))
-        m_body.append(basic_block(n_feats, n_colors, None))
-
-        self.body = nn.Sequential(*m_body)
+class Conv_ReLU_Block(nn.Module):
+    def __init__(self):
+        super(Conv_ReLU_Block, self).__init__()
+        self.conv = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        x = self.sub_mean(x)
-        res = self.body(x)
-        res += x
-        x = self.add_mean(res)
+        return self.relu(self.conv(x))
 
-        return x
+
+class Net(nn.Module):
+    def __init__(self, scale, n_colors=1, **kwargs):
+        super(Net, self).__init__()
+        self.scale = scale
+        self.residual_layer = self.make_layer(Conv_ReLU_Block, 18)
+        self.input = nn.Conv2d(in_channels=n_colors, out_channels=64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.output = nn.Conv2d(in_channels=64, out_channels=n_colors, kernel_size=3, stride=1, padding=1, bias=False)
+        self.relu = nn.ReLU(inplace=True)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, (2. / n)**0.5)
+
+    def make_layer(self, block, num_of_layer):
+        layers = []
+        for _ in range(num_of_layer):
+            layers.append(block())
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = F.interpolate(x, scale_factor=self.scale, mode='bicubic', align_corners=False)
+        residual = x
+        out = self.relu(self.input(x))
+        out = self.residual_layer(out)
+        out = self.output(out)
+        out = torch.add(out, residual)
+        return out

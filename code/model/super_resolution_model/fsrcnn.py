@@ -10,7 +10,7 @@ def FSRCNN(**kwargs):
 
 
 class FSRCNN_Model(nn.Module):
-    def __init__(self, scale, n_colors=1, n_feat=56, s=12, m=4, **kwargs):
+    def __init__(self, scale, n_colors=3, n_feat=56, s=12, m=4, **kwargs):
         super(FSRCNN_Model, self).__init__()
         self.first_part = nn.Sequential(
             nn.Conv2d(n_colors, n_feat, kernel_size=5, padding=5 // 2),

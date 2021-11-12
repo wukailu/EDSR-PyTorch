@@ -28,6 +28,11 @@ if __name__ == "__main__":
     if params['test_benchmark']:
         test_SR_benchmark(model)
 
+    if 'test_ssim' in params and params['test_ssim']:
+        model.params['metric'] = 'ssim'
+        model.metric = model.choose_metric()
+        test_SR_benchmark(model)
+
     if params['inference_statics']:
         if model.params['task'] == 'classification':
             inference_statics(model, batch_size=256)

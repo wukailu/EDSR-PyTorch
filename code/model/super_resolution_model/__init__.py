@@ -19,3 +19,6 @@ from .fsrcnn import *
 from .srcnn import *
 from .carn import *
 from .drrn import *
+from .memnet import *
+from .idn import *
+from .srfbn import *

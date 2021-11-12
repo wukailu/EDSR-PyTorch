@@ -1,5 +1,6 @@
 from torch import nn
 from .utils import register_model
+import torch.nn.functional as F
 
 
 @register_model
@@ -48,8 +49,9 @@ class RecursiveBlock(nn.Module):
 
 
 class DRRN_Model(nn.Module):
-    def __init__(self, B, U, n_colors=1, num_features=128):
+    def __init__(self, scale, B=1, U=9, n_colors=3, num_features=128, **kwargs):
         super(DRRN_Model, self).__init__()
+        self.scale = scale
         self.rbs = nn.Sequential(
             *[RecursiveBlock(n_colors if i == 0 else num_features, num_features, U) for i in range(B)])
         self.rec = ConvLayer(num_features, n_colors)
@@ -63,6 +65,7 @@ class DRRN_Model(nn.Module):
                     nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
+        x = F.interpolate(x, scale_factor=self.scale, mode='bicubic', align_corners=False)
         residual = x
         x = self.rbs(x)
         x = self.rec(x)

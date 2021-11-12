@@ -6,7 +6,7 @@ from . import carn_ops as ops
 
 @register_model
 def CARN_M(**kwargs):
-    model = Net(CARN_M_Block, **kwargs)
+    model = Net(CARN_M_Block, group=4, **kwargs)
     return model
 
 
@@ -17,9 +17,7 @@ def CARN(**kwargs):
 
 
 class CARN_Block(nn.Module):
-    def __init__(self,
-                 in_channels, out_channels,
-                 group=1):
+    def __init__(self, in_channels, out_channels, group=1):
         super(CARN_Block, self).__init__()
 
         self.b1 = ops.ResidualBlock(64, 64)
@@ -48,9 +46,7 @@ class CARN_Block(nn.Module):
 
 
 class CARN_M_Block(nn.Module):
-    def __init__(self,
-                 in_channels, out_channels,
-                 group=1):
+    def __init__(self, in_channels, out_channels, group=1):
         super(CARN_M_Block, self).__init__()
 
         self.b1 = ops.EResidualBlock(64, 64, group=group)

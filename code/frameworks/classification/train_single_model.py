@@ -69,7 +69,7 @@ def train_model(model, params, save_name='default', checkpoint_monitor=None, mod
 
 
 @rank_zero_only
-def inference_statics(model, x_test=None, batch_size=None):
+def inference_statics(model, x_test=None, batch_size=None, averaged=True):
     import time
     import torch
 
@@ -93,13 +93,20 @@ def inference_statics(model, x_test=None, batch_size=None):
         torch.cuda.synchronize()
         total_time = time.time() - start_time
         used_memory = torch.cuda.max_memory_allocated()
-        backend.log_metric('Inference_Time(us)', float(total_time / 100 / total_input_size * 1e6))  # time usage per pixel per batch
-        backend.log_metric('Memory(KB)', float(used_memory / total_input_size / 1024))  # memory usage per pixel per batch
+        if averaged:
+            backend.log_metric('Inference_Time(us)', float(total_time / 100 / total_input_size * 1e6))  # time usage per pixel per batch
+            backend.log_metric('Memory(KB)', float(used_memory / total_input_size / 1024))  # memory usage per pixel per batch
+        else:
+            backend.log_metric('Inference_Time(ms)', float(total_time / 100 * 1e3))  # time usage
+            backend.log_metric('Memory(MB)', float(used_memory / 1024 / 1024))  # memory usage
 
     from thop import profile
     x = torch.stack([x_test], dim=0).cuda()
     flops, param_number = profile(model, inputs=(x,), verbose=False)
-    backend.log_metric('flops(K per pixel)', float(flops / x.nelement() / 1000))
+    if averaged:
+        backend.log_metric('flops(K per pixel)', float(flops / x.nelement() / 1000))
+    else:
+        backend.log_metric('flops(G)', float(flops / 1e9))
     backend.log_metric('parameters(KB)', float(param_number / 1024))
 
 
