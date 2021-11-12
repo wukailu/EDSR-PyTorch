@@ -794,7 +794,7 @@ def test_model():
         'seed': 233,
     }
 
-    return {**templates['DIV2Kx3-EXP'], **params}
+    return {**templates['DIV2Kx4-EXP'], **params}
 
 
 def reassess_jobs():

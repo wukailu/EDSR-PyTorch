@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 import torch
 import pytorch_lightning as pl
 import torchmetrics
+
+import meter.super_resolution_meter
 from datasets.dataProvider import DataProvider
 from model import get_classifier
 from copy import deepcopy
-from meter.super_resolution_meter import PSNR_SHAVE
+from meter.super_resolution_meter import PSNR_SHAVE, SSIM_SHAVE
 
 __all__ = ["LightningModule", "_Module"]
 
@@ -36,7 +38,12 @@ class LightningModule(pl.LightningModule, ABC):
             'psnr_gray_shave_x3': PSNR_SHAVE(scale=3, gray=True, data_range=255),
             'psnr_shave_x2': PSNR_SHAVE(scale=2, gray=False, data_range=255),
             'psnr_gray_shave_x2': PSNR_SHAVE(scale=2, gray=True, data_range=255),
-            'ssim': torchmetrics.image.SSIM(),
+            'ssim_shave_x4': SSIM_SHAVE(scale=4, gray=False, data_range=255),
+            'ssim_gray_shave_x4': SSIM_SHAVE(scale=4, gray=True, data_range=255),
+            'ssim_shave_x3': SSIM_SHAVE(scale=3, gray=False, data_range=255),
+            'ssim_gray_shave_x3': SSIM_SHAVE(scale=3, gray=True, data_range=255),
+            'ssim_shave_x2': SSIM_SHAVE(scale=2, gray=False, data_range=255),
+            'ssim_gray_shave_x2': SSIM_SHAVE(scale=2, gray=True, data_range=255),
         }
         return metric_map[self.params['metric'].lower()]
 

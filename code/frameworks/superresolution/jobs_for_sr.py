@@ -571,15 +571,20 @@ def Short_EDSR_new_tailx4():
 
 def test_model():
     params = {
-        'project_name': 'EDSR_newtail',
+        'project_name': 'model_test',
         'save_model': False,
         'skip_train': True,
-        'init_from': pretrain_paths['EDSR100_newtail_x4'],
+        'test_ssim': True,
+        # 'init_from': pretrain_paths['EDSR64_newtail_x4'],
+        # 'backbone': {
+        #     'arch': ['EDSR_layerwise_sr'],
+        #     'n_feats': 64,
+        #     'n_resblocks': 16,
+        #     'simple_tail': 1,
+        # },
+        'init_from': '/data/tmp/imdnx4_234.ckpt',
         'backbone': {
-            'arch': ['EDSR_layerwise_sr'],
-            'n_feats': 100,
-            'n_resblocks': 16,
-            'simple_tail': 1,
+            'arch': 'imdn_sr',
         },
         'seed': [233],
     }
@@ -597,12 +602,12 @@ def params_for_SR():
     # 与 PISR, RepVGG 等比较使用的模型
     # params = Short_EDSR_new_tailx2()  # finished
     # params = Short_EDSR_new_tailx3()  # finished
-    params = Short_EDSR_new_tailx4()  # submitted to 13 with width 50
+    # params = Short_EDSR_new_tailx4()  # submitted to 13 with width 50
 
     # params = directTrainPlain()
     # params = dense_model_train()
 
-    # params = test_model()
+    params = test_model()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

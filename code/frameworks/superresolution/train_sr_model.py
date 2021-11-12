@@ -64,7 +64,7 @@ if __name__ == "__main__":
         test_SR_benchmark(model)
 
     if 'test_ssim' in params and params['test_ssim']:
-        model.params['metric'] = 'ssim'
+        model.params['metric'] = model.params['metric'].lower().replace('psnr', 'ssim')
         model.metric = model.choose_metric()
         test_SR_benchmark(model)
 
