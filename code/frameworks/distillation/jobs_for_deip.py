@@ -786,15 +786,13 @@ def test_model():
         'test_benchmark': True,
         'inference_statics': True,
         'test_ssim': True,
-        'load_from': ['/data/tmp/plainmx4_233.ckpt',
-                      '/data/tmp/plainmx4_234.ckpt',
-                      '/data/tmp/plainmx4_235.ckpt',
-                      '/data/tmp/plainmx4_236.ckpt',],
+        'load_from': ['/data/tmp/plainx_x2_235.ckpt',
+                      '/data/tmp/plainx_x2_236.ckpt',],
         'width': 0,
         'seed': 233,
     }
 
-    return {**templates['DIV2Kx4-EXP'], **params}
+    return {**templates['DIV2Kx2-EXP'], **params}
 
 
 def reassess_jobs():

@@ -21,28 +21,39 @@ if __name__ == '__main__':
     # }
     # params = {
     #     'arch': 'Plain_layerwise_sr',
-    #     'n_feats': 64,
-    #     'num_modules': 34,
+    #     'widths': [3, 15, 25, 36, 61, 51, 81, 62, 97, 68, 105, 70, 113, 72, 114, 73, 120, 74, 125, 74, 126, 74, 129, 74, 131, 74, 133, 74, 133, 74, 132, 74, 131, 75, 64],
     #     'scale': 2,
     #     'n_colors': 3,
     # }
+    # params = {
+    #     'arch': 'Plain_layerwise_sr',
+    #     'widths': [3, 15, 26, 41, 72, 58, 93, 67, 107, 72, 113, 74, 119, 75, 119, 75, 127, 75, 127, 75, 132, 75, 134, 75, 132, 75, 135, 75, 133, 74, 132, 74, 129, 75, 64],
+    #     'scale': 3,
+    #     'n_colors': 3,
+    # }
     params = {
-        # 'arch': 'srcnn_sr',
-        # 'arch': 'fsrcnn_sr',
-        # 'arch': 'VDSR_sr',
-        # 'arch': 'drrn_sr',
-        # 'arch': 'memnet_sr',
-        # 'arch': 'carn_sr',
-        # 'arch': 'idn_sr',
-        # 'arch': 'SRFBN_sr',
-        # 'arch': 'IMDN_sr',
-        # 'arch': 'EDSR_sr',
-        'arch': 'EDSR_layerwise_sr',
-        'simple_tail': True,
-        'multi_scale': True,
-        'scale': 2,
+        'arch': 'Plain_layerwise_sr',
+        'widths': [3, 17, 31, 48, 83, 64, 101, 71, 113, 74, 119, 76, 125, 77, 123, 77, 127, 77, 131, 77, 134, 77, 136, 77, 136, 76, 138, 76, 135, 75, 134, 75, 134, 75, 64],
+        'scale': 4,
         'n_colors': 3,
     }
+    # params = {
+    #     # 'arch': 'srcnn_sr',
+    #     # 'arch': 'fsrcnn_sr',
+    #     # 'arch': 'VDSR_sr',
+    #     # 'arch': 'drrn_sr',
+    #     # 'arch': 'memnet_sr',
+    #     # 'arch': 'carn_sr',
+    #     # 'arch': 'idn_sr',
+    #     # 'arch': 'SRFBN_sr',
+    #     # 'arch': 'IMDN_sr',
+    #     # 'arch': 'EDSR_sr',
+    #     'arch': 'EDSR_layerwise_sr',
+    #     'simple_tail': True,
+    #     'multi_scale': True,
+    #     'scale': 2,
+    #     'n_colors': 3,
+    # }
     print(params['arch'])
     model = get_classifier(params, "DIV2K")
     x_test = torch.randint(0, 255, (2, params['n_colors'], 24, 24)).float()

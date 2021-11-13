@@ -8,13 +8,15 @@ from ..layerwise_model import LayerWiseModel
 
 
 @register_model
-def Plain_layerwise(in_nc=3, n_feats=50, nf=None, num_modules=16, out_nc=3, scale=4, tail='easy', mean_shift=False,
+def Plain_layerwise(in_nc=3, n_feats=50, nf=None, widths=None, num_modules=16, out_nc=3, scale=4, tail='easy', mean_shift=False,
                     rgb_range=255, n_colors=3, **kwargs):
     nf = n_feats if nf is None else nf
     input_transform = common.MeanShift(rgb_range, sign=-1) if mean_shift else None
     output_transform = common.MeanShift(rgb_range, sign=1) if mean_shift else None
 
-    widths = [in_nc] + [nf] * num_modules
+    if widths is None:
+        widths = [in_nc] + [nf] * num_modules
+
     if tail == 'easy':
         tailModule = EasyScale(scale, output_transform=output_transform)
         widths += [(scale ** 2) * out_nc]
