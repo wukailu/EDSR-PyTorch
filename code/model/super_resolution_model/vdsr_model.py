@@ -22,7 +22,7 @@ class Conv_ReLU_Block(nn.Module):
 
 
 class Net(nn.Module):
-    def __init__(self, scale, n_colors=1, **kwargs):
+    def __init__(self, scale, n_colors=3, **kwargs):
         super(Net, self).__init__()
         self.scale = scale
         self.residual_layer = self.make_layer(Conv_ReLU_Block, 18)

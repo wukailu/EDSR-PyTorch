@@ -73,10 +73,11 @@ class CARN_M_Block(nn.Module):
 
 
 class Net(nn.Module):
-    def __init__(self, Block, scale=4, n_colors=3, multi_scale=False, group=1, **kwargs):
+    def __init__(self, Block, scale=4, n_colors=3, multi_scale=False, group=1, rgb_range=255, **kwargs):
         if scale == 0:
             multi_scale = True
         self.scale = scale
+        self.rgb_range = rgb_range
         super(Net, self).__init__()
         self.sub_mean = ops.MeanShift((0.4488, 0.4371, 0.4040), sub=True)
         self.add_mean = ops.MeanShift((0.4488, 0.4371, 0.4040), sub=False)
@@ -96,7 +97,7 @@ class Net(nn.Module):
         self.exit = nn.Conv2d(64, n_colors, 3, 1, 1)
 
     def forward(self, x):
-        x = self.sub_mean(x)
+        x = self.sub_mean(x / self.rgb_range)
         x = self.entry(x)
         c0 = o0 = x
 
@@ -117,4 +118,4 @@ class Net(nn.Module):
         out = self.exit(out)
         out = self.add_mean(out)
 
-        return out
+        return out * self.rgb_range

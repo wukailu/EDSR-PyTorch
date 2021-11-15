@@ -250,13 +250,12 @@ def dense_model_train():
         'project_name': 'DIV2Kx4_EXP_Baseline',
         'save_model': True,
         'backbone': {
-            'arch': ['HAN_sr', 'RFDN_sr', 'RDN_sr', 'SRCNN_sr', 'FSRCNN_sr', 'CARN_sr', 'CARN_M_sr'],
-            # 'arch': ['IMDN_sr'],
-            # 'arch': ['EDSR_layerwise_sr', 'EDSR_sr'],
-            # 'arch': ['RDN_layerwise_sr', 'RDN_sr'],
-            # 'arch': ['RDN_layerwise_sr'],
-            # 'RDNconfig': 'A',
+            # 'arch': ['SRCNN_sr', 'FSRCNN_sr', 'VDSR_sr'],
+            'arch': 'VDSR_sr',
+            # 'arch': ['HAN_sr', 'RFDN_sr', 'RDN_sr', 'SRCNN_sr', 'FSRCNN_sr', 'CARN_sr', 'CARN_M_sr'],
         },
+        'num_epochs': 50,
+        'seed': 233,
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -605,7 +604,7 @@ def params_for_SR():
     # params = Short_EDSR_new_tailx4()  # submitted to 13 with width 50
 
     # params = directTrainPlain()
-    # params = dense_model_train()
+    params = dense_model_train()
 
     params = test_model()
 

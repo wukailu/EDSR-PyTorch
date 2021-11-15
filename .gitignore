@@ -64,3 +64,4 @@ target/
 *.swp
 .vscode
 .idea/
+experiment/fig4_gen/.ipynb_checkpoints/qualitative_cmp-checkpoint.ipynb
