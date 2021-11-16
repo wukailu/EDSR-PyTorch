@@ -596,7 +596,7 @@ def params_for_SR():
     # 所有实验基础模型, 64 宽度一版 100 宽度一版
     # params = EDSR_new_tailx2()  # finished
     # params = EDSR_new_tailx3()  # finished
-    # params = EDSR_new_tailx4()  # finished
+    params = EDSR_new_tailx4()  # finished
 
     # 与 PISR, RepVGG 等比较使用的模型
     # params = Short_EDSR_new_tailx2()  # finished
@@ -604,7 +604,7 @@ def params_for_SR():
     # params = Short_EDSR_new_tailx4()  # submitted to 13 with width 50
 
     # params = directTrainPlain()
-    params = dense_model_train()
+    # params = dense_model_train()
 
     params = test_model()
 

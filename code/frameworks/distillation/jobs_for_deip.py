@@ -542,7 +542,8 @@ def params_for_EXP_main_x4():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x4',
         'method': 'DEIP_Init',
-        'rank_eps': [0.11, 0.12, 0.13, 0.14, 0.15],
+        # 'rank_eps': [0.11, 0.12, 0.13, 0.14, 0.15],
+        'fix_r': [48, 56, 72, 80],
         'init_stu_with_teacher': 1,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'layer_type': 'normal_no_bn',
