@@ -499,10 +499,8 @@ def params_for_EXP_main_x2():
         'project_name': 'CVPR_EXP_MAIN_x2',
         'method': 'DEIP_Init',
         # 'fix_r': 100,
-        # 'rank_eps': 0.13,
-        'rank_eps': 0.1,
+        'rank_eps': 0.14,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x2'],
-        # 'teacher_pretrain_path': pretrain_paths['EDSR100_newtail_x2'],
         'init_stu_with_teacher': 1,
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
@@ -512,7 +510,6 @@ def params_for_EXP_main_x2():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
-        'seed': [233, 234],
     }
 
     return {**templates['DIV2Kx2-EXP'], **params}
@@ -522,7 +519,7 @@ def params_for_EXP_main_x3():
     params = {
         'project_name': 'CVPR_EXP_MAIN_x3',
         'method': 'DEIP_Init',
-        'rank_eps': 0.13,
+        'rank_eps': 0.14,
         'init_stu_with_teacher': 1,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x3'],
         'layer_type': 'normal_no_bn',
@@ -543,13 +540,13 @@ def params_for_EXP_main_x4():
         'project_name': 'CVPR_EXP_MAIN_x4',
         'method': 'DEIP_Init',
         # 'rank_eps': [0.11, 0.12, 0.13, 0.14, 0.15],
-        'fix_r': [48, 56, 72, 80],
+        'fix_r': 64,
         'init_stu_with_teacher': 1,
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
-        # 'distill_coe': 0.3,
-        'distill_coe': 0,
+        'distill_coe': [0.1, 0.3, 0.5, 1, 2],
+        # 'distill_coe': 0,
         'distill_alpha': 1e-5,
         'dist_method': {
             'name': 'BridgeDistill',
@@ -782,8 +779,8 @@ def params_for_EXP_cmp_srkdx2():
 
 
 def test_model():
-    scale = 3
-    seed = random_params([233, 236])
+    scale = 4
+    seed = random_params([233])
     params = {
         'project_name': 'model_test',
         'save_model': False,
@@ -791,7 +788,7 @@ def test_model():
         'test_benchmark': True,
         'inference_statics': True,
         'test_ssim': True,
-        'load_from': [f'/data/tmp/plainmx{scale}_{seed}.ckpt'],
+        'load_from': [f'/data/tmp/plainx_014_x{scale}_{seed}.ckpt'],
         'width': 0,
         'seed': seed,
     }
@@ -828,9 +825,9 @@ def reassess_jobs():
 def params_for_deip():
     # params = params_for_EXP_Baseline_x4()
 
-    # params = params_for_EXP_main_x2()
+    params = params_for_EXP_main_x2()
     # params = params_for_EXP_main_x3()
-    params = params_for_EXP_main_x4()
+    # params = params_for_EXP_main_x4()
     # params = params_for_EXP_ablation_x4()
 
     # params = params_for_EXP_cmp_init()

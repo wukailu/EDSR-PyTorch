@@ -568,6 +568,22 @@ def Short_EDSR_new_tailx4():
     return {**templates['DIV2Kx4-EXP'], **params}
 
 
+def AddOrix4():
+    params = {
+        'project_name': 'AddOri',
+        'save_model': False,
+        'backbone': {
+            'arch': 'AddOri_sr',
+            'n_feats': 64,
+            'num_modules': 34,
+            'ori_weight': [0.1, 0.3, 0.5, 0.7, 0.9],
+        },
+        'seed': [233],
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
 def test_model():
     params = {
         'project_name': 'model_test',
@@ -606,7 +622,9 @@ def params_for_SR():
     # params = directTrainPlain()
     # params = dense_model_train()
 
-    params = test_model()
+    params = AddOrix4()
+
+    # params = test_model()
 
     params = random_params(params)
     if 'scale' not in params['backbone']:

@@ -8,7 +8,8 @@ from ..layerwise_model import LayerWiseModel
 
 
 @register_model
-def Plain_layerwise(in_nc=3, n_feats=50, nf=None, widths=None, num_modules=16, out_nc=3, scale=4, tail='easy', mean_shift=False,
+def Plain_layerwise(in_nc=3, n_feats=50, nf=None, widths=None, num_modules=16, out_nc=3, scale=4, tail='easy',
+                    mean_shift=False,
                     rgb_range=255, n_colors=3, **kwargs):
     nf = n_feats if nf is None else nf
     input_transform = common.MeanShift(rgb_range, sign=-1) if mean_shift else None
@@ -33,6 +34,75 @@ def Plain_layerwise(in_nc=3, n_feats=50, nf=None, widths=None, num_modules=16, o
     return model
 
 
+@register_model
+def AddOri(widths=None, n_feats=64, num_modules=16, scale=4, n_colors=3, **kwargs):
+    if widths is None:
+        widths = [n_colors] + [n_feats] * num_modules
+    widths += [(scale ** 2) * n_colors]
+    model = AddOri_Model(widths=widths, **kwargs)
+    tailModule = EasyScale(scale)
+    model.append_tail(tailModule)
+    return model
+
+
+class AddOri_Model(LayerWiseModel):
+    def __init__(self, widths, input_transform=None, add_ori=True, ori_weight=0.5, **kwargs):
+        """
+        :arg widths width of each feature map, start from data, end at the one before tail. e.x. [3, 64, 64, 128, 200]
+        :arg add_ori if this is true, there will be 3 more channel on input, which is original input data
+        :type add_ori: bool
+        """
+        super().__init__()
+        self.add_ori = add_ori
+        self.input_transform = input_transform
+
+        for i in range(len(widths) - 1):
+            self.append_layer(widths[i], widths[i + 1], add_ori=add_ori, ori_weight=ori_weight)
+
+    def append_layer(self, in_channels, out_channels, kernel_size=3, add_ori=False, ori_weight=0.5):
+        from model import model_init
+        new_layers = []
+        if add_ori:
+            # in_channels += 3
+            external_channels = int(in_channels / (1 - ori_weight) * ori_weight / 3)
+            fake_channel = in_channels + external_channels * 3
+            fconv = nn.Conv2d(fake_channel, out_channels, kernel_size=kernel_size, padding=kernel_size // 2)
+            model_init(fconv)
+            conv = nn.Conv2d(in_channels + 3, out_channels, kernel_size=kernel_size, padding=kernel_size // 2)
+            conv.weight.data[:, 3:] = fconv.weight.data[:, :in_channels]
+            for i in range(3):
+                conv.weight.data[:, i] = torch.sum(fconv.weight.data[:,
+                                                   in_channels + i * external_channels: in_channels + (
+                                                               i + 1) * external_channels], dim=1)
+        else:
+            conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2)
+            model_init(conv)
+        new_layers.append(conv)
+        new_layers.append(nn.ReLU())
+        new_layer = nn.Sequential(*new_layers)
+        self.append(new_layer)
+
+    def append_tail(self, tailModule: nn.Module):
+        import copy
+        self.append(copy.deepcopy(tailModule))
+
+    def forward(self, x, with_feature=False, start_forward_from=0, until=None, ori=None):
+        f_list = []
+        if self.input_transform is not None:
+            x = self.input_transform(x)
+        ori = x
+        for m in self[start_forward_from: until]:
+            if m != self.sequential_models[-1]:
+                if self.add_ori:
+                    x = torch.cat([x, ori], dim=1)
+                x = m(x)
+            else:
+                x = m(x)
+            if with_feature:
+                f_list.append(x)
+        return (f_list, x) if with_feature else x
+
+
 # TODO: implement this as ConvertibleModel
 class Plain_layerwise_Model(LayerWiseModel):
     def __init__(self, widths, layerType='normal_no_bn', input_transform=None, f_lists=None, add_ori=False,
@@ -51,7 +121,7 @@ class Plain_layerwise_Model(LayerWiseModel):
         super().__init__()
         self.layerType = layerType
         if add_ori:
-            self.add_ori = list(range(0, len(widths)-1, add_ori_interval))
+            self.add_ori = list(range(0, len(widths) - 1, add_ori_interval))
             print('add_ori at layer:', self.add_ori)
         else:
             self.add_ori = []
@@ -62,11 +132,11 @@ class Plain_layerwise_Model(LayerWiseModel):
         if square_num != 0 and square_ratio != 0:
             import numpy as np
             if square_layer_strategy == 0:
-                square_layers = np.linspace(0, len(widths)-2, square_num+2)[1:-1]
+                square_layers = np.linspace(0, len(widths) - 2, square_num + 2)[1:-1]
             elif square_layer_strategy == 1:
-                square_layers = np.linspace(0, len(widths)-2, square_num+1)[:-1]
+                square_layers = np.linspace(0, len(widths) - 2, square_num + 1)[:-1]
             elif square_layer_strategy == 2:
-                square_layers = np.linspace(0, len(widths)-2, square_num+1)[1:]
+                square_layers = np.linspace(0, len(widths) - 2, square_num + 1)[1:]
             square_layers = [int(i) for i in square_layers]
             print('square layers: ', square_layers)
 
@@ -96,7 +166,7 @@ class Plain_layerwise_Model(LayerWiseModel):
                     nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size // 2,
                               stride=(stride_w, stride_h)))
             if add_ori:
-                new_layers[0].weight.data[:, :3] *= (in_channels-3)/3
+                new_layers[0].weight.data[:, :3] *= (in_channels - 3) / 3
             if 'no_bn' not in self.layerType:
                 new_layers.append(nn.BatchNorm2d(out_channels))
 
@@ -110,7 +180,7 @@ class Plain_layerwise_Model(LayerWiseModel):
             else:
                 new_layers.append(nn.ReLU())
 
-            if square_ratio !=0 and not square_before_relu:
+            if square_ratio != 0 and not square_before_relu:
                 new_layers.append(SquareLayer(square_ratio))
 
             new_layer = nn.Sequential(*new_layers)
@@ -183,7 +253,7 @@ class SquareLayer(nn.Module):
         c = int(x.size(1) * self.square_ratio)
         if c == 0:
             return x
-        L = x[:, :c]**2
+        L = x[:, :c] ** 2
         R = x[:, c:]
         return torch.cat([L, R], dim=1)
 

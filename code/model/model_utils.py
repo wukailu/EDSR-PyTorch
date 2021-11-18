@@ -97,7 +97,7 @@ def get_trainable_params(model):
     return params_to_update
 
 
-def model_init(model: torch.nn.Module, method="kaiming_normal"):
+def model_init(model: torch.nn.Module, method="kaiming_normal", activation='relu'):
     from torch import nn
     assert method in ['kaiming_normal', 'kaiming_uniform', 'xavier_uniform', 'xavier_normal']
     for name, ch in model.named_children():
@@ -105,13 +105,13 @@ def model_init(model: torch.nn.Module, method="kaiming_normal"):
     for name, m in model.named_modules():
         if isinstance(m, nn.Conv2d) and m.weight.requires_grad:
             if method == 'kaiming_normal':
-                nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, nonlinearity=activation)
             elif method == 'kaiming_uniform':
-                nn.init.kaiming_uniform_(m.weight, nonlinearity='relu')
+                nn.init.kaiming_uniform_(m.weight, nonlinearity=activation)
             elif method == 'xavier_normal':
-                nn.init.xavier_normal_(m.weight, gain=nn.init.calculate_gain('relu'))
+                nn.init.xavier_normal_(m.weight, gain=nn.init.calculate_gain(activation))
             elif method == 'xavier_uniform':
-                nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('relu'))
+                nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain(activation))
         elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm, nn.BatchNorm1d)) and m.weight.requires_grad:
             nn.init.constant_(m.weight, 1)
             nn.init.constant_(m.bias, 0)

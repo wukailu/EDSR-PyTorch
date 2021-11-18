@@ -13,6 +13,7 @@ class cka_loss(torch.nn.Module):
         batch_size = x.size(0)
         x = x.view(batch_size, -1)  # shape of N x M
         y = y.view(batch_size, -1)
+
         if self.rbf_threshold < 0:
             return self._cka(self._gram_linear(x), self._gram_linear(y))
         else:

@@ -31,11 +31,18 @@ if __name__ == '__main__':
     #     'scale': 3,
     #     'n_colors': 3,
     # }
+    # params = {
+    #     'arch': 'Plain_layerwise_sr',
+    #     'widths': [3, 9, 11, 17, 22, 23, 31, 31, 46, 41, 59, 49, 73, 53, 75, 57, 84, 59, 92, 61, 96, 62, 102, 62, 102, 63, 106, 63, 102, 63, 99, 63, 96, 63, 64],
+    #     'scale': 4,
+    #     'n_colors': 3,
+    # }
     params = {
-        'arch': 'Plain_layerwise_sr',
-        'widths': [3, 17, 31, 48, 83, 64, 101, 71, 113, 74, 119, 76, 125, 77, 123, 77, 127, 77, 131, 77, 134, 77, 136, 77, 136, 76, 138, 76, 135, 75, 134, 75, 134, 75, 64],
-        'scale': 4,
+        'arch': 'AddOri_sr',
+        'n_feats': 64,
+        'num_modules': 34,
         'n_colors': 3,
+        'scale': 4,
     }
     # params = {
     #     # 'arch': 'srcnn_sr',
@@ -62,7 +69,9 @@ if __name__ == '__main__':
     x_test = x_test.cuda()
     with torch.no_grad():
         out = model(x_test)
-        assert out.shape == (2, params['n_colors'], 24 * params['scale'], 24 * params['scale'])
+        if out.shape != (2, params['n_colors'], 24 * params['scale'], 24 * params['scale']):
+            print(out.shape)
+            assert False
 
     # params = {
     #     'arch': 'resnet20x4_layerwise',
