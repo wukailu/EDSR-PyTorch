@@ -545,9 +545,10 @@ def params_for_EXP_main_x4():
         'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
         'layer_type': 'normal_no_bn',
         'ridge_alpha': 0,
-        'distill_coe': [0.1, 0.3, 0.5, 1, 2],
-        # 'distill_coe': 0,
+        # 'distill_coe': [0.1, 0.3, 0.5, 1, 2],
+        'distill_coe': 0.3,
         'distill_alpha': 1e-5,
+        # 'distill_alpha': [1e-3, 1e-4, 1e-5, 1e-6],
         'dist_method': {
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
@@ -825,9 +826,9 @@ def reassess_jobs():
 def params_for_deip():
     # params = params_for_EXP_Baseline_x4()
 
-    params = params_for_EXP_main_x2()
+    # params = params_for_EXP_main_x2()
     # params = params_for_EXP_main_x3()
-    # params = params_for_EXP_main_x4()
+    params = params_for_EXP_main_x4()
     # params = params_for_EXP_ablation_x4()
 
     # params = params_for_EXP_cmp_init()

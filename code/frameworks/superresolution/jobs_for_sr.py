@@ -576,8 +576,15 @@ def AddOrix4():
             'arch': 'AddOri_sr',
             'n_feats': 64,
             'num_modules': 34,
-            'ori_weight': [0.1, 0.3, 0.5, 0.7, 0.9],
+            # 'ori_weight': [0.1, 0.3, 0.5, 0.7, 0.9],
+            'ori_weight': [0.05, 0.95, 0.98],
         },
+        # 'backbone': {
+        #     'arch': 'Plain_layerwise_sr',
+        #     'n_feats': 64,
+        #     'num_modules': 34,
+        #     'add_ori': 1,
+        # },
         'seed': [233],
     }
 
@@ -612,7 +619,7 @@ def params_for_SR():
     # 所有实验基础模型, 64 宽度一版 100 宽度一版
     # params = EDSR_new_tailx2()  # finished
     # params = EDSR_new_tailx3()  # finished
-    params = EDSR_new_tailx4()  # finished
+    # params = EDSR_new_tailx4()  # finished
 
     # 与 PISR, RepVGG 等比较使用的模型
     # params = Short_EDSR_new_tailx2()  # finished
