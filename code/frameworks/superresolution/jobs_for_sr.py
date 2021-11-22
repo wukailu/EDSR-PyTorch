@@ -300,8 +300,8 @@ def EDSR_new_tail():
         'init_from': None,
         'backbone': {
             'arch': ['EDSR_layerwise_sr'],
-            # 'n_feats': [64],
-            'n_feats': [100],
+            'n_feats': [64],
+            # 'n_feats': [100],
             'n_resblocks': 16,
             'simple_tail': 1,
         },
@@ -392,10 +392,9 @@ def naiveBaseline():
 
 
 def directTrainPlain():
-    depth, width = random_params([(20, 87), (10, 114), (14, 100)])
+    depth, width = random_params([(20, 87), (10, 114), (14, 100), (34, 64)])
     params = {
         'project_name': 'plain_SR_add_ori_verify',
-        'num_epochs': 300,
         'backbone': {
             'arch': 'Plain_layerwise_sr',
             'num_modules': depth,
@@ -403,9 +402,12 @@ def directTrainPlain():
             'add_ori': 1,
             'tail': ['easy'],
         },
+        'metric': 'psnr_gray_shave_x4',
+        'seed': 233,
     }
 
-    return {**templates['DIV2K-b32-SRx4'], **params}
+    # return {**templates['DIV2K-b32-SRx4'], **params}
+    return {**templates['DIV2Kx4-EXP'], **params}
 
 
 def PlainFlopsPSNRCurve():
@@ -431,6 +433,7 @@ def PlainFlopsPSNRCurve():
             'add_ori': 1,
         },
         'max_lr': 5e-4,
+        'seed': 233,
     }
 
     # return {**templates['DIV2K-b16-SRx4'], **params}
@@ -572,19 +575,20 @@ def AddOrix4():
     params = {
         'project_name': 'AddOri',
         'save_model': False,
-        'backbone': {
-            'arch': 'AddOri_sr',
-            'n_feats': 64,
-            'num_modules': 34,
-            # 'ori_weight': [0.1, 0.3, 0.5, 0.7, 0.9],
-            'ori_weight': [0.05, 0.95, 0.98],
-        },
         # 'backbone': {
-        #     'arch': 'Plain_layerwise_sr',
+        #     'arch': 'AddOri_sr',
         #     'n_feats': 64,
         #     'num_modules': 34,
-        #     'add_ori': 1,
+        #     # 'ori_weight': [0.1, 0.3, 0.5, 0.7, 0.9],
+        #     'ori_weight': [0.05, 0.95, 0.98],
         # },
+        'backbone': {
+            'arch': 'Plain_layerwise_sr',
+            'n_feats': 64,
+            'num_modules': 34,
+            'add_ori': 1,
+            'tail': ['easy'],
+        },
         'seed': [233],
     }
 
@@ -629,7 +633,8 @@ def params_for_SR():
     # params = directTrainPlain()
     # params = dense_model_train()
 
-    params = AddOrix4()
+    # params = AddOrix4()
+    params = directTrainPlain()
 
     # params = test_model()
 
