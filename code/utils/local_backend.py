@@ -53,12 +53,7 @@ def submit(**params):
     import os
     with open(os.path.join(info['job_directory'], 'local_job_parameters.pkl'), 'wb') as f:
         pickle.dump(info, f)
-    if info['num_gpus'] != 0:
-        gpus = str(list(range(info['num_gpus'])))[1:-1] + ' '
-        prefix = 'CUDA_VISIBLE_DEVICES=' + gpus + ' '
-    else:
-        prefix = ''
-    command = prefix + "python " + '-W ignore ' + info['command']
+    command = "python " + '-W ignore ' + info['command']
     print(command)
     os.system(command)
 

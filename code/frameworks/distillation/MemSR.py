@@ -11,7 +11,7 @@ from model.layerwise_model import ConvertibleLayer, ConvertibleModel, pad_const_
     merge_1x1_and_3x3
 
 
-class DEIP_LightModel(LightningModule):
+class MemSR_LightModel(LightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
         self.M_maps = []
@@ -50,12 +50,11 @@ class DEIP_LightModel(LightningModule):
 
     def complete_hparams(self):
         default_sr_list = {
-            'task': 'classification',
+            'task': 'super-resolution',
             'input_channel': 3,
             'progressive_distillation': False,
             'init_with_teacher_param': False,
             'rank_eps': 5e-2,
-            'use_bn': True,
             'layer_type': 'normal',
             'init_stu_with_teacher': False,
             'teacher_pretrain_path': None,
@@ -220,7 +219,7 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
 
     final_ret, error = test_rank(R, M, f2, f, with_solution, with_bias, with_rank, bias, eps, adjust,
                                  ret_err=True)
-    print(f"Last rank estimation error is {error}")
+    print(f"Approximation error is {error}")
 
     if len(final_ret) == 2:
         return final_ret[1]
@@ -228,7 +227,7 @@ def rank_estimate(f, eps=5e-2, with_rank=True, with_bias=False, with_solution=Fa
         return final_ret[1:]
 
 
-class DEIP_Distillation(DEIP_LightModel, ABC):
+class MemSR_Distillation(MemSR_LightModel, ABC):
     def __init__(self, hparams):
         super().__init__(hparams)
         self.dist_method = self.get_distillation_module()
@@ -254,7 +253,7 @@ class DEIP_Distillation(DEIP_LightModel, ABC):
             'distill_coe_mod': 'old',
         }
         self.params = {**default_sr_list, **self.params}
-        DEIP_LightModel.complete_hparams(self)
+        MemSR_LightModel.complete_hparams(self)
         if isinstance(self.params['dist_method'], str):
             self.params['dist_method'] = {'name': self.params['dist_method']}
 
@@ -299,7 +298,7 @@ class DEIP_Distillation(DEIP_LightModel, ABC):
         return loss
 
 
-class DEIP_Init(DEIP_Distillation):
+class MemSR_Init(MemSR_Distillation):
     def complete_hparams(self):
         default_sr_list = {
             'dist_method': 'BridgeDistill',
@@ -308,7 +307,7 @@ class DEIP_Init(DEIP_Distillation):
             'distill_init': True,
         }
         self.params = {**default_sr_list, **self.params}
-        DEIP_Distillation.complete_hparams(self)
+        MemSR_Distillation.complete_hparams(self)
 
     def get_distillation_module(self):
         distill_config = self.params['dist_method']
@@ -404,9 +403,9 @@ class DEIP_Init(DEIP_Distillation):
 
 def load_model(params):
     methods = {
-        'DirectTrain': DEIP_LightModel,
-        'Distillation': DEIP_Distillation,
-        'DEIP_Init': DEIP_Init,
+        'DirectTrain': MemSR_LightModel,
+        'Distillation': MemSR_Distillation,
+        'MemSR_Init': MemSR_Init,
     }
 
     if 'load_from' in params:
