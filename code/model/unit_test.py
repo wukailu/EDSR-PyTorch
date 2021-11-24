@@ -14,11 +14,13 @@ if __name__ == '__main__':
     target_size = (1920, 1080)
     # target_size = (960, 540)
 
-    # params = {
-    #     'arch': 'Plain_layerwise_sr',
-    #     'n_feats': 90,
-    #     'num_modules': 19,
-    # }
+    params = {
+        'arch': 'Plain_layerwise_sr',
+        'n_feats': 100,
+        'num_modules': 35,
+        'scale': 4,
+        'n_colors': 3,
+    }
     # params = {
     #     'arch': 'Plain_layerwise_sr',
     #     'widths': [3, 15, 25, 36, 61, 51, 81, 62, 97, 68, 105, 70, 113, 72, 114, 73, 120, 74, 125, 74, 126, 74, 129, 74, 131, 74, 133, 74, 133, 74, 132, 74, 131, 75, 64],
@@ -33,17 +35,17 @@ if __name__ == '__main__':
     # }
     # params = {
     #     'arch': 'Plain_layerwise_sr',
-    #     'widths': [3, 9, 11, 17, 22, 23, 31, 31, 46, 41, 59, 49, 73, 53, 75, 57, 84, 59, 92, 61, 96, 62, 102, 62, 102, 63, 106, 63, 102, 63, 99, 63, 96, 63, 64],
-    #     'scale': 4,
+    #     'widths': [3, 7, 9, 14, 17, 18, 25, 25, 37, 36, 50, 43, 64, 49, 67, 53, 77, 56, 85, 58, 89, 60, 96, 61, 97, 62, 100, 62, 100, 61, 99, 62, 93, 63, 64, 3],
+    #     'scale': 3,
     #     'n_colors': 3,
     # }
-    params = {
-        'arch': 'AddOri_sr',
-        'n_feats': 64,
-        'num_modules': 34,
-        'n_colors': 3,
-        'scale': 4,
-    }
+    # params = {
+    #     'arch': 'AddOri_sr',
+    #     'n_feats': 64,
+    #     'num_modules': 34,
+    #     'n_colors': 3,
+    #     'scale': 4,
+    # }
     # params = {
     #     # 'arch': 'srcnn_sr',
     #     # 'arch': 'fsrcnn_sr',
