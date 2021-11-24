@@ -84,37 +84,3 @@ class Normalize(nn.Module):
         assert input.dim() == 4
         # print(input.device, self.mean.device)
         return (input - self.mean) / self.std
-
-
-def load_attack(model, attack: str):
-    import torchattacks
-    if attack == 'PGD':
-        return torchattacks.PGD(model, eps=2 / 255, alpha=2 / 255, steps=7)
-    elif attack == 'CW':
-        return torchattacks.CW(model, targeted=False, c=1, kappa=0, steps=1000, lr=0.01)
-    elif attack == 'BIM':
-        return torchattacks.BIM(model, eps=4 / 255, alpha=1 / 255, steps=0)
-    elif attack == 'FGSM':
-        return torchattacks.FGSM(model, eps=1 / 255)
-    else:
-        raise NotImplementedError()
-
-
-class AdvAttack(torch.nn.Module):
-    # Check example here https://github.com/Harry24k/adversarial-attacks-pytorch/blob/master/demos/Targeted%20PGD%20with%20Imagenet.ipynb
-    def __init__(self, model, attack_name, mean=None, std=None, dataset=None, device=None):
-        super().__init__()
-        if dataset is not None:
-            mean = dataset.mean
-            std = dataset.std
-        normed_model = nn.Sequential(Normalize(mean, std), model)
-        normed_model.to(device)
-        normed_model.eval()
-        self.attack = load_attack(normed_model, attack_name)
-        self.unnorm = UnNormalize(mean=mean, std=std)
-        self.donorm = Normalize(mean=mean, std=std)
-
-    def forward(self, images, labels):
-        self.eval()
-        assert images.dim() == 4
-        return self.donorm(self.attack(self.unnorm(images), labels))

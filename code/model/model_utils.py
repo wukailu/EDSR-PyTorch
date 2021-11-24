@@ -155,49 +155,38 @@ def get_classifier(classifier, dataset: str) -> torch.nn.Module:
         raise TypeError('Classifier should be either str or a dict with at least a key "arch".')
 
     classifier_name = classifier_name.lower()
-    if classifier_name.startswith("Rep_"):
-        from model.repdistiller_models import model_dict
-        return model_dict[classifier_name[4:]](num_classes=num_classes, **params)
-    elif classifier_name.endswith("_imagenet"):
-        from model.imagenet_models import model_dict
-        return model_dict[classifier_name[:-9]](num_classes=num_classes, **params)
-    elif classifier_name.endswith("_sr"):
+    if classifier_name.endswith("_sr"):
         from model.super_resolution_model import model_dict
         return model_dict[classifier_name[:-3]](num_classes=num_classes, **params)
     else:
-        from model.basic_cifar_models import model_dict
-        return model_dict[classifier_name](num_classes=num_classes, **params)
+        raise KeyError()
 
 
 def load_models(hparams: dict) -> nn.ModuleList:
     num = len(hparams["pretrain_paths"])
     models: nn.ModuleList = nn.ModuleList([])
     for idx in range(num):
-        if hparams["pretrain_paths"][idx].startswith("predefined_"):
-            from model.basic_cifar_models import model_dict
-            model = model_dict[hparams["pretrain_paths"][idx][len("predefined_"):]]()
-        else:
-            checkpoint = torch.load(hparams["pretrain_paths"][idx], map_location='cpu')
-            try:
-                # If it's a lightning model
-                last_param = checkpoint['hyper_parameters']
-                if 'dataset' in hparams and hparams['dataset'] != 'concat':
-                    if last_param.dataset != hparams['dataset']:
-                        print(
-                            f"WARNING!!!!!!! Model trained on {last_param.dataset} will run on {hparams['dataset']}!!!!!!!")
-                    assert query_dataset(last_param.dataset).num_classes == query_dataset(
-                        hparams['dataset']).num_classes
+        checkpoint = torch.load(hparams["pretrain_paths"][idx], map_location='cpu')
+        try:
+            # If it's a lightning model
+            last_param = checkpoint['hyper_parameters']
+            if 'dataset' in hparams and hparams['dataset'] != 'concat':
+                if last_param.dataset != hparams['dataset']:
+                    print(
+                        f"WARNING!!!!!!! Model trained on {last_param.dataset} will run on {hparams['dataset']}!!!!!!!")
+                assert query_dataset(last_param.dataset).num_classes == query_dataset(
+                    hparams['dataset']).num_classes
 
-                model = get_classifier(last_param.backbone, last_param.dataset)
-                model.load_state_dict({key[6:]: value for key, value in checkpoint["state_dict"].items()})
-            except RuntimeError as e:
-                print("RuntimeError when loading models", e)
-                model = get_classifier(hparams["classifiers"][idx], hparams["dataset"])
-                model.load_state_dict(checkpoint["model"])
-            except TypeError as e:
-                print("TypeError when loading models", e)
-                # Maybe it's just a torch.save(model) and torch.load(model)
-                model = checkpoint
+            model = get_classifier(last_param.backbone, last_param.dataset)
+            model.load_state_dict({key[6:]: value for key, value in checkpoint["state_dict"].items()})
+        except RuntimeError as e:
+            print("RuntimeError when loading models", e)
+            model = get_classifier(hparams["classifiers"][idx], hparams["dataset"])
+            model.load_state_dict(checkpoint["model"])
+        except TypeError as e:
+            print("TypeError when loading models", e)
+            # Maybe it's just a torch.save(model) and torch.load(model)
+            model = checkpoint
         models.append(model)
     return models
 

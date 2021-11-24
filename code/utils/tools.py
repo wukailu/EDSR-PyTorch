@@ -1,78 +1,5 @@
 import numpy
 import numpy as np
-import os
-import pwd
-import json
-import pickle
-
-base_dir = "/home/kailu/.foundations/job_data/archive/"
-if os.path.exists(base_dir):
-    dirs = os.listdir(base_dir)
-else:
-    dirs = []
-hparams_cache = {}
-
-
-# TODO: add support for torch_stat
-
-def update_dirs():
-    global dirs, hparams_cache
-    if os.path.exists(base_dir):
-        dirs = os.listdir(base_dir)
-    else:
-        dirs = []
-    hparams_cache = {}
-
-
-def get_hparams(folder):
-    if folder in hparams_cache:
-        return hparams_cache[folder]
-
-    jpath = os.path.join(folder, "artifacts", 'foundations_job_parameters.json')
-    if os.path.exists(jpath):
-        user = pwd.getpwuid(os.stat(jpath).st_uid).pw_name
-        if user == 'root':
-            with open(jpath, 'r') as f:
-                params = json.load(f)
-            if 'project_name' in params:
-                hparams_cache[folder] = params
-                return params
-    hparams_cache[folder] = {'project_name': 'no_project'}
-    return {'project_name': 'no_project'}
-
-
-def get_artifacts(folder, name):
-    from fnmatch import fnmatch
-    prefix = os.path.join(folder, "user_artifacts")
-    items = [i for i in os.listdir(prefix) if fnmatch(i, name)]
-    if len(items) > 1:
-        print("Warning! Multiple matched artifacts, the first is selected: ", ";".join(items))
-    return os.path.join(prefix, items[0])
-
-
-def pkl_load_artifacts(folder, name="test_result.pkl", sub_item='test/result'):
-    with open(get_artifacts(folder, name), 'rb') as f:
-        ret = pickle.load(f)
-        if sub_item is not None:
-            return ret[sub_item]
-        return ret
-
-
-def get_targets(param_filter, hole_range=None):
-    if hole_range is None:
-        hole_range = dirs
-    hole_range = [d[len(base_dir):] if d.startswith(base_dir) else d for d in hole_range]
-    return [base_dir + d for d in hole_range if param_filter(get_hparams(base_dir + d))]
-
-
-def mean_results(param_filter):
-    return np.mean([pkl_load_artifacts(t) for t in get_targets(param_filter)], axis=0)
-
-
-def get_model_weight_hash(model):
-    import hashlib
-    d = frozenset({k: v.cpu().numpy() for k, v in model.state_dict().items()})
-    return hashlib.sha256(str(d).encode()).hexdigest()
 
 
 def all_list_to_tuple(my_dict):
@@ -82,19 +9,6 @@ def all_list_to_tuple(my_dict):
         return tuple(all_list_to_tuple(v) for v in my_dict)
     else:
         return my_dict
-
-
-def dict_filter(filter_dict, net_name=None):
-    def myfilter(params):
-        params = all_list_to_tuple(params)
-        for k in filter_dict:
-            if k not in params or params[k] != filter_dict[k]:
-                return False
-        if net_name is not None and net_name not in params['pretrain_paths'][0]:
-            return False
-        return True
-
-    return myfilter
 
 
 def parse_params(params: dict):
@@ -188,20 +102,12 @@ def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None,
                 global_seed=23336666, ignore_exist=False):
     import time
     time.sleep(0.5)
-    update_dirs()
     numpy.random.seed(global_seed)
     submitted_jobs = [{}]
     for idx in range(number_jobs):
         while True:
-            ignore = ignore_exist
             hyper_params = param_generator()
-            if 'ignore_exist' in hyper_params:
-                ignore = hyper_params['ignore_exist']
-                hyper_params.pop('ignore_exist')
-                check_params = {**hyper_params}
-                # check_params.pop('')
-            if (hyper_params not in submitted_jobs) and (
-                    (not ignore) or len(get_targets(dict_filter(hyper_params))) == 0):
+            if hyper_params not in submitted_jobs:
                 break
         submitted_jobs.append(hyper_params.copy())
 
@@ -215,7 +121,6 @@ def submit_jobs(param_generator, command: str, number_jobs=1, project_name=None,
         import utils.backend as backend
         backend.submit(scheduler_config='scheduler', job_directory=job_directory, command=command, params=hyper_params,
                        stream_job_logs=False, num_gpus=hyper_params["gpus"], project_name=name)
-
         print(f"Submit to {backend.name}, task {idx}, {hyper_params}")
 
 
@@ -284,22 +189,6 @@ def lists_to_tuples(val):
     return ret
 
 
-def cnt_all_combinations(obj):
-    comb = 1
-    if isinstance(obj, list):
-        comb = sum([cnt_all_combinations(i) for i in obj])
-    elif isinstance(obj, tuple):
-        for i in obj:
-            comb *= cnt_all_combinations(i)
-    elif isinstance(obj, dict):
-        for key, values in obj.items():
-            if isinstance(values, list) and key.endswith("_no_choice"):
-                continue
-            else:
-                comb *= cnt_all_combinations(values)
-    return comb
-
-
 def find_best_gpus(num_gpu_needs=1):
     import subprocess as sp
     gpu_ids = []
@@ -310,20 +199,3 @@ def find_best_gpus(num_gpu_needs=1):
     memory_free_values = sorted(memory_free_values)[::-1]
     gpu_ids = [k for m, k in memory_free_values[:num_gpu_needs]]
     return gpu_ids
-
-
-# def summarize_result(exp_filter):
-#     targets = get_targets(exp_filter)
-#     assert len(targets) > 0
-#     params = {t: get_hparams(t) for t in targets}
-#     example = params[targets[0]]
-#     for key, value in example.items():
-#         all_same = True
-#         for t in targets:
-#             if params[t][key] != value:
-#                 all_same = False
-#                 break
-#         if all_same:
-#             for t in targets:
-#                 params[t].pop(key)
-#

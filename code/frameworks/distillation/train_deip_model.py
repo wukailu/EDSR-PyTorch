@@ -6,7 +6,6 @@ sys.path.append(os.getcwd())
 from frameworks.superresolution.train_sr_model import test_SR_benchmark
 from model.layerwise_model import ConvertibleModel
 from frameworks.distillation.DEIP import load_model
-from frameworks.classification.train_single_model import get_params, prepare_params, train_model, inference_statics
 import utils.backend as backend
 
 if __name__ == "__main__":
