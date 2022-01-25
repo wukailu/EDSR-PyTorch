@@ -22,3 +22,5 @@ from .drrn import *
 from .memnet import *
 from .idn import *
 from .srfbn import *
+from .latticenet import *
+from .swinIR import *

@@ -8,19 +8,18 @@ from model.layerwise_model import ConvertibleLayer, pad_const_channel, Convertib
     ConvLayer
 import torch
 
-from model.super_resolution_model import RDB_Layerwise
-
 if __name__ == '__main__':
     target_size = (1920, 1080)
     # target_size = (960, 540)
+    scale = 4
 
-    params = {
-        'arch': 'Plain_layerwise_sr',
-        'n_feats': 100,
-        'num_modules': 35,
-        'scale': 4,
-        'n_colors': 3,
-    }
+    # params = {
+    #     'arch': 'Plain_layerwise_sr',
+    #     'n_feats': 100,
+    #     'num_modules': 35,
+    #     'scale': 4,
+    #     'n_colors': 3,
+    # }
     # params = {
     #     'arch': 'Plain_layerwise_sr',
     #     'widths': [3, 15, 25, 36, 61, 51, 81, 62, 97, 68, 105, 70, 113, 72, 114, 73, 120, 74, 125, 74, 126, 74, 129, 74, 131, 74, 133, 74, 133, 74, 132, 74, 131, 75, 64],
@@ -46,23 +45,27 @@ if __name__ == '__main__':
     #     'n_colors': 3,
     #     'scale': 4,
     # }
-    # params = {
-    #     # 'arch': 'srcnn_sr',
-    #     # 'arch': 'fsrcnn_sr',
-    #     # 'arch': 'VDSR_sr',
-    #     # 'arch': 'drrn_sr',
-    #     # 'arch': 'memnet_sr',
-    #     # 'arch': 'carn_sr',
-    #     # 'arch': 'idn_sr',
-    #     # 'arch': 'SRFBN_sr',
-    #     # 'arch': 'IMDN_sr',
-    #     # 'arch': 'EDSR_sr',
-    #     'arch': 'EDSR_layerwise_sr',
-    #     'simple_tail': True,
-    #     'multi_scale': True,
-    #     'scale': 2,
-    #     'n_colors': 3,
-    # }
+    params = {
+        # 'arch': 'srcnn_sr',
+        # 'arch': 'fsrcnn_sr',
+        # 'arch': 'VDSR_sr',
+        # 'arch': 'drrn_sr',
+        # 'arch': 'memnet_sr',
+        # 'arch': 'carn_sr',
+        # 'arch': 'idn_sr',
+        # 'arch': 'SRFBN_sr',
+        # 'arch': 'IMDN_sr',
+        # 'arch': 'EDSR_sr',
+        # 'arch': 'EDSR_layerwise_sr',
+        # 'arch': 'HAN_sr',
+        'arch': 'RFDN_sr',
+        # 'arch': 'LatticeNet_sr',
+        # 'arch': 'SwinIR_sr',
+        'simple_tail': True,
+        'multi_scale': True,
+        'scale': scale,
+        'n_colors': 3,
+    }
     print(params['arch'])
     model = get_classifier(params, "DIV2K")
     x_test = torch.randint(0, 255, (2, params['n_colors'], 24, 24)).float()

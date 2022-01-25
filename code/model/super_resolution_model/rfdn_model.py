@@ -11,17 +11,14 @@ def RFDN(**kwargs):
 
 
 class RFDN_Model(nn.Module):
-    def __init__(self, in_nc=3, n_feats=50, out_nc=3, scale=4, **kwargs):
+    def __init__(self, in_nc=3, n_feats=48, out_nc=3, scale=4, n_resgroups=6, **kwargs):
         super(RFDN_Model, self).__init__()
 
         nf = n_feats
         self.fea_conv = conv_layer(in_nc, nf, kernel_size=3)
 
-        num_modules = 4
-        self.B1 = RFDB(in_channels=nf)
-        self.B2 = RFDB(in_channels=nf)
-        self.B3 = RFDB(in_channels=nf)
-        self.B4 = RFDB(in_channels=nf)
+        num_modules = n_resgroups
+        self.blocks = nn.ModuleList([RFDB(in_channels=nf) for i in range(num_modules)])
 
         self.c = conv_block(nf * num_modules, nf, kernel_size=1, act_type='lrelu')
 
@@ -32,12 +29,13 @@ class RFDN_Model(nn.Module):
 
     def forward(self, input):
         out_fea = self.fea_conv(input)
-        out_B1 = self.B1(out_fea)
-        out_B2 = self.B2(out_B1)
-        out_B3 = self.B3(out_B2)
-        out_B4 = self.B4(out_B3)
+        outs = []
+        x = out_fea
+        for block in self.blocks:
+            x = block(x)
+            outs.append(x)
 
-        out_B = self.c(torch.cat([out_B1, out_B2, out_B3, out_B4], dim=1))
+        out_B = self.c(torch.cat(outs, dim=1))
         out_lr = self.LR_conv(out_B) + out_fea
 
         output = self.upsampler(out_lr)
