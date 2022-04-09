@@ -11,7 +11,7 @@ import torch
 if __name__ == '__main__':
     target_size = (1920, 1080)
     # target_size = (960, 540)
-    scale = 4
+    scale = 3
 
     # params = {
     #     'arch': 'Plain_layerwise_sr',
@@ -58,11 +58,13 @@ if __name__ == '__main__':
         # 'arch': 'EDSR_sr',
         # 'arch': 'EDSR_layerwise_sr',
         # 'arch': 'HAN_sr',
-        'arch': 'RFDN_sr',
+        # 'arch': 'RFDN_sr',
         # 'arch': 'LatticeNet_sr',
         # 'arch': 'SwinIR_sr',
-        'simple_tail': True,
-        'multi_scale': True,
+        'arch': 'LAPAR_sr',
+        'type': 'A',
+        # 'simple_tail': True,
+        # 'multi_scale': True,
         'scale': scale,
         'n_colors': 3,
     }

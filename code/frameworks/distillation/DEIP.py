@@ -134,6 +134,7 @@ class DEIP_LightModel(LightningModule):
             'init_stu_with_teacher': False,
             'teacher_pretrain_path': None,
             'init_tail': False,
+            'no_init_tail': False,
             'std_align': False,
             'fix_r': -1,
             'conv_init': "kaiming_normal",
@@ -608,7 +609,7 @@ class DEIP_Init(DEIP_Distillation):
                 else:
                     self.append_layer(widths[i], widths[i + 1], f_shapes[i], f_shapes[i + 1])
         self.append_tail(widths[-2], widths[-1])
-        if self.params['init_stu_with_teacher'] or self.params['init_tail']:
+        if (self.params['init_stu_with_teacher'] or self.params['init_tail']) and (not self.params['no_init_tail']):
             self.teacher_plain_model.sequential_models[-1].init_student(self.plain_model[-1], torch.eye(widths[-2]))
             print('Tail initialized')
 

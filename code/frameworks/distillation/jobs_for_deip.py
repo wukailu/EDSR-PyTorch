@@ -559,6 +559,31 @@ def params_for_EXP_main_x4():
     return {**templates['DIV2Kx4-EXP'], **params}
 
 
+def params_for_EXP_tail_x4():
+    params = {
+        'project_name': 'CVPR_EXP_TAIL_x4',
+        'method': 'DEIP_Init',
+        'fix_r': 64,
+        'init_stu_with_teacher': 1,
+        'no_init_tail': 1,
+        # 'init_stu_with_teacher': 0,
+        # 'init_tail': 1,
+        'distill_coe': 0,
+        'teacher_pretrain_path': pretrain_paths['EDSR64_newtail_x4'],
+        'layer_type': 'normal_no_bn',
+        'ridge_alpha': 0,
+        'distill_alpha': 1e-5,
+        'dist_method': {
+            'name': 'BridgeDistill',
+            'distill_loss': 'MSE',
+        },
+        # 'seed': [233, 234],
+        'seed': [235, 236],
+    }
+
+    return {**templates['DIV2Kx4-EXP'], **params}
+
+
 def params_for_EXP_Baseline_x4():
     params = {
         'project_name': 'CVPR_EXP_Baseline_x4',
@@ -828,8 +853,9 @@ def params_for_deip():
 
     # params = params_for_EXP_main_x2()
     # params = params_for_EXP_main_x3()
-    params = params_for_EXP_main_x4()
+    # params = params_for_EXP_main_x4()
     # params = params_for_EXP_ablation_x4()
+    params = params_for_EXP_tail_x4()
 
     # params = params_for_EXP_cmp_init()
 
@@ -851,4 +877,4 @@ def params_for_deip():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=100, job_directory='.')
+    submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=2, job_directory='.')
