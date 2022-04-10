@@ -577,8 +577,8 @@ def params_for_EXP_tail_x4():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
-        # 'seed': [233, 234],
-        'seed': [235, 236],
+        'seed': [233, 234, 235, 236],
+        # 'seed': [235, 236],
     }
 
     return {**templates['DIV2Kx4-EXP'], **params}
@@ -877,4 +877,4 @@ def params_for_deip():
 
 
 if __name__ == "__main__":
-    submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=2, job_directory='.')
+    submit_jobs(params_for_deip, 'frameworks/distillation/train_deip_model.py', number_jobs=4, job_directory='.')
