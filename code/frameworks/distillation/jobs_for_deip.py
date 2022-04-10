@@ -577,7 +577,7 @@ def params_for_EXP_tail_x4():
             'name': 'BridgeDistill',
             'distill_loss': 'MSE',
         },
-        'seed': [233, 234, 235, 236],
+        'seed': [233, 234],
         # 'seed': [235, 236],
     }
 
